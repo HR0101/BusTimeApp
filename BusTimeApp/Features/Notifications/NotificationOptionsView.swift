@@ -6,6 +6,7 @@ struct NotificationOptionsView: View {
     let scheduledNotification: ScheduledBusNotification?
     let permissionStatus: BusNotificationPermission
     let liveActivityBusID: String?
+    let onOpenNotificationSettings: () -> Void
     let onSchedule: (Int) -> Void
     let onStartLiveActivity: () -> Void
     let onEndLiveActivity: () -> Void
@@ -120,9 +121,14 @@ struct NotificationOptionsView: View {
             }
 
             if permissionStatus == .denied {
-                Text("通知が許可されていません。設定後にもう一度このボタンを押してください。")
-                    .font(.caption)
-                    .foregroundStyle(Color.neumoWarning)
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("通知が許可されていません。")
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(Color.neumoWarning)
+                    Button("iPhoneの設定で通知を許可する", action: onOpenNotificationSettings)
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(Color.neumoAccentDeep)
+                }
             }
         }
     }

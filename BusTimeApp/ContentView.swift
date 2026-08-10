@@ -585,6 +585,7 @@ struct ContentView: View {
                         scheduledNotification: notificationViewModel.notification(for: bus.id),
                         permissionStatus: notificationViewModel.permissionStatus,
                         liveActivityBusID: viewModel.trackedBusId,
+                        onOpenNotificationSettings: notificationViewModel.openNotificationSettings,
                         onSchedule: { minutes in scheduleNotification(minutes: minutes) },
                         onStartLiveActivity: {
                             viewModel.startLiveActivity(for: bus)

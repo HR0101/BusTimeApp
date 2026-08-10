@@ -1,6 +1,5 @@
 import Foundation
 import Combine
-import UserNotifications
 import ActivityKit
 import CoreLocation
 
@@ -481,81 +480,6 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
         
         // 計算が終わった後、UIに反映させる
         self.countdownMessages = newMessages
-    }
-    
-    // MARK: - Notification (通知) 関連のメソッド
-    
-    // 通知の許可をユーザーに求めます
-    func requestNotificationPermission() {
-        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { granted, error in
-            if let error = error {
-                print("通知許可エラー: \(error)")
-            }
-        }
-    }
-    
-    // 指定したバスの出発（到着）時刻の何分か前に通知をスケジュールします
-    func scheduleNotification(for bus: Bus, minutesBefore: Int, completion: @escaping (Bool) -> Void) {
-        requestNotificationPermission()
-        
-        guard let busDate = timeStringToDate(bus.departure) else { 
-            completion(false)
-            return 
-        }
-        
-        let now = Date()
-            let calendar = Calendar.current
-            
-            // 現在時刻（秒切り捨て）
-            let nowComponents = calendar.dateComponents([.year, .month, .day, .hour, .minute], from: now)
-            let nowTruncated = calendar.date(from: nowComponents) ?? now
-            
-            var busComponents = calendar.dateComponents([.hour, .minute], from: busDate)
-            busComponents.year = calendar.component(.year, from: now)
-            busComponents.month = calendar.component(.month, from: now)
-            busComponents.day = calendar.component(.day, from: now)
-            
-            guard var targetDate = calendar.date(from: busComponents) else {
-                completion(false)
-                return
-            }
-            
-            // 現在時刻より前の時間のバスの場合、翌日の便として扱う（秒のズレを防ぐため truncated を使用）
-            if targetDate < nowTruncated {
-                targetDate = calendar.date(byAdding: .day, value: 1, to: targetDate)!
-            }
-            
-            guard let notificationTime = calendar.date(byAdding: .minute, value: -minutesBefore, to: targetDate) else {
-                completion(false)
-                return
-            }
-            
-            // 設定した通知時間が過去の場合はエラー
-            if notificationTime < nowTruncated {
-                completion(false)
-                return
-            }
-        
-        let content = UNMutableNotificationContent()
-        content.title = "バスの出発時間が近づいています"
-        content.body = "\(bus.originName) \(bus.departure)発、\(bus.destinationName)行きのバスがあと\(minutesBefore)分で出発します。"
-        content.sound = .default
-        
-        let triggerComponents = calendar.dateComponents([.year, .month, .day, .hour, .minute], from: notificationTime)
-        let trigger = UNCalendarNotificationTrigger(dateMatching: triggerComponents, repeats: false)
-        
-        let request = UNNotificationRequest(identifier: "bus_notification_\(bus.id)", content: content, trigger: trigger)
-        
-        UNUserNotificationCenter.current().add(request) { error in
-            DispatchQueue.main.async {
-                if let error = error {
-                    print("通知登録エラー: \(error)")
-                    completion(false)
-                } else {
-                    completion(true)
-                }
-            }
-        }
     }
     
     // MARK: - Live Activity 関連のメソッド
