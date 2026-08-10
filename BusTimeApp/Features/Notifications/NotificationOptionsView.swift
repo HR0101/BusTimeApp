@@ -133,6 +133,14 @@ struct NotificationOptionsView: View {
                         .foregroundStyle(Color.neumoAccentDeep)
                 }
             }
+
+            Label(
+                "この通知は時刻表の予定時刻を基準にしています。遅延や運休は自動では反映されません。",
+                systemImage: "info.circle"
+            )
+            .font(.caption2)
+            .foregroundStyle(Color.neumoMuted)
+            .fixedSize(horizontal: false, vertical: true)
         }
     }
 
