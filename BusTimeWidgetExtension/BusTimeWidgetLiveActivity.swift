@@ -46,10 +46,7 @@ struct BusTimeWidgetLiveActivity: Widget {
                             .foregroundColor(Color.gray)
                         
                         HStack(alignment: .lastTextBaseline, spacing: 2) {
-                            Text("\(context.state.remainingMinutes)")
-                                .font(.system(size: 34, weight: .heavy, design: .rounded))
-                                .foregroundColor(Color(red: 0.15, green: 0.50, blue: 0.75)) // columbusBlue
-                            Text("分")
+                            Text(context.attributes.departureDate, style: .timer)
                                 .font(.headline.bold())
                                 .foregroundColor(Color(red: 0.15, green: 0.50, blue: 0.75))
                         }
@@ -68,8 +65,8 @@ struct BusTimeWidgetLiveActivity: Widget {
                         .font(.headline)
                 }
                 DynamicIslandExpandedRegion(.trailing) {
-                    if !context.state.isDeparted {
-                        Text("\(context.state.remainingMinutes) 分")
+                if !context.state.isDeparted {
+                        Text(context.attributes.departureDate, style: .timer)
                             .font(.title2.bold())
                             .foregroundColor(.red)
                     } else {
@@ -87,7 +84,7 @@ struct BusTimeWidgetLiveActivity: Widget {
                     .foregroundColor(.blue)
             } compactTrailing: {
                 if !context.state.isDeparted {
-                    Text("\(context.state.remainingMinutes)m")
+                    Text(context.attributes.departureDate, style: .timer)
                         .foregroundColor(.red)
                         .bold()
                 } else {
