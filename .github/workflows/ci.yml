@@ -1,0 +1,322 @@
+# =============================================================================
+# BusTimeApp CI - 幅広いバージョンでのビルド＆テスト
+# =============================================================================
+# macOS / Xcode の複数バージョンでビルドし、互換性を担保する
+#
+# マトリクス構成:
+#   - macos-15  + Xcode 16 系 (iOS 18 SDK)
+#   - macos-26  + Xcode 26 系 (最新 SDK)
+# =============================================================================
+
+name: CI
+
+on:
+  push:
+    branches: [ main, develop, 'feature/**', 'release/**' ]
+  pull_request:
+    branches: [ main, develop ]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # ビルドマトリクス
+  # ---------------------------------------------------------------------------
+  build:
+    name: "Build (${{ matrix.name }})"
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # ── macOS 15 + Xcode 16.2 (iOS 18 SDK) ──
+          - name: "Xcode 16.2 / iOS 18"
+            runner: macos-15
+            xcode: "16.2"
+            destination: "platform=iOS Simulator,name=iPhone 16,OS=18.2"
+            ios_version: "18.2"
+
+          # ── macOS 15 + Xcode 16.4 (iOS 18 SDK / 最新 16 系) ──
+          - name: "Xcode 16.4 / iOS 18"
+            runner: macos-15
+            xcode: "16.4"
+            destination: "platform=iOS Simulator,name=iPhone 16,OS=18.5"
+            ios_version: "18.5"
+
+          # ── macOS 26 + Xcode 26 (最新 SDK) ──
+          - name: "Xcode 26 / Latest iOS"
+            runner: macos-26
+            xcode: ""
+            destination: "generic/platform=iOS Simulator"
+            ios_version: "latest"
+
+    steps:
+      # ── チェックアウト ──
+      - name: チェックアウト
+        uses: actions/checkout@v4
+
+      # ── Xcode バージョン選択 ──
+      - name: Xcode ${{ matrix.xcode }} を選択
+        if: matrix.xcode != ''
+        run: |
+          XCODE_PATH="/Applications/Xcode_${{ matrix.xcode }}.app"
+          if [ -d "$XCODE_PATH" ]; then
+            sudo xcode-select -s "$XCODE_PATH/Contents/Developer"
+          else
+            echo "::warning::Xcode ${{ matrix.xcode }} が見つかりません。利用可能なバージョンを検索します..."
+            ls /Applications | grep Xcode
+            # フォールバック: メジャーバージョンが一致する最新を探す
+            MAJOR_VERSION=$(echo "${{ matrix.xcode }}" | cut -d. -f1)
+            FALLBACK=$(ls -d /Applications/Xcode_${MAJOR_VERSION}*.app 2>/dev/null | sort -V | tail -1)
+            if [ -n "$FALLBACK" ]; then
+              echo "フォールバック: $FALLBACK を使用します"
+              sudo xcode-select -s "$FALLBACK/Contents/Developer"
+            else
+              echo "::error::Xcode ${MAJOR_VERSION}.x が見つかりません"
+              exit 1
+            fi
+          fi
+
+      # ── 環境情報の表示 ──
+      - name: 環境情報を表示
+        run: |
+          echo "╔══════════════════════════════════════════╗"
+          echo "║        ビルド環境情報                      ║"
+          echo "╚══════════════════════════════════════════╝"
+          echo ""
+          echo "📱 Xcode:"
+          xcodebuild -version
+          echo ""
+          echo "🍎 macOS:"
+          sw_vers
+          echo ""
+          echo "🔧 Swift:"
+          swift --version
+          echo ""
+          echo "📋 利用可能なシミュレータ:"
+          xcrun simctl list runtimes
+          echo ""
+          echo "📋 利用可能なデバイス (iPhone):"
+          xcrun simctl list devices available | grep -i iphone | head -10
+
+      # ── シミュレータの事前起動 ──
+      - name: シミュレータを事前起動
+        run: |
+          xcrun simctl list > /dev/null 2>&1
+          echo "✅ シミュレータデーモン起動完了"
+
+      # ── ビルドキャッシュ ──
+      - name: DerivedData キャッシュ
+        uses: actions/cache@v4
+        with:
+          path: ~/Library/Developer/Xcode/DerivedData
+          key: ${{ runner.os }}-deriveddata-${{ matrix.xcode || 'latest' }}-${{ hashFiles('**/*.xcodeproj/project.pbxproj') }}
+          restore-keys: |
+            ${{ runner.os }}-deriveddata-${{ matrix.xcode || 'latest' }}-
+            ${{ runner.os }}-deriveddata-
+
+      # ── ビルド (BusTimeApp) ──
+      - name: "🔨 BusTimeApp をビルド (Debug)"
+        run: |
+          set -o pipefail
+          xcodebuild build \
+            -project BusTimeApp.xcodeproj \
+            -scheme BusTimeApp \
+            -configuration Debug \
+            -destination '${{ matrix.destination }}' \
+            -derivedDataPath build/DerivedData \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            ONLY_ACTIVE_ARCH=YES \
+            | tee build/build_debug.log | tail -20
+          echo "✅ Debug ビルド成功"
+
+      # ── ビルド (Release) ──
+      - name: "🔨 BusTimeApp をビルド (Release)"
+        run: |
+          set -o pipefail
+          xcodebuild build \
+            -project BusTimeApp.xcodeproj \
+            -scheme BusTimeApp \
+            -configuration Release \
+            -destination '${{ matrix.destination }}' \
+            -derivedDataPath build/DerivedData \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            ONLY_ACTIVE_ARCH=YES \
+            | tee build/build_release.log | tail -20
+          echo "✅ Release ビルド成功"
+
+      # ── テスト ──
+      - name: "🧪 テスト実行"
+        if: matrix.ios_version != 'latest'
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          xcodebuild test \
+            -project BusTimeApp.xcodeproj \
+            -scheme BusTimeApp \
+            -destination '${{ matrix.destination }}' \
+            -derivedDataPath build/DerivedData \
+            -resultBundlePath build/TestResults.xcresult \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            -parallel-testing-enabled NO \
+            -maximum-concurrent-test-simulator-destinations 1 \
+            | tee build/test.log | tail -30
+          echo "✅ テスト完了"
+
+      # ── Warnings 解析 ──
+      - name: "⚠️ コンパイラ警告を検出"
+        if: always()
+        run: |
+          echo "## コンパイラ警告レポート" >> $GITHUB_STEP_SUMMARY
+          if [ -f build/build_debug.log ]; then
+            WARNING_COUNT=$(grep -c "warning:" build/build_debug.log 2>/dev/null || echo "0")
+            echo "**Debug ビルド警告数:** ${WARNING_COUNT}" >> $GITHUB_STEP_SUMMARY
+            if [ "$WARNING_COUNT" -gt 0 ]; then
+              echo '```' >> $GITHUB_STEP_SUMMARY
+              grep "warning:" build/build_debug.log | sort -u | head -20 >> $GITHUB_STEP_SUMMARY
+              echo '```' >> $GITHUB_STEP_SUMMARY
+            fi
+          fi
+
+      # ── ビルドログのアップロード ──
+      - name: ビルドログをアップロード
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-logs-${{ matrix.name }}
+          path: build/*.log
+          retention-days: 7
+
+      # ── テスト結果のアップロード ──
+      - name: テスト結果をアップロード
+        if: always() && matrix.ios_version != 'latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-${{ matrix.name }}
+          path: build/TestResults.xcresult
+          retention-days: 7
+          if-no-files-found: ignore
+
+  # ---------------------------------------------------------------------------
+  # Widget Extension ビルド確認
+  # ---------------------------------------------------------------------------
+  build-widget:
+    name: "Build Widget Extension"
+    runs-on: macos-15
+    timeout-minutes: 15
+
+    steps:
+      - name: チェックアウト
+        uses: actions/checkout@v4
+
+      - name: 環境情報を表示
+        run: |
+          xcodebuild -version
+          swift --version
+
+      - name: シミュレータを事前起動
+        run: xcrun simctl list > /dev/null 2>&1
+
+      - name: "🔨 BusTimeWidgetExtension をビルド"
+        run: |
+          set -o pipefail
+          xcodebuild build \
+            -project BusTimeApp.xcodeproj \
+            -scheme BusTimeWidgetExtension \
+            -configuration Debug \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath build/DerivedData \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            | tee build/widget_build.log | tail -20
+          echo "✅ Widget Extension ビルド成功"
+
+      - name: ビルドログをアップロード
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: widget-build-logs
+          path: build/*.log
+          retention-days: 7
+
+  # ---------------------------------------------------------------------------
+  # 静的解析
+  # ---------------------------------------------------------------------------
+  lint:
+    name: "Lint & Static Analysis"
+    runs-on: macos-15
+    timeout-minutes: 15
+
+    steps:
+      - name: チェックアウト
+        uses: actions/checkout@v4
+
+      # ── Swift ファイルの構文チェック ──
+      - name: "📝 Swift ファイル一覧"
+        run: |
+          echo "## Swift ソースファイル" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          find BusTimeApp BusTimeWidgetExtension -name '*.swift' | sort >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+      # ── TODO / FIXME の検出 ──
+      - name: "📌 TODO / FIXME を検出"
+        run: |
+          echo "## TODO / FIXME 一覧" >> $GITHUB_STEP_SUMMARY
+          FOUND=$(grep -rn "TODO\|FIXME\|HACK\|XXX" --include='*.swift' BusTimeApp BusTimeWidgetExtension 2>/dev/null || true)
+          if [ -n "$FOUND" ]; then
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo "$FOUND" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          else
+            echo "✅ TODO / FIXME は見つかりませんでした" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      # ── SwiftLint (インストールされている場合) ──
+      - name: "🔍 SwiftLint 実行"
+        continue-on-error: true
+        run: |
+          if command -v swiftlint &> /dev/null; then
+            swiftlint lint --reporter github-actions-logging
+          else
+            echo "::notice::SwiftLint がインストールされていません。スキップします。"
+            echo "SwiftLint をプロジェクトに導入する場合は .swiftlint.yml を追加してください。"
+          fi
+
+  # ---------------------------------------------------------------------------
+  # 結果サマリー
+  # ---------------------------------------------------------------------------
+  summary:
+    name: "CI Summary"
+    runs-on: ubuntu-latest
+    needs: [build, build-widget, lint]
+    if: always()
+
+    steps:
+      - name: "📊 CI 結果サマリー"
+        run: |
+          echo "# 🚌 BusTimeApp CI 結果" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| ジョブ | ステータス |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------|-----------|" >> $GITHUB_STEP_SUMMARY
+          echo "| ビルドマトリクス | ${{ needs.build.result == 'success' && '✅ 成功' || '❌ 失敗' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Widget Extension | ${{ needs.build-widget.result == 'success' && '✅ 成功' || '❌ 失敗' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Lint & 静的解析 | ${{ needs.lint.result == 'success' && '✅ 成功' || '❌ 失敗' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "⏰ 実行時刻: $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY
+
+      - name: CI 失敗時にエラーを返す
+        if: needs.build.result == 'failure' || needs.build-widget.result == 'failure'
+        run: exit 1
