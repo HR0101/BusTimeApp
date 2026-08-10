@@ -7,6 +7,7 @@ enum AppEvent {
     case launch
     case showTutorial
     case showSettings
+    case showNotifications
     case selectBus(Bus)
     case notificationScheduled(String)
     case liveActivityFailed(String)
@@ -20,6 +21,7 @@ enum AppState: Equatable {
     case dashboard
     case tutorial
     case settings
+    case notifications
     case notificationOptions
     case notificationResult
     case liveActivityError
@@ -68,6 +70,10 @@ final class AppCoordinator: ObservableObject {
             guard state == .dashboard else { return }
             state = .settings
 
+        case .showNotifications:
+            guard state == .dashboard else { return }
+            state = .notifications
+
         case let .selectBus(bus):
             guard state == .dashboard else { return }
             selectedBus = bus
@@ -99,6 +105,7 @@ final class AppCoordinator: ObservableObject {
 
     var isTutorialPresented: Bool { state == .tutorial }
     var isSettingsPresented: Bool { state == .settings }
+    var isNotificationsPresented: Bool { state == .notifications }
     var isNotificationOptionsPresented: Bool { state == .notificationOptions }
     var isNotificationResultPresented: Bool { state == .notificationResult }
     var isLiveActivityErrorPresented: Bool { state == .liveActivityError }

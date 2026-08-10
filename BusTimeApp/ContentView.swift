@@ -516,6 +516,7 @@ struct ContentView: View {
     @StateObject private var viewModel = HomeViewModel()
     @StateObject private var coordinator = AppCoordinator()
     @StateObject private var settingsViewModel = SettingsViewModel()
+    @StateObject private var notificationViewModel = NotificationViewModel()
     @Environment(\.scenePhase) private var scenePhase
 
     private var currentDesignMode: AppDesignMode {
@@ -541,7 +542,7 @@ struct ContentView: View {
                 coordinator.send(.launch)
                 viewModel.performSearch()
                 viewModel.checkLocationAndSetRoute()
-                viewModel.requestNotificationPermission()
+                notificationViewModel.refresh()
             }
             .onChange(of: scenePhase) { _, newPhase in
                 if newPhase == .active {
@@ -569,23 +570,28 @@ struct ContentView: View {
                     .environment(\.appDesignMode, currentDesignMode)
                     .presentationDragIndicator(.visible)
             }
-            .confirmationDialog("通知・トラッキングを設定", isPresented: Binding(
+            .sheet(isPresented: Binding(
                 get: { coordinator.isNotificationOptionsPresented },
                 set: { if !$0 { coordinator.send(.dismiss) } }
-            ), titleVisibility: .visible) {
-                Button("常に画面に表示  (Live Activity)") {
-                    if let bus = coordinator.selectedBus {
-                        viewModel.startLiveActivity(for: bus)
-                        coordinator.send(.dismiss)
-                    }
-                }
-                Button("5分前に通知") { scheduleNotification(minutes: 5) }
-                Button("10分前に通知") { scheduleNotification(minutes: 10) }
-                Button("15分前に通知") { scheduleNotification(minutes: 15) }
-                Button("キャンセル", role: .cancel) { }
-            } message: {
+            )) {
                 if let bus = coordinator.selectedBus {
-                    Text("\(bus.originName) \(bus.departure)発、\(bus.destinationName)行き")
+                    NotificationOptionsView(
+                        bus: bus,
+                        routeName: viewModel.selectedRoute.rawValue,
+                        scheduledNotification: notificationViewModel.notification(for: bus.id),
+                        permissionStatus: notificationViewModel.permissionStatus,
+                        liveActivityBusID: viewModel.trackedBusId,
+                        onSchedule: { minutes in scheduleNotification(minutes: minutes) },
+                        onStartLiveActivity: {
+                            viewModel.startLiveActivity(for: bus)
+                            coordinator.send(.dismiss)
+                        },
+                        onEndLiveActivity: {
+                            viewModel.endLiveActivity()
+                        }
+                    )
+                    .environment(\.appDesignMode, currentDesignMode)
+                    .presentationDragIndicator(.visible)
                 }
             }
             .alert("通知設定", isPresented: Binding(
@@ -815,11 +821,19 @@ struct ContentView: View {
 
     private func scheduleNotification(minutes: Int) {
         guard let bus = coordinator.selectedBus else { return }
-        viewModel.scheduleNotification(for: bus, minutesBefore: minutes) { success in
-            let message = success
-                ? "\(bus.originName) \(bus.departure)発の\(minutes)分前に通知を設定しました。"
-                : "通知の設定に失敗しました。すでに過去の時間か、通知が許可されていません。"
-            coordinator.send(.notificationScheduled(message))
+        notificationViewModel.scheduleNotification(
+            for: bus,
+            routeName: viewModel.selectedRoute.rawValue,
+            minutesBefore: minutes
+        ) { result in
+            switch result {
+            case let .success(item):
+                coordinator.send(.notificationScheduled(
+                    "通知を設定しました。\n\n\(item.busDescription)\n\(item.notificationDescription)にお知らせします。\n\n※時刻表の予定です。遅延・運休は反映されません。"
+                ))
+            case let .failure(error):
+                coordinator.send(.notificationScheduled(error.localizedDescription))
+            }
         }
     }
 }
