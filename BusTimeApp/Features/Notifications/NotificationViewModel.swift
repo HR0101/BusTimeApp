@@ -70,7 +70,7 @@ final class NotificationViewModel: ObservableObject {
 
             let content = UNMutableNotificationContent()
             content.title = "バスの時間をお知らせします"
-            content.body = "(item.busDescription)が、あと(minutesBefore)分で出発します。\n※時刻表の予定です。遅延・運休は反映されません。"
+            content.body = "\(item.busDescription)が、あと\(minutesBefore)分で出発します。\n※時刻表の予定です。遅延・運休は反映されません。"
             content.sound = .default
 
             let components = Calendar.current.dateComponents(

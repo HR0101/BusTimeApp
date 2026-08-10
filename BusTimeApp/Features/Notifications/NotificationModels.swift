@@ -57,7 +57,7 @@ struct ScheduledBusNotification: Identifiable, Codable, Equatable {
     }
 
     var notificationDescription: String {
-        "(minutesBefore)分前（(BusNotificationTimeCalculator.displayString(notificationDate))）"
+        "\(minutesBefore)分前（\(BusNotificationTimeCalculator.displayString(notificationDate))）"
     }
 }
 

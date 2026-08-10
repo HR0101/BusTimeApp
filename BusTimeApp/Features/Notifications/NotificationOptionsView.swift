@@ -79,9 +79,12 @@ struct NotificationOptionsView: View {
                 .foregroundStyle(Color.neumoText)
 
             if let scheduledNotification {
-                Text("現在の設定：(scheduledNotification.notificationDescription)")
+                Text("現在の設定：\(scheduledNotification.notificationDescription)")
                     .font(.caption.weight(.bold))
                     .foregroundStyle(Color.neumoAccentDeep)
+                Text("同じ便の通知は1件だけ設定できます。選び直すと通知時刻が変更されます。")
+                    .font(.caption2)
+                    .foregroundStyle(Color.neumoMuted)
             }
 
             ForEach(reminderMinutes, id: \.self) { minutes in
@@ -99,7 +102,7 @@ struct NotificationOptionsView: View {
                             .foregroundStyle(Color.neumoAccent)
                             .frame(width: 32)
                         VStack(alignment: .leading, spacing: 3) {
-                            Text("(minutes)分前に通知")
+                            Text("\(minutes)分前に通知")
                                 .font(.subheadline.weight(.bold))
                             Text(schedule.map { "通知時刻：\(BusNotificationTimeCalculator.displayString($0.notificationDate))" } ?? "この便では設定できません")
                                 .font(.caption)
