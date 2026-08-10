@@ -2,6 +2,7 @@ import Foundation
 import Combine
 import ActivityKit
 import CoreLocation
+import UIKit
 
 // このクラスが、アプリの状態とロジックを管理します。
 // ObservableObjectなので、SwiftUIのView（画面）はこのクラスのプロパティの変更を監視できます。
@@ -583,6 +584,11 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
             self.trackedBusId = nil
             self.lastActivityRemainingMinutes = nil
         }
+    }
+
+    func openAppSettings() {
+        guard let url = URL(string: UIApplication.openSettingsURLString) else { return }
+        UIApplication.shared.open(url)
     }
     
     // 現在選択されているルートの全時刻表を返します。

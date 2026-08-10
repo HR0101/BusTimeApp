@@ -629,6 +629,11 @@ struct ContentView: View {
                     } }
                 )
             ) {
+                Button("設定を確認") {
+                    viewModel.openAppSettings()
+                    viewModel.liveActivityError = nil
+                    coordinator.send(.clearError)
+                }
                 Button("OK") {
                     viewModel.liveActivityError = nil
                     coordinator.send(.clearError)
