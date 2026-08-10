@@ -575,6 +575,18 @@ struct ContentView: View {
                     .presentationDragIndicator(.visible)
             }
             .sheet(isPresented: Binding(
+                get: { coordinator.isNotificationsPresented },
+                set: { if !$0 { coordinator.send(.dismiss) } }
+            )) {
+                NotificationManagementView(
+                    viewModel: notificationViewModel,
+                    liveActivityBusID: viewModel.trackedBusId,
+                    onEndLiveActivity: viewModel.endLiveActivity
+                )
+                .environment(\.appDesignMode, currentDesignMode)
+                .presentationDragIndicator(.visible)
+            }
+            .sheet(isPresented: Binding(
                 get: { coordinator.isNotificationOptionsPresented },
                 set: { if !$0 { coordinator.send(.dismiss) } }
             )) {
@@ -677,7 +689,9 @@ struct ContentView: View {
         VStack(spacing: 20) {
             ClayHeaderBar(
                 helpAction: { coordinator.send(.showTutorial) },
-                settingsAction: { coordinator.send(.showSettings) }
+                settingsAction: { coordinator.send(.showSettings) },
+                notificationAction: { coordinator.send(.showNotifications) },
+                notificationCount: notificationViewModel.scheduledNotifications.count
             )
 
             if case let .serviceUnavailable(message) = viewModel.state {
@@ -767,6 +781,21 @@ struct ContentView: View {
             Spacer()
 
             HStack(spacing: 10) {
+                Button {
+                    coordinator.send(.showNotifications)
+                } label: {
+                    VStack(spacing: 2) {
+                        Image(systemName: scheduledBusIDs.isEmpty ? "bell" : "bell.badge.fill")
+                            .font(.system(size: 14, weight: .bold))
+                        Text("通知")
+                            .font(.system(size: 9, weight: .bold))
+                    }
+                    .foregroundStyle(Color.neumoAccent)
+                    .frame(width: 44, height: 40)
+                }
+                .buttonStyle(SoftPressButtonStyle())
+                .accessibilityLabel("設定した通知を確認")
+
                 Button {
                     coordinator.send(.showSettings)
                 } label: {
@@ -885,6 +914,8 @@ struct BusNotificationActionButton: View {
 struct ClayHeaderBar: View {
     let helpAction: () -> Void
     let settingsAction: () -> Void
+    let notificationAction: () -> Void
+    let notificationCount: Int
 
     var body: some View {
         HStack(spacing: 13) {
@@ -920,6 +951,20 @@ struct ClayHeaderBar: View {
             Spacer()
 
             HStack(spacing: 8) {
+                Button(action: notificationAction) {
+                    VStack(spacing: 2) {
+                        Image(systemName: notificationCount == 0 ? "bell" : "bell.badge.fill")
+                            .font(.system(size: 14, weight: .bold))
+                        Text("通知")
+                            .font(.system(size: 9, weight: .bold))
+                    }
+                    .foregroundStyle(Color.claySkyDeep)
+                    .frame(width: 42, height: 38)
+                    .background(Circle().fill(Color(red: 0.91, green: 0.96, blue: 0.99)))
+                }
+                .buttonStyle(SoftPressButtonStyle())
+                .accessibilityLabel("設定した通知を確認（\(notificationCount)件）")
+
                 Button(action: settingsAction) {
                     Image(systemName: "gearshape.fill")
                         .font(.system(size: 15, weight: .bold))
