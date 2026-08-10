@@ -47,6 +47,14 @@ final class NotificationViewModel: ObservableObject {
                 return
             }
 
+            guard BusNotificationTimeCalculator.nextDepartureDate(
+                for: bus.departure,
+                from: now
+            ) != nil else {
+                completion(.failure(.invalidDeparture))
+                return
+            }
+
             guard let scheduledDates = BusNotificationTimeCalculator.notificationDate(
                 for: bus.departure,
                 minutesBefore: minutesBefore,
