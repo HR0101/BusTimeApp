@@ -523,6 +523,10 @@ struct ContentView: View {
         coordinator.designMode
     }
 
+    private var scheduledBusIDs: Set<String> {
+        Set(notificationViewModel.scheduledNotifications.map(\.busID))
+    }
+
     var body: some View {
         NavigationStack {
             ScrollView(showsIndicators: false) {
@@ -641,7 +645,8 @@ struct ContentView: View {
                 NextBusCard(
                     bus: nextBus,
                     routeName: viewModel.selectedRoute.rawValue,
-                    countdown: viewModel.countdownMessages[nextBus.id]
+                    countdown: viewModel.countdownMessages[nextBus.id],
+                    isNotificationScheduled: scheduledBusIDs.contains(nextBus.id)
                 ) {
                     selectBus(nextBus)
                 }
@@ -681,7 +686,8 @@ struct ContentView: View {
             } else if let nextBus = viewModel.searchResults.first {
                 ClayNextBusHero(
                     bus: nextBus,
-                    countdown: viewModel.countdownMessages[nextBus.id]
+                    countdown: viewModel.countdownMessages[nextBus.id],
+                    isNotificationScheduled: scheduledBusIDs.contains(nextBus.id)
                 ) {
                     selectBus(nextBus)
                 }
@@ -695,12 +701,17 @@ struct ContentView: View {
             )
 
             if viewModel.holidayMessage == nil {
-                ClayUpcomingCard(buses: viewModel.searchResults, countdowns: viewModel.countdownMessages) { bus in
+                ClayUpcomingCard(
+                    buses: viewModel.searchResults,
+                    countdowns: viewModel.countdownMessages,
+                    scheduledBusIDs: scheduledBusIDs
+                ) { bus in
                     selectBus(bus)
                 }
                 ClayTimetableCard(
                     buses: viewModel.currentFullTimetable,
-                    recommendedIds: Set(viewModel.searchResults.map(\.id))
+                    recommendedIds: Set(viewModel.searchResults.map(\.id)),
+                    scheduledBusIDs: scheduledBusIDs
                 ) { bus in
                     selectBus(bus)
                 }
@@ -782,7 +793,11 @@ struct ContentView: View {
             )
 
             ForEach(viewModel.searchResults) { bus in
-                BusResultRow(bus: bus, viewModel: viewModel) {
+                BusResultRow(
+                    bus: bus,
+                    viewModel: viewModel,
+                    isNotificationScheduled: scheduledBusIDs.contains(bus.id)
+                ) {
                     selectBus(bus)
                 }
             }
@@ -809,7 +824,8 @@ struct ContentView: View {
                 ForEach(viewModel.currentFullTimetable) { bus in
                     BusTimetableRow(
                         bus: bus,
-                        isRecommended: viewModel.searchResults.contains(where: { $0.id == bus.id })
+                        isRecommended: viewModel.searchResults.contains(where: { $0.id == bus.id }),
+                        isNotificationScheduled: scheduledBusIDs.contains(bus.id)
                     ) {
                         selectBus(bus)
                     }
@@ -835,6 +851,31 @@ struct ContentView: View {
                 coordinator.send(.notificationScheduled(error.localizedDescription))
             }
         }
+    }
+}
+
+struct BusNotificationActionButton: View {
+    let isScheduled: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Label(
+                isScheduled ? "設定済み" : "通知",
+                systemImage: isScheduled ? "bell.fill" : "bell"
+            )
+            .font(.caption2.weight(.bold))
+            .foregroundStyle(isScheduled ? Color.neumoAccentDeep : Color.neumoAccent)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 7)
+            .background(
+                Capsule()
+                    .fill(isScheduled ? Color.neumoAccentSoft.opacity(0.8) : Color.neumoAccent.opacity(0.08))
+            )
+        }
+        .buttonStyle(SoftPressButtonStyle())
+        .accessibilityLabel(isScheduled ? "この便は通知設定済み" : "この便の通知を設定")
+        .accessibilityHint("出発前に通知する方法を選びます")
     }
 }
 
@@ -905,6 +946,7 @@ struct ClayHeaderBar: View {
 struct ClayNextBusHero: View {
     let bus: Bus
     let countdown: String?
+    let isNotificationScheduled: Bool
     let notifyAction: () -> Void
 
     var body: some View {
@@ -1010,23 +1052,10 @@ struct ClayNextBusHero: View {
                         .font(.system(size: 27, weight: .bold, design: .rounded))
                         .foregroundStyle(Color.neumoMuted)
                     Spacer()
-                    Button(action: notifyAction) {
-                        Image(systemName: "bell.fill")
-                            .font(.system(size: 15, weight: .bold))
-                            .foregroundStyle(.white)
-                            .frame(width: 44, height: 44)
-                            .background(
-                                Circle().fill(
-                                    LinearGradient(
-                                        colors: [.claySky, .claySkyDeep],
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
-                                    )
-                                )
-                            )
-                            .shadow(color: Color.clayShadow.opacity(0.32), radius: 10, x: 5, y: 7)
-                    }
-                    .buttonStyle(SoftPressButtonStyle())
+                    BusNotificationActionButton(
+                        isScheduled: isNotificationScheduled,
+                        action: notifyAction
+                    )
                 }
 
                 Text(bus.stopSummary)
@@ -1264,6 +1293,7 @@ struct ClaySearchTypeChip: View {
 struct ClayUpcomingCard: View {
     let buses: [Bus]
     let countdowns: [String: String]
+    let scheduledBusIDs: Set<String>
     let action: (Bus) -> Void
 
     var body: some View {
@@ -1298,7 +1328,8 @@ struct ClayUpcomingCard: View {
                     ClayUpcomingRow(
                         bus: bus,
                         countdown: countdowns[bus.id],
-                        tint: index.isMultiple(of: 2) ? .clayPurple : .clayMint
+                        tint: index.isMultiple(of: 2) ? .clayPurple : .clayMint,
+                        isNotificationScheduled: scheduledBusIDs.contains(bus.id)
                     ) {
                         action(bus)
                     }
@@ -1316,6 +1347,7 @@ struct ClayUpcomingRow: View {
     let bus: Bus
     let countdown: String?
     let tint: Color
+    let isNotificationScheduled: Bool
     let action: () -> Void
 
     var body: some View {
@@ -1355,14 +1387,10 @@ struct ClayUpcomingRow: View {
                         .font(.caption2.weight(.bold))
                         .foregroundStyle(Color.claySkyDeep)
                 }
-                Button(action: action) {
-                    Image(systemName: "bell")
-                        .font(.caption.weight(.bold))
-                        .foregroundStyle(Color.claySkyDeep)
-                        .frame(width: 34, height: 34)
-                        .background(Circle().fill(Color(red: 0.92, green: 0.97, blue: 1.0)))
-                }
-                .buttonStyle(SoftPressButtonStyle())
+                BusNotificationActionButton(
+                    isScheduled: isNotificationScheduled,
+                    action: action
+                )
             }
         }
         .padding(.horizontal, 18)
@@ -1373,6 +1401,7 @@ struct ClayUpcomingRow: View {
 struct ClayTimetableCard: View {
     let buses: [Bus]
     let recommendedIds: Set<String>
+    let scheduledBusIDs: Set<String>
     let action: (Bus) -> Void
 
     var body: some View {
@@ -1405,7 +1434,11 @@ struct ClayTimetableCard: View {
             )
 
             ForEach(buses) { bus in
-                ClayTimetableRow(bus: bus, isRecommended: recommendedIds.contains(bus.id)) {
+                ClayTimetableRow(
+                    bus: bus,
+                    isRecommended: recommendedIds.contains(bus.id),
+                    isNotificationScheduled: scheduledBusIDs.contains(bus.id)
+                ) {
                     action(bus)
                 }
                 if bus.id != buses.last?.id {
@@ -1426,6 +1459,7 @@ struct ClayTimetableCard: View {
 struct ClayTimetableRow: View {
     let bus: Bus
     let isRecommended: Bool
+    let isNotificationScheduled: Bool
     let action: () -> Void
 
     var body: some View {
@@ -1450,13 +1484,10 @@ struct ClayTimetableRow: View {
             Text(bus.arrival)
                 .font(.system(size: 16, weight: .semibold, design: .rounded))
                 .foregroundStyle(Color.neumoMuted)
-            Button(action: action) {
-                Image(systemName: "bell")
-                    .font(.caption.weight(.bold))
-                    .foregroundStyle(Color.claySkyDeep)
-                    .frame(width: 36, height: 36)
-            }
-            .buttonStyle(SoftPressButtonStyle())
+            BusNotificationActionButton(
+                isScheduled: isNotificationScheduled,
+                action: action
+            )
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 10)
@@ -1467,6 +1498,7 @@ struct NextBusCard: View {
     let bus: Bus
     let routeName: String
     let countdown: String?
+    let isNotificationScheduled: Bool
     let notifyAction: () -> Void
     @Environment(\.appDesignMode) private var designMode
 
@@ -1519,15 +1551,10 @@ struct NextBusCard: View {
                     .foregroundStyle(Color.neumoMuted)
                     .lineLimit(1)
                 Spacer()
-                Button(action: notifyAction) {
-                    Image(systemName: "bell.badge.fill")
-                        .font(.system(size: 15, weight: .bold))
-                        .foregroundStyle(Color.neumoAccent)
-                        .frame(width: 36, height: 36)
-                        .background(Circle().fill(Color.neumoSurface))
-                        .overlay(Circle().stroke(Color.white.opacity(0.55), lineWidth: 1))
-                }
-                .buttonStyle(SoftPressButtonStyle())
+                BusNotificationActionButton(
+                    isScheduled: isNotificationScheduled,
+                    action: notifyAction
+                )
             }
         }
         .padding(22)
@@ -1830,6 +1857,7 @@ struct TimePickerRow: View {
 struct BusResultRow: View {
     let bus: Bus
     @ObservedObject var viewModel: BusTimetableViewModel
+    let isNotificationScheduled: Bool
     let action: () -> Void
 
     var body: some View {
@@ -1873,10 +1901,10 @@ struct BusResultRow: View {
                         .foregroundStyle(countdown == "出発済み" ? Color.neumoMuted : Color.neumoAccentDeep)
                         .multilineTextAlignment(.trailing)
                 }
-                Button(action: action) {
-                    IconBubble(systemName: "bell.fill", tint: .neumoAccent, size: 36)
-                }
-                .buttonStyle(SoftPressButtonStyle())
+                BusNotificationActionButton(
+                    isScheduled: isNotificationScheduled,
+                    action: action
+                )
             }
         }
         .padding(.horizontal, 16)
@@ -1888,6 +1916,7 @@ struct BusResultRow: View {
 struct BusTimetableRow: View {
     let bus: Bus
     let isRecommended: Bool
+    let isNotificationScheduled: Bool
     let action: () -> Void
 
     var body: some View {
@@ -1928,13 +1957,10 @@ struct BusTimetableRow: View {
                 .foregroundStyle(Color.neumoMuted)
                 .frame(width: 52, alignment: .trailing)
 
-            Button(action: action) {
-                Image(systemName: "bell")
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(Color.neumoAccent)
-                    .frame(width: 42, height: 42)
-            }
-            .buttonStyle(SoftPressButtonStyle())
+            BusNotificationActionButton(
+                isScheduled: isNotificationScheduled,
+                action: action
+            )
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
