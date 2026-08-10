@@ -545,12 +545,12 @@ struct ContentView: View {
             .onAppear {
                 coordinator.send(.launch)
                 viewModel.performSearch()
-                viewModel.checkLocationAndSetRoute()
+                viewModel.checkLocationAndSetOrigin()
                 notificationViewModel.refresh()
             }
             .onChange(of: scenePhase) { _, newPhase in
                 if newPhase == .active {
-                    viewModel.checkLocationAndSetRoute()
+                    viewModel.checkLocationAndSetOrigin()
                 }
             }
             .onChange(of: viewModel.selectedRoute) { _, _ in
@@ -654,6 +654,10 @@ struct ContentView: View {
     private var neumorphicDashboard: some View {
         VStack(spacing: 24) {
             appHeader
+            SearchCriteriaBanner(
+                criteria: viewModel.searchCriteriaDescription,
+                result: viewModel.searchResultDescription
+            )
 
             if case let .serviceUnavailable(message) = viewModel.state {
                 ServiceMessageCard(message: message)
@@ -672,10 +676,7 @@ struct ContentView: View {
                 EmptyBusCard()
             }
 
-            RouteSelectorCard(
-                selectedRoute: $viewModel.selectedRoute,
-                locationAction: viewModel.checkLocationAndSetRoute
-            )
+            RouteSelectorCard(viewModel: viewModel, locationAction: viewModel.checkLocationAndSetOrigin)
             SearchPanel(viewModel: viewModel)
 
             if viewModel.holidayMessage == nil {
@@ -698,6 +699,10 @@ struct ContentView: View {
                 notificationAction: { coordinator.send(.showNotifications) },
                 notificationCount: notificationViewModel.scheduledNotifications.count
             )
+            SearchCriteriaBanner(
+                criteria: viewModel.searchCriteriaDescription,
+                result: viewModel.searchResultDescription
+            )
 
             if case let .serviceUnavailable(message) = viewModel.state {
                 ClayMessageCard(message: message)
@@ -717,14 +722,19 @@ struct ContentView: View {
 
             ClayRouteSearchCard(
                 viewModel: viewModel,
-                locationAction: viewModel.checkLocationAndSetRoute
+                locationAction: viewModel.checkLocationAndSetOrigin
             )
 
             if viewModel.holidayMessage == nil {
                 ClayUpcomingCard(
                     buses: viewModel.searchResults,
                     countdowns: viewModel.countdownMessages,
-                    scheduledBusIDs: scheduledBusIDs
+                    scheduledBusIDs: scheduledBusIDs,
+                    reasons: Dictionary(
+                        uniqueKeysWithValues: viewModel.searchResults.map {
+                            ($0.id, viewModel.resultReason(for: $0))
+                        }
+                    )
                 ) { bus in
                     selectBus(bus)
                 }
@@ -831,7 +841,8 @@ struct ContentView: View {
                 BusResultRow(
                     bus: bus,
                     viewModel: viewModel,
-                    isNotificationScheduled: scheduledBusIDs.contains(bus.id)
+                    isNotificationScheduled: scheduledBusIDs.contains(bus.id),
+                    reason: viewModel.resultReason(for: bus)
                 ) {
                     selectBus(bus)
                 }
@@ -1175,52 +1186,29 @@ struct ClayRouteSearchCard: View {
                     .foregroundStyle(Color.claySkyDeep)
             }
 
-            Menu {
-                ForEach(BusTimetableViewModel.Route.allCases, id: \.self) { route in
-                    Button {
-                        viewModel.selectedRoute = route
-                    } label: {
-                        Label(route.rawValue, systemImage: route == viewModel.selectedRoute ? "checkmark" : "arrow.right")
-                    }
-                }
-            } label: {
-                HStack(spacing: 11) {
-                    Image(systemName: "point.topleft.down.curvedto.point.bottomright.up")
-                        .foregroundStyle(Color.claySkyDeep)
-                    Text(viewModel.selectedRoute.rawValue)
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(Color.neumoText)
-                        .lineLimit(2)
-                    Spacer()
-                    Image(systemName: "chevron.down")
-                        .font(.caption.weight(.bold))
-                        .foregroundStyle(Color.neumoMuted)
-                }
-                .padding(.horizontal, 14)
-                .padding(.vertical, 14)
-                .background(
-                    RoundedRectangle(cornerRadius: 16, style: .continuous)
-                        .fill(Color(red: 0.94, green: 0.97, blue: 0.99))
-                )
-            }
-            .buttonStyle(SoftPressButtonStyle())
+            TripEndpointSelector(viewModel: viewModel)
 
             HStack(spacing: 9) {
                 ClaySearchTypeChip(
-                    title: "出発時刻",
+                    title: BusTimetableViewModel.SearchType.departure.shortTitle,
                     systemName: "arrow.up.right",
                     isSelected: viewModel.searchType == .departure
                 ) {
                     viewModel.searchType = .departure
                 }
                 ClaySearchTypeChip(
-                    title: "到着希望",
+                    title: BusTimetableViewModel.SearchType.arrival.shortTitle,
                     systemName: "flag.checkered",
                     isSelected: viewModel.searchType == .arrival
                 ) {
                     viewModel.searchType = .arrival
                 }
             }
+
+            Text(viewModel.searchType.explanation)
+                .font(.caption)
+                .foregroundStyle(Color.neumoMuted)
+                .fixedSize(horizontal: false, vertical: true)
 
             HStack(spacing: 12) {
                 ZStack {
@@ -1232,26 +1220,25 @@ struct ClayRouteSearchCard: View {
                 }
 
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(viewModel.searchType == .departure ? "出発時刻" : "到着希望時刻")
+                    Text(viewModel.searchType.timeTitle)
                         .font(.caption2.weight(.bold))
                         .foregroundStyle(Color.neumoMuted)
-                    if viewModel.searchType == .departure {
-                        DatePicker("", selection: $viewModel.departureTime, displayedComponents: .hourAndMinute)
-                            .labelsHidden()
-                    } else {
-                        DatePicker("", selection: $viewModel.arrivalTime, displayedComponents: .hourAndMinute)
-                            .labelsHidden()
-                    }
+                    DatePicker("", selection: $viewModel.searchTime, displayedComponents: .hourAndMinute)
+                        .labelsHidden()
                 }
                 Spacer()
                 Button {
                     viewModel.setSearchToCurrentTime()
                 } label: {
-                    Image(systemName: "location.fill")
-                        .font(.caption.weight(.bold))
-                        .foregroundStyle(Color.claySkyDeep)
-                        .frame(width: 42, height: 42)
-                        .background(Circle().fill(Color.neumoAccentSoft.opacity(0.58)))
+                    VStack(spacing: 2) {
+                        Image(systemName: "clock.arrow.circlepath")
+                        Text("現在時刻")
+                            .font(.system(size: 9, weight: .bold))
+                    }
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(Color.claySkyDeep)
+                    .frame(width: 58, height: 48)
+                    .background(Capsule().fill(Color.neumoAccentSoft.opacity(0.58)))
                 }
                 .buttonStyle(SoftPressButtonStyle())
             }
@@ -1345,6 +1332,7 @@ struct ClayUpcomingCard: View {
     let buses: [Bus]
     let countdowns: [String: String]
     let scheduledBusIDs: Set<String>
+    let reasons: [String: String]
     let action: (Bus) -> Void
 
     var body: some View {
@@ -1380,7 +1368,8 @@ struct ClayUpcomingCard: View {
                         bus: bus,
                         countdown: countdowns[bus.id],
                         tint: index.isMultiple(of: 2) ? .clayPurple : .clayMint,
-                        isNotificationScheduled: scheduledBusIDs.contains(bus.id)
+                        isNotificationScheduled: scheduledBusIDs.contains(bus.id),
+                        reason: reasons[bus.id]
                     ) {
                         action(bus)
                     }
@@ -1399,6 +1388,7 @@ struct ClayUpcomingRow: View {
     let countdown: String?
     let tint: Color
     let isNotificationScheduled: Bool
+    let reason: String?
     let action: () -> Void
 
     var body: some View {
@@ -1427,7 +1417,13 @@ struct ClayUpcomingRow: View {
                 Text(bus.stopSummary)
                     .font(.caption2)
                     .foregroundStyle(Color.neumoMuted)
-                    .lineLimit(1)
+                    .lineLimit(2)
+                if let reason {
+                    Text(reason)
+                        .font(.caption2.weight(.bold))
+                        .foregroundStyle(Color.claySkyDeep)
+                        .lineLimit(2)
+                }
             }
 
             Spacer(minLength: 0)
@@ -1662,6 +1658,34 @@ struct TimePoint: View {
     }
 }
 
+struct SearchCriteriaBanner: View {
+    let criteria: String
+    let result: String
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 12) {
+            IconBubble(systemName: "magnifyingglass.circle.fill", tint: .neumoAccent, size: 42)
+            VStack(alignment: .leading, spacing: 5) {
+                Text("現在の検索条件")
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(Color.neumoMuted)
+                Text(criteria)
+                    .font(.subheadline.weight(.bold))
+                    .foregroundStyle(Color.neumoText)
+                    .fixedSize(horizontal: false, vertical: true)
+                Text(result)
+                    .font(.caption)
+                    .foregroundStyle(Color.neumoMuted)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(15)
+        .neumorphicSurface(in: RoundedRectangle(cornerRadius: 20, style: .continuous), depth: 9)
+        .accessibilityElement(children: .combine)
+    }
+}
+
 struct ServiceMessageCard: View {
     let message: String
 
@@ -1701,52 +1725,28 @@ struct EmptyBusCard: View {
 }
 
 struct RouteSelectorCard: View {
-    @Binding var selectedRoute: BusTimetableViewModel.Route
+    @ObservedObject var viewModel: BusTimetableViewModel
     let locationAction: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Label("路線を選択", systemImage: "point.topleft.down.curvedto.point.bottomright.up")
+                Label("出発地と目的地", systemImage: "point.topleft.down.curvedto.point.bottomright.up")
                     .font(.subheadline.weight(.bold))
                     .foregroundStyle(Color.neumoText)
                 Spacer()
-                Text("ROUTE")
+                Text("TRIP")
                     .font(.system(size: 9, weight: .bold, design: .rounded))
                     .tracking(1.2)
                     .foregroundStyle(Color.neumoMuted)
             }
 
-            Menu {
-                ForEach(BusTimetableViewModel.Route.allCases, id: \.self) { route in
-                    Button {
-                        selectedRoute = route
-                    } label: {
-                        Label(route.rawValue, systemImage: route == selectedRoute ? "checkmark" : "arrow.right")
-                    }
-                }
-            } label: {
-                HStack(spacing: 12) {
-                    Text(selectedRoute.rawValue)
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(Color.neumoText)
-                        .multilineTextAlignment(.leading)
-                        .lineLimit(2)
-                    Spacer()
-                    Image(systemName: "chevron.down")
-                        .font(.caption.weight(.bold))
-                        .foregroundStyle(Color.neumoAccent)
-                }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 15)
-                .neumorphicSurface(in: RoundedRectangle(cornerRadius: 17, style: .continuous), depth: 8)
-            }
-            .buttonStyle(SoftPressButtonStyle())
+            TripEndpointSelector(viewModel: viewModel)
 
             Button(action: locationAction) {
                 HStack(spacing: 7) {
                     Image(systemName: "location.fill")
-                    Text("現在地から路線を選ぶ")
+                    Text("現在地を出発地にする")
                     Spacer()
                     Image(systemName: "arrow.up.right")
                         .font(.caption.weight(.bold))
@@ -1762,6 +1762,107 @@ struct RouteSelectorCard: View {
     }
 }
 
+struct TripEndpointSelector: View {
+    @ObservedObject var viewModel: BusTimetableViewModel
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: 8) {
+                    endpointMenus
+                }
+                VStack(spacing: 8) {
+                    endpointMenus
+                }
+            }
+
+            Label(viewModel.selectedRoute.guidance, systemImage: "info.circle.fill")
+                .font(.caption)
+                .foregroundStyle(Color.neumoMuted)
+                .fixedSize(horizontal: false, vertical: true)
+
+            Text("現在運行している出発地・目的地の組み合わせだけを表示しています")
+                .font(.caption2)
+                .foregroundStyle(Color.neumoMuted)
+        }
+    }
+
+    @ViewBuilder
+    private var endpointMenus: some View {
+        EndpointMenu(
+            title: "出発地",
+            selected: viewModel.selectedOrigin,
+            options: viewModel.availableOrigins,
+            action: viewModel.selectOrigin
+        )
+
+        Button(action: viewModel.swapEndpoints) {
+            Image(systemName: "arrow.left.arrow.right")
+                .font(.caption.weight(.bold))
+                .foregroundStyle(viewModel.canSwapEndpoints ? Color.neumoAccentDeep : Color.neumoMuted)
+                .frame(width: 40, height: 40)
+                .background(Circle().fill(Color.neumoAccentSoft.opacity(0.45)))
+        }
+        .buttonStyle(SoftPressButtonStyle())
+        .disabled(!viewModel.canSwapEndpoints)
+        .accessibilityLabel("出発地と目的地を入れ替える")
+
+        EndpointMenu(
+            title: "目的地",
+            selected: viewModel.selectedDestination,
+            options: viewModel.availableDestinations,
+            action: viewModel.selectDestination
+        )
+    }
+}
+
+struct EndpointMenu: View {
+    let title: String
+    let selected: BusTimetableViewModel.Stop
+    let options: [BusTimetableViewModel.Stop]
+    let action: (BusTimetableViewModel.Stop) -> Void
+
+    var body: some View {
+        Menu {
+            ForEach(options) { stop in
+                Button {
+                    action(stop)
+                } label: {
+                    Label(stop.rawValue, systemImage: stop == selected ? "checkmark.circle.fill" : stop.systemName)
+                }
+            }
+        } label: {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(title)
+                    .font(.caption2.weight(.bold))
+                    .foregroundStyle(Color.neumoMuted)
+                HStack(spacing: 6) {
+                    Image(systemName: selected.systemName)
+                        .foregroundStyle(Color.neumoAccent)
+                    Text(selected.rawValue)
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(Color.neumoText)
+                        .lineLimit(2)
+                        .minimumScaleFactor(0.82)
+                    Spacer(minLength: 2)
+                    Image(systemName: "chevron.down")
+                        .font(.caption2.weight(.bold))
+                        .foregroundStyle(Color.neumoAccent)
+                }
+            }
+            .frame(maxWidth: .infinity, minHeight: 46, alignment: .leading)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 9)
+            .background(
+                RoundedRectangle(cornerRadius: 15, style: .continuous)
+                    .fill(Color.white.opacity(0.66))
+            )
+        }
+        .buttonStyle(SoftPressButtonStyle())
+        .accessibilityLabel("\(title)、\(selected.rawValue)")
+    }
+}
+
 struct SearchPanel: View {
     @ObservedObject var viewModel: BusTimetableViewModel
 
@@ -1771,7 +1872,7 @@ struct SearchPanel: View {
 
             HStack(spacing: 10) {
                 SearchModeButton(
-                    title: "出発時刻",
+                    title: "出発から探す",
                     systemName: "arrow.up.right",
                     isSelected: viewModel.searchType == .departure
                 ) {
@@ -1780,7 +1881,7 @@ struct SearchPanel: View {
                     }
                 }
                 SearchModeButton(
-                    title: "到着希望",
+                    title: "到着までに探す",
                     systemName: "flag.checkered",
                     isSelected: viewModel.searchType == .arrival
                 ) {
@@ -1790,17 +1891,15 @@ struct SearchPanel: View {
                 }
             }
 
-            if viewModel.searchType == .departure {
-                TimePickerRow(title: "出発時刻", date: $viewModel.departureTime) {
-                    viewModel.setSearchToCurrentTime()
-                }
-                .transition(.opacity.combined(with: .scale(scale: 0.98)))
-            } else {
-                TimePickerRow(title: "到着希望時刻", date: $viewModel.arrivalTime) {
-                    viewModel.setSearchToCurrentTime()
-                }
-                .transition(.opacity.combined(with: .scale(scale: 0.98)))
+            Text(viewModel.searchType.explanation)
+                .font(.caption)
+                .foregroundStyle(Color.neumoMuted)
+                .fixedSize(horizontal: false, vertical: true)
+
+            TimePickerRow(title: viewModel.searchType.timeTitle, date: $viewModel.searchTime) {
+                viewModel.setSearchToCurrentTime()
             }
+            .transition(.opacity.combined(with: .scale(scale: 0.98)))
 
             Button {
                 withAnimation(.easeOut(duration: 0.22)) {
@@ -1909,6 +2008,7 @@ struct BusResultRow: View {
     let bus: Bus
     @ObservedObject var viewModel: BusTimetableViewModel
     let isNotificationScheduled: Bool
+    let reason: String
     let action: () -> Void
 
     var body: some View {
@@ -1942,7 +2042,11 @@ struct BusResultRow: View {
                 Text(bus.stopSummary)
                     .font(.caption)
                     .foregroundStyle(Color.neumoMuted)
-                    .lineLimit(1)
+                    .lineLimit(2)
+                Text(reason)
+                    .font(.caption2.weight(.bold))
+                    .foregroundStyle(Color.neumoAccentDeep)
+                    .fixedSize(horizontal: false, vertical: true)
             }
             Spacer(minLength: 0)
             VStack(alignment: .trailing, spacing: 8) {

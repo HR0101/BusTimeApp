@@ -48,9 +48,18 @@ struct NotificationOptionsView: View {
             Label("対象のバス", systemImage: "bus.fill")
                 .font(.caption.weight(.bold))
                 .foregroundStyle(Color.neumoAccent)
-            Text("\(bus.originName) \(bus.departure)発 → \(bus.destinationName)")
+            Text("\(bus.departure)発｜\(bus.stopSummary)")
                 .font(.headline.weight(.bold))
                 .foregroundStyle(Color.neumoText)
+                .fixedSize(horizontal: false, vertical: true)
+            if !bus.intermediateStops.isEmpty {
+                Label(
+                    "途中停車：\(bus.intermediateStops.map(\.name).joined(separator: "、"))",
+                    systemImage: "point.topleft.down.curvedto.point.bottomright.up"
+                )
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(Color.neumoAccentDeep)
+            }
             Text(routeName)
                 .font(.caption)
                 .foregroundStyle(Color.neumoMuted)
