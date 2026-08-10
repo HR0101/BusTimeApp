@@ -164,10 +164,10 @@ struct NotificationOptionsView: View {
                         .clipShape(RoundedRectangle(cornerRadius: 17, style: .continuous))
                 }
                 .buttonStyle(SoftPressButtonStyle())
-            } else {
+            } else if liveActivityBusID == nil {
                 Button(action: onStartLiveActivity) {
                     Label(
-                        liveActivityBusID == nil ? "Live Activityを開始" : "現在の表示を終了して開始",
+                        "Live Activityを開始",
                         systemImage: "lock.rectangle.on.rectangle"
                     )
                     .font(.subheadline.weight(.bold))
@@ -184,6 +184,10 @@ struct NotificationOptionsView: View {
                     .clipShape(RoundedRectangle(cornerRadius: 17, style: .continuous))
                 }
                 .buttonStyle(SoftPressButtonStyle())
+            } else {
+                Text("別の便をLive Activityで表示中です。先に管理画面から終了してください。")
+                    .font(.caption)
+                    .foregroundStyle(Color.neumoMuted)
             }
         }
         .padding(16)
