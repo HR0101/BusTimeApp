@@ -88,17 +88,12 @@ final class NotificationViewModel: ObservableObject {
             let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
             let request = UNNotificationRequest(identifier: item.id, content: content, trigger: trigger)
 
-            center.add(request) { [weak self] error in
-                Task { @MainActor in
-                    guard let self else { return }
-                    if error != nil {
-                        completion(.failure(.registrationFailed))
-                        return
-                    }
-
-                    self.upsert(item)
-                    completion(.success(item))
-                }
+            do {
+                try await center.add(request)
+                upsert(item)
+                completion(.success(item))
+            } catch {
+                completion(.failure(.registrationFailed))
             }
         }
     }
