@@ -513,19 +513,13 @@ struct SectionHeading: View {
 }
 
 struct ContentView: View {
-    @StateObject private var viewModel = BusTimetableViewModel()
-    @State private var selectedBusForNotification: Bus?
-    @State private var showingNotificationActionSheet = false
-    @State private var notificationSuccessMessage: String?
-    @State private var showingSuccessAlert = false
-    @AppStorage("hasSeenTutorial") private var hasSeenTutorial = false
-    @AppStorage("appDesignMode") private var designModeRaw = AppDesignMode.neumorphic.rawValue
-    @State private var showingTutorial = false
-    @State private var showingSettings = false
+    @StateObject private var viewModel = HomeViewModel()
+    @StateObject private var coordinator = AppCoordinator()
+    @StateObject private var settingsViewModel = SettingsViewModel()
     @Environment(\.scenePhase) private var scenePhase
 
     private var currentDesignMode: AppDesignMode {
-        AppDesignMode(rawValue: designModeRaw) ?? .neumorphic
+        coordinator.designMode
     }
 
     var body: some View {
@@ -544,13 +538,10 @@ struct ContentView: View {
             .toolbar(.hidden, for: .navigationBar)
             .preferredColorScheme(currentDesignMode == .claymorphic ? .light : nil)
             .onAppear {
+                coordinator.send(.launch)
                 viewModel.performSearch()
                 viewModel.checkLocationAndSetRoute()
                 viewModel.requestNotificationPermission()
-                if !hasSeenTutorial {
-                    showingTutorial = true
-                    hasSeenTutorial = true
-                }
             }
             .onChange(of: scenePhase) { _, newPhase in
                 if newPhase == .active {
@@ -560,20 +551,32 @@ struct ContentView: View {
             .onChange(of: viewModel.selectedRoute) { _, _ in
                 viewModel.performSearch()
             }
-            .sheet(isPresented: $showingTutorial) {
+            .sheet(isPresented: Binding(
+                get: { coordinator.isTutorialPresented },
+                set: { if !$0 { coordinator.send(.dismiss) } }
+            )) {
                 TutorialView()
                     .environment(\.appDesignMode, currentDesignMode)
                     .presentationDragIndicator(.visible)
             }
-            .sheet(isPresented: $showingSettings) {
-                SettingsView(selectedMode: designModeBinding)
+            .sheet(isPresented: Binding(
+                get: { coordinator.isSettingsPresented },
+                set: { if !$0 { coordinator.send(.dismiss) } }
+            )) {
+                SettingsView(viewModel: settingsViewModel) { mode in
+                    coordinator.send(.changeDesignMode(mode))
+                }
                     .environment(\.appDesignMode, currentDesignMode)
                     .presentationDragIndicator(.visible)
             }
-            .confirmationDialog("通知・トラッキングを設定", isPresented: $showingNotificationActionSheet, titleVisibility: .visible) {
+            .confirmationDialog("通知・トラッキングを設定", isPresented: Binding(
+                get: { coordinator.isNotificationOptionsPresented },
+                set: { if !$0 { coordinator.send(.dismiss) } }
+            ), titleVisibility: .visible) {
                 Button("常に画面に表示  (Live Activity)") {
-                    if let bus = selectedBusForNotification {
+                    if let bus = coordinator.selectedBus {
                         viewModel.startLiveActivity(for: bus)
+                        coordinator.send(.dismiss)
                     }
                 }
                 Button("5分前に通知") { scheduleNotification(minutes: 5) }
@@ -581,44 +584,54 @@ struct ContentView: View {
                 Button("15分前に通知") { scheduleNotification(minutes: 15) }
                 Button("キャンセル", role: .cancel) { }
             } message: {
-                if let bus = selectedBusForNotification {
+                if let bus = coordinator.selectedBus {
                     Text("\(bus.originName) \(bus.departure)発、\(bus.destinationName)行き")
                 }
             }
-            .alert("通知設定", isPresented: $showingSuccessAlert) {
-                Button("OK") { }
+            .alert("通知設定", isPresented: Binding(
+                get: { coordinator.isNotificationResultPresented },
+                set: { if !$0 { coordinator.send(.dismiss) } }
+            )) {
+                Button("OK") { coordinator.send(.dismiss) }
             } message: {
-                Text(notificationSuccessMessage ?? "")
+                Text(coordinator.notificationMessage ?? "")
             }
             .alert(
                 "Live Activityエラー",
                 isPresented: Binding(
-                    get: { viewModel.liveActivityError != nil },
-                    set: { if !$0 { viewModel.liveActivityError = nil } }
+                    get: { coordinator.isLiveActivityErrorPresented },
+                    set: { if !$0 {
+                        viewModel.liveActivityError = nil
+                        coordinator.send(.clearError)
+                    } }
                 )
             ) {
-                Button("OK") { viewModel.liveActivityError = nil }
+                Button("OK") {
+                    viewModel.liveActivityError = nil
+                    coordinator.send(.clearError)
+                }
             } message: {
-                if let errorMessage = viewModel.liveActivityError {
-                    Text(errorMessage)
+                Text(coordinator.liveActivityErrorMessage ?? "Live Activityでエラーが発生しました。")
+            }
+            .onChange(of: viewModel.liveActivityError) { _, errorMessage in
+                if let errorMessage {
+                    coordinator.send(.liveActivityFailed(errorMessage))
+                    viewModel.liveActivityError = nil
                 }
             }
         }
         .environment(\.appDesignMode, currentDesignMode)
     }
 
-    private var designModeBinding: Binding<AppDesignMode> {
-        Binding(
-            get: { currentDesignMode },
-            set: { designModeRaw = $0.rawValue }
-        )
-    }
-
     private var neumorphicDashboard: some View {
         VStack(spacing: 24) {
             appHeader
 
-            if let nextBus = viewModel.searchResults.first {
+            if case let .serviceUnavailable(message) = viewModel.state {
+                ServiceMessageCard(message: message)
+            } else if case let .failed(message) = viewModel.state {
+                ServiceMessageCard(message: message)
+            } else if let nextBus = viewModel.searchResults.first {
                 NextBusCard(
                     bus: nextBus,
                     routeName: viewModel.selectedRoute.rawValue,
@@ -626,8 +639,6 @@ struct ContentView: View {
                 ) {
                     selectBus(nextBus)
                 }
-            } else if let holidayMessage = viewModel.holidayMessage {
-                ServiceMessageCard(message: holidayMessage)
             } else {
                 EmptyBusCard()
             }
@@ -653,19 +664,21 @@ struct ContentView: View {
     private var claymorphicDashboard: some View {
         VStack(spacing: 20) {
             ClayHeaderBar(
-                helpAction: { showingTutorial = true },
-                settingsAction: { showingSettings = true }
+                helpAction: { coordinator.send(.showTutorial) },
+                settingsAction: { coordinator.send(.showSettings) }
             )
 
-            if let nextBus = viewModel.searchResults.first {
+            if case let .serviceUnavailable(message) = viewModel.state {
+                ClayMessageCard(message: message)
+            } else if case let .failed(message) = viewModel.state {
+                ClayMessageCard(message: message)
+            } else if let nextBus = viewModel.searchResults.first {
                 ClayNextBusHero(
                     bus: nextBus,
                     countdown: viewModel.countdownMessages[nextBus.id]
                 ) {
                     selectBus(nextBus)
                 }
-            } else if let holidayMessage = viewModel.holidayMessage {
-                ClayMessageCard(message: holidayMessage)
             } else {
                 ClayMessageCard(message: "条件に合うバスがありません。時刻を変更して再検索してください。")
             }
@@ -707,8 +720,7 @@ struct ContentView: View {
     }
 
     private func selectBus(_ bus: Bus) {
-        selectedBusForNotification = bus
-        showingNotificationActionSheet = true
+        coordinator.send(.selectBus(bus))
     }
 
     private var appHeader: some View {
@@ -738,14 +750,14 @@ struct ContentView: View {
 
             HStack(spacing: 10) {
                 Button {
-                    showingSettings = true
+                    coordinator.send(.showSettings)
                 } label: {
                     IconBubble(systemName: "gearshape.fill", tint: .neumoAccent, size: 40)
                 }
                 .buttonStyle(SoftPressButtonStyle())
 
                 Button {
-                    showingTutorial = true
+                    coordinator.send(.showTutorial)
                 } label: {
                     IconBubble(systemName: "questionmark", tint: .neumoMuted, size: 40)
                 }
@@ -765,8 +777,7 @@ struct ContentView: View {
 
             ForEach(viewModel.searchResults) { bus in
                 BusResultRow(bus: bus, viewModel: viewModel) {
-                    selectedBusForNotification = bus
-                    showingNotificationActionSheet = true
+                    selectBus(bus)
                 }
             }
         }
@@ -794,8 +805,7 @@ struct ContentView: View {
                         bus: bus,
                         isRecommended: viewModel.searchResults.contains(where: { $0.id == bus.id })
                     ) {
-                        selectedBusForNotification = bus
-                        showingNotificationActionSheet = true
+                        selectBus(bus)
                     }
                 }
             }
@@ -804,177 +814,13 @@ struct ContentView: View {
     }
 
     private func scheduleNotification(minutes: Int) {
-        guard let bus = selectedBusForNotification else { return }
+        guard let bus = coordinator.selectedBus else { return }
         viewModel.scheduleNotification(for: bus, minutesBefore: minutes) { success in
-            notificationSuccessMessage = success
+            let message = success
                 ? "\(bus.originName) \(bus.departure)発の\(minutes)分前に通知を設定しました。"
                 : "通知の設定に失敗しました。すでに過去の時間か、通知が許可されていません。"
-            showingSuccessAlert = true
+            coordinator.send(.notificationScheduled(message))
         }
-    }
-}
-
-// MARK: - Settings
-
-struct SettingsView: View {
-    @Environment(\.dismiss) private var dismiss
-    @Binding var selectedMode: AppDesignMode
-
-    var body: some View {
-        NavigationStack {
-            ScrollView(showsIndicators: false) {
-                VStack(spacing: 22) {
-                    HStack(spacing: 14) {
-                        IconBubble(systemName: "paintpalette.fill", tint: .neumoAccent, size: 52)
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("画面デザイン")
-                                .font(.system(size: 22, weight: .bold, design: .rounded))
-                                .foregroundStyle(Color.neumoText)
-                            Text("アプリ全体の見た目を選択できます")
-                                .font(.caption)
-                                .foregroundStyle(Color.neumoMuted)
-                        }
-                        Spacer()
-                    }
-                    .padding(18)
-                    .neumorphicSurface(in: RoundedRectangle(cornerRadius: 24, style: .continuous), depth: 12)
-
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text("外観")
-                            .font(.headline.weight(.bold))
-                            .foregroundStyle(Color.neumoText)
-
-                        ForEach(AppDesignMode.allCases) { mode in
-                            SettingsDesignOption(
-                                mode: mode,
-                                isSelected: selectedMode == mode
-                            ) {
-                                withAnimation(.easeInOut(duration: 0.28)) {
-                                    selectedMode = mode
-                                }
-                            }
-                        }
-                    }
-
-                    HStack(alignment: .top, spacing: 10) {
-                        Image(systemName: "checkmark.icloud.fill")
-                            .foregroundStyle(Color.neumoAccent)
-                        Text("選択したデザインは自動的に保存され、次回起動時にも引き継がれます。")
-                            .font(.caption)
-                            .foregroundStyle(Color.neumoMuted)
-                    }
-                    .padding(.horizontal, 4)
-                }
-                .padding(.horizontal, 20)
-                .padding(.top, 16)
-                .padding(.bottom, 32)
-            }
-            .background(NeumorphicBackground())
-            .navigationTitle("設定")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button("完了") { dismiss() }
-                        .fontWeight(.bold)
-                        .foregroundStyle(Color.neumoAccentDeep)
-                }
-            }
-            .preferredColorScheme(selectedMode == .claymorphic ? .light : nil)
-        }
-    }
-}
-
-struct SettingsDesignOption: View {
-    let mode: AppDesignMode
-    let isSelected: Bool
-    let action: () -> Void
-
-    private var title: String {
-        mode == .neumorphic ? "ネオモーフィズム" : "クレイモーフィズム"
-    }
-
-    private var description: String {
-        mode == .neumorphic
-            ? "光と影のコントラストで奥行きを表現"
-            : "青い背景と白いカードを重ねた立体表現"
-    }
-
-    var body: some View {
-        Button(action: action) {
-            HStack(spacing: 14) {
-                SettingsDesignPreview(mode: mode)
-
-                VStack(alignment: .leading, spacing: 5) {
-                    Text(title)
-                        .font(.subheadline.weight(.bold))
-                        .foregroundStyle(Color.neumoText)
-                    Text(description)
-                        .font(.caption2)
-                        .foregroundStyle(Color.neumoMuted)
-                        .multilineTextAlignment(.leading)
-                        .lineLimit(2)
-                }
-
-                Spacer(minLength: 4)
-
-                Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
-                    .font(.title3.weight(.bold))
-                    .foregroundStyle(isSelected ? Color.neumoAccent : Color.neumoMuted.opacity(0.45))
-            }
-            .padding(15)
-            .background(
-                RoundedRectangle(cornerRadius: 22, style: .continuous)
-                    .fill(Color.white.opacity(0.96))
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 22, style: .continuous)
-                    .stroke(isSelected ? Color.neumoAccent.opacity(0.48) : Color.white.opacity(0.65), lineWidth: isSelected ? 2 : 1)
-            )
-            .shadow(color: Color.white.opacity(0.9), radius: 9, x: -5, y: -5)
-            .shadow(color: Color.neumoShadow.opacity(0.18), radius: 12, x: 6, y: 8)
-        }
-        .buttonStyle(SoftPressButtonStyle())
-        .accessibilityLabel("\(title)\(isSelected ? "、選択中" : "")")
-    }
-}
-
-struct SettingsDesignPreview: View {
-    let mode: AppDesignMode
-
-    var body: some View {
-        ZStack {
-            if mode == .neumorphic {
-                RoundedRectangle(cornerRadius: 17, style: .continuous)
-                    .fill(Color.neumoBackground)
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .fill(Color.neumoSurface)
-                    .frame(width: 38, height: 24)
-                    .shadow(color: .white, radius: 4, x: -3, y: -3)
-                    .shadow(color: Color.neumoShadow.opacity(0.3), radius: 5, x: 3, y: 4)
-                Circle()
-                    .fill(Color.neumoAccent)
-                    .frame(width: 12, height: 12)
-                    .offset(x: 19, y: -18)
-            } else {
-                RoundedRectangle(cornerRadius: 17, style: .continuous)
-                    .fill(
-                        LinearGradient(
-                            colors: [.claySky, .claySkyDeep],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-                RoundedRectangle(cornerRadius: 9, style: .continuous)
-                    .fill(Color.white)
-                    .frame(width: 40, height: 28)
-                    .shadow(color: Color.clayShadow.opacity(0.38), radius: 5, x: 3, y: 4)
-                Circle()
-                    .fill(Color.clayYellow)
-                    .frame(width: 13, height: 13)
-                    .offset(x: 20, y: -18)
-            }
-        }
-        .frame(width: 66, height: 66)
     }
 }
 
@@ -2083,101 +1929,6 @@ struct BusTimetableRow: View {
                 ? Color.neumoAccent.opacity(0.055)
                 : Color.clear
         )
-    }
-}
-
-struct TutorialView: View {
-    @Environment(\.dismiss) private var dismiss
-    @Environment(\.appDesignMode) private var designMode
-    @State private var currentPage = 0
-
-    private let pages: [(String, String, String)] = [
-        ("バスの時間を、\nもっと気持ちよく", "必要な便だけを、見やすいカードで確認できます。", "bus.fill"),
-        ("今すぐ乗れる便を\nすばやく検索", "ルートと時刻を選んで、次のバスを見つけましょう。", "clock.arrow.circlepath"),
-        ("乗り遅れを\nそっと防止", "ベルから通知やLive Activityを設定できます。", "bell.badge.fill")
-    ]
-
-    var body: some View {
-        VStack(spacing: 0) {
-            HStack {
-                Text("WELCOME")
-                    .font(.system(size: 11, weight: .bold, design: .rounded))
-                    .tracking(2)
-                    .foregroundStyle(Color.neumoAccent)
-                Spacer()
-                Button { dismiss() } label: {
-                    IconBubble(systemName: "xmark", tint: .neumoMuted, size: 38)
-                }
-                .buttonStyle(SoftPressButtonStyle())
-            }
-            .padding(.horizontal, 22)
-            .padding(.top, 18)
-
-            TabView(selection: $currentPage) {
-                ForEach(pages.indices, id: \.self) { index in
-                    TutorialPage(title: pages[index].0, description: pages[index].1, systemName: pages[index].2)
-                        .tag(index)
-                }
-            }
-            .tabViewStyle(.page(indexDisplayMode: .always))
-
-            Button {
-                if currentPage < pages.count - 1 {
-                    withAnimation(.easeOut(duration: 0.25)) { currentPage += 1 }
-                } else {
-                    dismiss()
-                }
-            } label: {
-                HStack {
-                    Text(currentPage < pages.count - 1 ? "次へ" : "はじめる")
-                    Spacer()
-                    Image(systemName: currentPage < pages.count - 1 ? "arrow.right" : "checkmark")
-                }
-                .font(.subheadline.weight(.bold))
-                .foregroundStyle(.white)
-                .padding(.horizontal, 20)
-                .padding(.vertical, 16)
-                .background(
-                    RoundedRectangle(cornerRadius: 18, style: .continuous)
-                        .fill(LinearGradient(colors: [.neumoAccent, .neumoAccentDeep], startPoint: .topLeading, endPoint: .bottomTrailing))
-                )
-                .shadow(color: Color.neumoAccent.opacity(0.23), radius: 12, x: 5, y: 7)
-            }
-            .buttonStyle(SoftPressButtonStyle())
-            .padding(.horizontal, 22)
-            .padding(.bottom, 22)
-        }
-        .background(NeumorphicBackground())
-        .preferredColorScheme(designMode == .claymorphic ? .light : nil)
-    }
-}
-
-struct TutorialPage: View {
-    let title: String
-    let description: String
-    let systemName: String
-
-    var body: some View {
-        VStack(spacing: 24) {
-            Spacer()
-            ZStack {
-                Circle()
-                    .fill(Color.neumoAccent.opacity(0.11))
-                    .frame(width: 170, height: 170)
-                IconBubble(systemName: systemName, tint: .neumoAccent, size: 88)
-            }
-            Text(title)
-                .font(.system(size: 28, weight: .bold, design: .rounded))
-                .foregroundStyle(Color.neumoText)
-                .multilineTextAlignment(.center)
-            Text(description)
-                .font(.subheadline)
-                .foregroundStyle(Color.neumoMuted)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal, 34)
-            Spacer()
-        }
-        .frame(maxWidth: .infinity)
     }
 }
 
