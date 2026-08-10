@@ -6,7 +6,10 @@ import CoreLocation
 
 // このクラスが、アプリの状態とロジックを管理します。
 // ObservableObjectなので、SwiftUIのView（画面）はこのクラスのプロパティの変更を監視できます。
-class BusTimetableViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
+/// ホーム画面の状態とユーザー操作を仲介するViewModelです。
+/// 時刻表データや通知処理は既存APIとの互換性のためこのファイルに保持し、
+/// 公開する画面状態はHomeStateMachineで一元管理します。
+class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
     
     // MARK: - UIの状態を管理するプロパティ
     
@@ -22,6 +25,7 @@ class BusTimetableViewModel: NSObject, ObservableObject, CLLocationManagerDelega
     @Published var countdownMessages: [String: String] = [:]    // カウントダウン表示用
     @Published var trackedBusId: String? = nil                  // Live Activityで追跡中のバスID
     @Published var liveActivityError: String? = nil             // Live Activity関連のエラーメッセージ
+    @Published private(set) var state: HomeState = .idle
 
     // MARK: - 内部でだけ使うプロパティ
     
@@ -36,6 +40,7 @@ class BusTimetableViewModel: NSObject, ObservableObject, CLLocationManagerDelega
     
     private var currentActivity: Any? = nil         // 現在のLive Activity (型消去して保持)
     private var lastActivityRemainingMinutes: Int? = nil // Live Activityへの過剰な更新を防ぐためのキャッシュ
+    private var stateMachine = HomeStateMachine()
     
     private let locationManager = CLLocationManager() // 位置情報取得用マネージャー
     private let columbusCityLocation = CLLocation(latitude: 35.6589411, longitude: 140.0357708)
@@ -331,16 +336,21 @@ class BusTimetableViewModel: NSObject, ObservableObject, CLLocationManagerDelega
 
     // 検索を実行するメインのメソッドです。
     func performSearch() {
+        send(.searchStarted)
         checkHoliday() // まず休日かチェック
         // もし休日なら、運休メッセージを表示して処理を中断します。
         guard holidayMessage == nil else {
             searchResults = []
             searchCriteriaDescription = "検索条件: 本日は運休です。"
+            send(.serviceUnavailable(holidayMessage ?? "本日は運休です。"))
             return
         }
         
         // 選択されているルートの時刻表を取得します。
-        guard let currentTimetable = allTimetables[selectedRoute] else { return }
+        guard let currentTimetable = allTimetables[selectedRoute] else {
+            send(.failed("選択された路線の時刻表を読み込めませんでした。"))
+            return
+        }
         
         // 検索方法に応じて処理を分岐します。
         if searchType == .arrival {
@@ -351,6 +361,12 @@ class BusTimetableViewModel: NSObject, ObservableObject, CLLocationManagerDelega
             self.searchResults = results
         }
         updateSearchCriteriaDescription() // 検索条件の表示を更新します。
+        send(.searchSucceeded(hasResults: !searchResults.isEmpty))
+    }
+
+    private func send(_ event: HomeEvent) {
+        stateMachine.send(event)
+        state = stateMachine.state
     }
 
     // 「出発時刻」でバスを探すロジックです。
