@@ -518,6 +518,7 @@ struct ContentView: View {
     @StateObject private var settingsViewModel = SettingsViewModel()
     @StateObject private var notificationViewModel = NotificationViewModel()
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     private var currentDesignMode: AppDesignMode {
         coordinator.designMode
@@ -525,6 +526,10 @@ struct ContentView: View {
 
     private var scheduledBusIDs: Set<String> {
         Set(notificationViewModel.scheduledNotifications.map(\.busID))
+    }
+
+    private var dashboardHorizontalPadding: CGFloat {
+        dynamicTypeSize.isAccessibilitySize ? 12 : 20
     }
 
     var body: some View {
@@ -548,12 +553,12 @@ struct ContentView: View {
                 viewModel.checkLocationAndSetOrigin()
                 notificationViewModel.refresh()
             }
-            .onChange(of: scenePhase) { _, newPhase in
+            .onChange(of: scenePhase) { newPhase in
                 if newPhase == .active {
                     viewModel.checkLocationAndSetOrigin()
                 }
             }
-            .onChange(of: viewModel.selectedRoute) { _, _ in
+            .onChange(of: viewModel.selectedRoute) { _ in
                 viewModel.performSearch()
             }
             .sheet(isPresented: Binding(
@@ -641,7 +646,7 @@ struct ContentView: View {
             } message: {
                 Text(coordinator.liveActivityErrorMessage ?? "Live Activityでエラーが発生しました。")
             }
-            .onChange(of: viewModel.liveActivityError) { _, errorMessage in
+            .onChange(of: viewModel.liveActivityError) { errorMessage in
                 if let errorMessage {
                     coordinator.send(.liveActivityFailed(errorMessage))
                     viewModel.liveActivityError = nil
@@ -686,7 +691,7 @@ struct ContentView: View {
 
             serviceFooter
         }
-        .padding(.horizontal, 20)
+        .padding(.horizontal, dashboardHorizontalPadding)
         .padding(.top, 14)
         .padding(.bottom, 32)
     }
@@ -749,7 +754,7 @@ struct ContentView: View {
 
             serviceFooter
         }
-        .padding(.horizontal, 20)
+        .padding(.horizontal, dashboardHorizontalPadding)
         .padding(.top, 14)
         .padding(.bottom, 34)
     }
@@ -771,6 +776,22 @@ struct ContentView: View {
     }
 
     private var appHeader: some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: 13) {
+                appBrand
+                Spacer(minLength: 8)
+                appHeaderActions
+            }
+
+            VStack(alignment: .leading, spacing: 10) {
+                appBrand
+                appHeaderActions
+                    .frame(maxWidth: .infinity, alignment: .trailing)
+            }
+        }
+    }
+
+    private var appBrand: some View {
         HStack(spacing: 13) {
             ZStack {
                 RoundedRectangle(cornerRadius: 17, style: .continuous)
@@ -792,39 +813,43 @@ struct ContentView: View {
                     .tracking(1.8)
                     .foregroundStyle(Color.neumoMuted)
             }
+            .fixedSize(horizontal: true, vertical: false)
+        }
+        .accessibilityElement(children: .combine)
+    }
 
-            Spacer()
-
-            HStack(spacing: 10) {
-                Button {
-                    coordinator.send(.showNotifications)
-                } label: {
-                    VStack(spacing: 2) {
-                        Image(systemName: scheduledBusIDs.isEmpty ? "bell" : "bell.badge.fill")
-                            .font(.system(size: 14, weight: .bold))
-                        Text("通知")
-                            .font(.system(size: 9, weight: .bold))
-                    }
-                    .foregroundStyle(Color.neumoAccent)
-                    .frame(width: 44, height: 40)
+    private var appHeaderActions: some View {
+        HStack(spacing: 10) {
+            Button {
+                coordinator.send(.showNotifications)
+            } label: {
+                VStack(spacing: 2) {
+                    Image(systemName: scheduledBusIDs.isEmpty ? "bell" : "bell.badge.fill")
+                        .font(.system(size: 14, weight: .bold))
+                    Text("通知")
+                        .font(.system(size: 9, weight: .bold))
                 }
-                .buttonStyle(SoftPressButtonStyle())
-                .accessibilityLabel("設定した通知を確認")
-
-                Button {
-                    coordinator.send(.showSettings)
-                } label: {
-                    IconBubble(systemName: "gearshape.fill", tint: .neumoAccent, size: 40)
-                }
-                .buttonStyle(SoftPressButtonStyle())
-
-                Button {
-                    coordinator.send(.showTutorial)
-                } label: {
-                    IconBubble(systemName: "questionmark", tint: .neumoMuted, size: 40)
-                }
-                .buttonStyle(SoftPressButtonStyle())
+                .foregroundStyle(Color.neumoAccent)
+                .frame(minWidth: 44, minHeight: 44)
             }
+            .buttonStyle(SoftPressButtonStyle())
+            .accessibilityLabel("設定した通知を確認")
+
+            Button {
+                coordinator.send(.showSettings)
+            } label: {
+                IconBubble(systemName: "gearshape.fill", tint: .neumoAccent, size: 44)
+            }
+            .buttonStyle(SoftPressButtonStyle())
+            .accessibilityLabel("設定を開く")
+
+            Button {
+                coordinator.send(.showTutorial)
+            } label: {
+                IconBubble(systemName: "questionmark", tint: .neumoMuted, size: 44)
+            }
+            .buttonStyle(SoftPressButtonStyle())
+            .accessibilityLabel("使い方を開く")
         }
     }
 
@@ -934,7 +959,24 @@ struct ClayHeaderBar: View {
     let notificationCount: Int
 
     var body: some View {
-        HStack(spacing: 13) {
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: 13) {
+                brand
+                Spacer(minLength: 8)
+                actions
+            }
+
+            VStack(alignment: .leading, spacing: 10) {
+                brand
+                actions.frame(maxWidth: .infinity, alignment: .trailing)
+            }
+        }
+        .padding(15)
+        .clayCard(in: RoundedRectangle(cornerRadius: 25, style: .continuous), elevation: 18)
+    }
+
+    private var brand: some View {
+        HStack(spacing: 12) {
             ZStack {
                 RoundedRectangle(cornerRadius: 16, style: .continuous)
                     .fill(
@@ -963,45 +1005,46 @@ struct ClayHeaderBar: View {
                         .foregroundStyle(Color.neumoMuted)
                 }
             }
-
-            Spacer()
-
-            HStack(spacing: 8) {
-                Button(action: notificationAction) {
-                    VStack(spacing: 2) {
-                        Image(systemName: notificationCount == 0 ? "bell" : "bell.badge.fill")
-                            .font(.system(size: 14, weight: .bold))
-                        Text("通知")
-                            .font(.system(size: 9, weight: .bold))
-                    }
-                    .foregroundStyle(Color.claySkyDeep)
-                    .frame(width: 42, height: 38)
-                    .background(Circle().fill(Color(red: 0.91, green: 0.96, blue: 0.99)))
-                }
-                .buttonStyle(SoftPressButtonStyle())
-                .accessibilityLabel("設定した通知を確認（\(notificationCount)件）")
-
-                Button(action: settingsAction) {
-                    Image(systemName: "gearshape.fill")
-                        .font(.system(size: 15, weight: .bold))
-                        .foregroundStyle(Color.claySkyDeep)
-                        .frame(width: 38, height: 38)
-                        .background(Circle().fill(Color(red: 0.91, green: 0.96, blue: 0.99)))
-                }
-                .buttonStyle(SoftPressButtonStyle())
-
-                Button(action: helpAction) {
-                    Image(systemName: "questionmark")
-                        .font(.system(size: 15, weight: .bold))
-                        .foregroundStyle(Color.claySkyDeep)
-                        .frame(width: 38, height: 38)
-                        .background(Circle().fill(Color(red: 0.91, green: 0.96, blue: 0.99)))
-                }
-                .buttonStyle(SoftPressButtonStyle())
-            }
         }
-        .padding(15)
-        .clayCard(in: RoundedRectangle(cornerRadius: 25, style: .continuous), elevation: 18)
+        .accessibilityElement(children: .combine)
+    }
+
+    private var actions: some View {
+        HStack(spacing: 8) {
+            Button(action: notificationAction) {
+                VStack(spacing: 2) {
+                    Image(systemName: notificationCount == 0 ? "bell" : "bell.badge.fill")
+                        .font(.system(size: 14, weight: .bold))
+                    Text("通知")
+                        .font(.system(size: 9, weight: .bold))
+                }
+                .foregroundStyle(Color.claySkyDeep)
+                .frame(minWidth: 44, minHeight: 44)
+                .background(Circle().fill(Color(red: 0.91, green: 0.96, blue: 0.99)))
+            }
+            .buttonStyle(SoftPressButtonStyle())
+            .accessibilityLabel("設定した通知を確認（\(notificationCount)件）")
+
+            Button(action: settingsAction) {
+                Image(systemName: "gearshape.fill")
+                    .font(.system(size: 15, weight: .bold))
+                    .foregroundStyle(Color.claySkyDeep)
+                    .frame(width: 44, height: 44)
+                    .background(Circle().fill(Color(red: 0.91, green: 0.96, blue: 0.99)))
+            }
+            .buttonStyle(SoftPressButtonStyle())
+            .accessibilityLabel("設定を開く")
+
+            Button(action: helpAction) {
+                Image(systemName: "questionmark")
+                    .font(.system(size: 15, weight: .bold))
+                    .foregroundStyle(Color.claySkyDeep)
+                    .frame(width: 44, height: 44)
+                    .background(Circle().fill(Color(red: 0.91, green: 0.96, blue: 0.99)))
+            }
+            .buttonStyle(SoftPressButtonStyle())
+            .accessibilityLabel("使い方を開く")
+        }
     }
 }
 
@@ -1099,7 +1142,7 @@ struct ClayNextBusHero: View {
                 }
                 .padding(21)
             }
-            .frame(height: 228)
+            .frame(minHeight: 228)
             .shadow(color: Color.clayShadow.opacity(0.34), radius: 22, x: 9, y: 14)
 
             VStack(spacing: 14) {
@@ -1313,7 +1356,9 @@ struct ClaySearchTypeChip: View {
             }
             .font(.caption.weight(.bold))
             .foregroundStyle(isSelected ? Color.claySkyDeep : Color.neumoMuted)
-            .frame(maxWidth: .infinity)
+            .multilineTextAlignment(.center)
+            .lineLimit(2)
+            .frame(maxWidth: .infinity, minHeight: 44)
             .padding(.vertical, 11)
             .background(
                 RoundedRectangle(cornerRadius: 14, style: .continuous)
@@ -1390,58 +1435,80 @@ struct ClayUpcomingRow: View {
     let isNotificationScheduled: Bool
     let reason: String?
     let action: () -> Void
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     var body: some View {
-        HStack(spacing: 13) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .fill(tint.opacity(0.16))
-                    .frame(width: 46, height: 46)
-                Image(systemName: "bus.fill")
-                    .font(.system(size: 18, weight: .bold))
-                    .foregroundStyle(tint)
-            }
-
-            VStack(alignment: .leading, spacing: 4) {
-                HStack(alignment: .lastTextBaseline, spacing: 6) {
-                    Text(bus.departure)
-                        .font(.system(size: 20, weight: .bold, design: .rounded))
-                        .foregroundStyle(Color.neumoText)
-                    Image(systemName: "arrow.right")
-                        .font(.caption2.weight(.bold))
-                        .foregroundStyle(Color.claySkyDeep)
-                    Text(bus.arrival)
-                        .font(.system(size: 16, weight: .semibold, design: .rounded))
-                        .foregroundStyle(Color.neumoMuted)
+        Group {
+            if dynamicTypeSize.isAccessibilitySize {
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack(alignment: .top, spacing: 13) {
+                        icon
+                        details
+                    }
+                    controls.frame(maxWidth: .infinity, alignment: .trailing)
                 }
-                Text(bus.stopSummary)
-                    .font(.caption2)
-                    .foregroundStyle(Color.neumoMuted)
-                    .lineLimit(2)
-                if let reason {
-                    Text(reason)
-                        .font(.caption2.weight(.bold))
-                        .foregroundStyle(Color.claySkyDeep)
-                        .lineLimit(2)
+            } else {
+                HStack(spacing: 13) {
+                    icon
+                    details
+                    Spacer(minLength: 0)
+                    controls
                 }
-            }
-
-            Spacer(minLength: 0)
-
-            VStack(alignment: .trailing, spacing: 5) {
-                if let countdown {
-                    Text(countdown)
-                        .font(.caption2.weight(.bold))
-                        .foregroundStyle(Color.claySkyDeep)
-                }
-                BusNotificationActionButton(
-                    isScheduled: isNotificationScheduled,
-                    action: action
-                )
             }
         }
         .padding(.horizontal, 18)
         .padding(.vertical, 13)
+    }
+
+    private var icon: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(tint.opacity(0.16))
+                .frame(width: 46, height: 46)
+            Image(systemName: "bus.fill")
+                .font(.system(size: 18, weight: .bold))
+                .foregroundStyle(tint)
+        }
+    }
+
+    private var details: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(alignment: .lastTextBaseline, spacing: 6) {
+                Text(bus.departure)
+                    .font(.system(size: 20, weight: .bold, design: .rounded))
+                    .foregroundStyle(Color.neumoText)
+                Image(systemName: "arrow.right")
+                    .font(.caption2.weight(.bold))
+                    .foregroundStyle(Color.claySkyDeep)
+                Text(bus.arrival)
+                    .font(.system(size: 16, weight: .semibold, design: .rounded))
+                    .foregroundStyle(Color.neumoMuted)
+            }
+            Text(bus.stopSummary)
+                .font(.caption2)
+                .foregroundStyle(Color.neumoMuted)
+                .fixedSize(horizontal: false, vertical: true)
+            if let reason {
+                Text(reason)
+                    .font(.caption2.weight(.bold))
+                    .foregroundStyle(Color.claySkyDeep)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
+
+    private var controls: some View {
+        VStack(alignment: .trailing, spacing: 5) {
+            if let countdown {
+                Text(countdown)
+                    .font(.caption2.weight(.bold))
+                    .foregroundStyle(Color.claySkyDeep)
+            }
+            BusNotificationActionButton(
+                isScheduled: isNotificationScheduled,
+                action: action
+            )
+        }
     }
 }
 
@@ -1948,10 +2015,12 @@ struct SearchModeButton: View {
                     .font(.caption.weight(.bold))
                 Text(title)
                     .font(.caption.weight(.bold))
-                    .lineLimit(1)
+                    .lineLimit(2)
+                    .multilineTextAlignment(.center)
+                    .minimumScaleFactor(0.85)
             }
             .foregroundStyle(isSelected ? Color.neumoAccentDeep : Color.neumoMuted)
-            .frame(maxWidth: .infinity)
+            .frame(maxWidth: .infinity, minHeight: 44)
             .padding(.vertical, 12)
             .background(
                 RoundedRectangle(cornerRadius: 14, style: .continuous)
@@ -1974,33 +2043,51 @@ struct TimePickerRow: View {
     let currentAction: () -> Void
 
     var body: some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: 12) {
+                timeSelection
+                Spacer(minLength: 8)
+                currentTimeButton
+            }
+
+            VStack(alignment: .leading, spacing: 10) {
+                timeSelection
+                currentTimeButton
+                    .frame(maxWidth: .infinity, alignment: .trailing)
+            }
+        }
+        .padding(.horizontal, 13)
+        .padding(.vertical, 11)
+        .neumorphicSurface(in: RoundedRectangle(cornerRadius: 18, style: .continuous), depth: 8)
+    }
+
+    private var timeSelection: some View {
         HStack(spacing: 12) {
             IconBubble(systemName: "clock.fill", tint: .neumoAccent, size: 42)
             VStack(alignment: .leading, spacing: 3) {
                 Text(title)
                     .font(.caption.weight(.bold))
                     .foregroundStyle(Color.neumoMuted)
+                    .fixedSize(horizontal: false, vertical: true)
                 DatePicker("", selection: $date, displayedComponents: .hourAndMinute)
                     .labelsHidden()
                     .font(.system(size: 25, weight: .bold, design: .rounded))
                     .tint(Color.neumoText)
+                    .fixedSize()
             }
-            Spacer(minLength: 0)
-            Button(action: currentAction) {
-                VStack(spacing: 3) {
-                    Image(systemName: "sparkles")
-                        .font(.caption.weight(.bold))
-                    Text("現時刻")
-                        .font(.system(size: 10, weight: .bold))
-                }
+        }
+    }
+
+    private var currentTimeButton: some View {
+        Button(action: currentAction) {
+            Label("現在時刻にする", systemImage: "clock.arrow.circlepath")
+                .font(.caption.weight(.bold))
                 .foregroundStyle(Color.neumoAccent)
-                .frame(width: 58, height: 52)
+                .padding(.horizontal, 12)
+                .frame(minHeight: 44)
             }
             .buttonStyle(NeumorphicButtonStyle(cornerRadius: 14, shadowRadius: 6, offset: 3))
-        }
-        .padding(.horizontal, 13)
-        .padding(.vertical, 11)
-        .neumorphicSurface(in: RoundedRectangle(cornerRadius: 18, style: .continuous), depth: 8)
+            .accessibilityHint("選択中の検索方法を変えずに現在時刻を入力します")
     }
 }
 
@@ -2010,61 +2097,81 @@ struct BusResultRow: View {
     let isNotificationScheduled: Bool
     let reason: String
     let action: () -> Void
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     var body: some View {
-        HStack(spacing: 14) {
-            VStack(alignment: .leading, spacing: 5) {
-                HStack(spacing: 7) {
-                    Text("おすすめ")
-                        .font(.system(size: 10, weight: .bold))
-                        .foregroundStyle(Color.neumoAccentDeep)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .background(Capsule().fill(Color.neumoAccentSoft.opacity(0.78)))
-                    if let note = bus.note {
-                        Text(note)
-                            .font(.system(size: 10, weight: .bold))
-                            .foregroundStyle(Color.neumoMuted)
-                            .lineLimit(1)
-                    }
+        Group {
+            if dynamicTypeSize.isAccessibilitySize {
+                VStack(alignment: .leading, spacing: 12) {
+                    details
+                    controls.frame(maxWidth: .infinity, alignment: .trailing)
                 }
-                HStack(alignment: .lastTextBaseline, spacing: 8) {
-                    Text(bus.departure)
-                        .font(.system(size: 29, weight: .bold, design: .rounded))
-                        .foregroundStyle(Color.neumoText)
-                    Image(systemName: "arrow.right")
-                        .font(.caption.weight(.bold))
-                        .foregroundStyle(Color.neumoAccent)
-                    Text(bus.arrival)
-                        .font(.system(size: 23, weight: .bold, design: .rounded))
-                        .foregroundStyle(Color.neumoMuted)
+            } else {
+                HStack(spacing: 14) {
+                    details
+                    Spacer(minLength: 0)
+                    controls
                 }
-                Text(bus.stopSummary)
-                    .font(.caption)
-                    .foregroundStyle(Color.neumoMuted)
-                    .lineLimit(2)
-                Text(reason)
-                    .font(.caption2.weight(.bold))
-                    .foregroundStyle(Color.neumoAccentDeep)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            Spacer(minLength: 0)
-            VStack(alignment: .trailing, spacing: 8) {
-                if let countdown = viewModel.countdownMessages[bus.id] {
-                    Text(countdown)
-                        .font(.caption2.weight(.bold))
-                        .foregroundStyle(countdown == "出発済み" ? Color.neumoMuted : Color.neumoAccentDeep)
-                        .multilineTextAlignment(.trailing)
-                }
-                BusNotificationActionButton(
-                    isScheduled: isNotificationScheduled,
-                    action: action
-                )
             }
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 14)
         .neumorphicSurface(in: RoundedRectangle(cornerRadius: 20, style: .continuous), depth: 9)
+    }
+
+    private var details: some View {
+        VStack(alignment: .leading, spacing: 5) {
+            HStack(spacing: 7) {
+                Text("おすすめ")
+                    .font(.system(size: 10, weight: .bold))
+                    .foregroundStyle(Color.neumoAccentDeep)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(Capsule().fill(Color.neumoAccentSoft.opacity(0.78)))
+                if let note = bus.note {
+                    Text(note)
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundStyle(Color.neumoMuted)
+                        .lineLimit(2)
+                }
+            }
+            HStack(alignment: .lastTextBaseline, spacing: 8) {
+                Text(bus.departure)
+                    .font(.system(size: 29, weight: .bold, design: .rounded))
+                    .foregroundStyle(Color.neumoText)
+                    .minimumScaleFactor(0.75)
+                Image(systemName: "arrow.right")
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(Color.neumoAccent)
+                Text(bus.arrival)
+                    .font(.system(size: 23, weight: .bold, design: .rounded))
+                    .foregroundStyle(Color.neumoMuted)
+                    .minimumScaleFactor(0.75)
+            }
+            Text(bus.stopSummary)
+                .font(.caption)
+                .foregroundStyle(Color.neumoMuted)
+                .fixedSize(horizontal: false, vertical: true)
+            Text(reason)
+                .font(.caption2.weight(.bold))
+                .foregroundStyle(Color.neumoAccentDeep)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    private var controls: some View {
+        VStack(alignment: .trailing, spacing: 8) {
+            if let countdown = viewModel.countdownMessages[bus.id] {
+                Text(countdown)
+                    .font(.caption2.weight(.bold))
+                    .foregroundStyle(countdown == "出発済み" ? Color.neumoMuted : Color.neumoAccentDeep)
+                    .multilineTextAlignment(.trailing)
+            }
+            BusNotificationActionButton(
+                isScheduled: isNotificationScheduled,
+                action: action
+            )
+        }
     }
 }
 
@@ -2073,49 +2180,42 @@ struct BusTimetableRow: View {
     let isRecommended: Bool
     let isNotificationScheduled: Bool
     let action: () -> Void
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     var body: some View {
-        HStack(spacing: 0) {
-            HStack(spacing: 8) {
-                if isRecommended {
-                    Capsule()
-                        .fill(Color.neumoAccent)
-                        .frame(width: 4, height: 28)
-                }
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(bus.departure)
-                        .font(.system(size: 19, weight: .bold, design: .rounded))
-                        .foregroundStyle(Color.neumoText)
-                    if let note = bus.note {
-                        Text(note)
-                            .font(.system(size: 9, weight: .medium))
-                            .foregroundStyle(Color.neumoMuted)
-                            .lineLimit(1)
+        Group {
+            if dynamicTypeSize.isAccessibilitySize {
+                VStack(alignment: .leading, spacing: 10) {
+                    HStack(alignment: .firstTextBaseline, spacing: 8) {
+                        recommendationMarker
+                        departureAndArrival
                     }
+                    Text(bus.stopSummary)
+                        .font(.caption2)
+                        .foregroundStyle(Color.neumoMuted)
+                        .fixedSize(horizontal: false, vertical: true)
+                    BusNotificationActionButton(
+                        isScheduled: isNotificationScheduled,
+                        action: action
+                    )
+                    .frame(maxWidth: .infinity, alignment: .trailing)
                 }
-                .frame(width: 76, alignment: .leading)
+            } else {
+                HStack(spacing: 10) {
+                    recommendationMarker
+                    departureAndNote
+                        .frame(width: 76, alignment: .leading)
+                    routeLine
+                    Text(bus.arrival)
+                        .font(.system(size: 17, weight: .semibold, design: .rounded))
+                        .foregroundStyle(Color.neumoMuted)
+                        .frame(width: 52, alignment: .trailing)
+                    BusNotificationActionButton(
+                        isScheduled: isNotificationScheduled,
+                        action: action
+                    )
+                }
             }
-
-            HStack(spacing: 6) {
-                Circle().fill(Color.neumoAccent.opacity(0.7)).frame(width: 5, height: 5)
-                Rectangle().fill(Color.neumoAccent.opacity(0.18)).frame(height: 1)
-                Image(systemName: "bus.fill")
-                    .font(.system(size: 10, weight: .bold))
-                    .foregroundStyle(Color.neumoAccent)
-                Rectangle().fill(Color.neumoAccent.opacity(0.18)).frame(height: 1)
-                Circle().fill(Color.neumoAccent.opacity(0.7)).frame(width: 5, height: 5)
-            }
-            .frame(maxWidth: .infinity)
-
-            Text(bus.arrival)
-                .font(.system(size: 17, weight: .semibold, design: .rounded))
-                .foregroundStyle(Color.neumoMuted)
-                .frame(width: 52, alignment: .trailing)
-
-            BusNotificationActionButton(
-                isScheduled: isNotificationScheduled,
-                action: action
-            )
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
@@ -2124,6 +2224,63 @@ struct BusTimetableRow: View {
                 ? Color.neumoAccent.opacity(0.055)
                 : Color.clear
         )
+    }
+
+    @ViewBuilder
+    private var recommendationMarker: some View {
+        if isRecommended {
+            Capsule()
+                .fill(Color.neumoAccent)
+                .frame(width: 4, height: 28)
+                .accessibilityHidden(true)
+        }
+    }
+
+    private var departureAndNote: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(bus.departure)
+                .font(.system(size: 19, weight: .bold, design: .rounded))
+                .foregroundStyle(Color.neumoText)
+            if let note = bus.note {
+                Text(note)
+                    .font(.system(size: 9, weight: .medium))
+                    .foregroundStyle(Color.neumoMuted)
+                    .lineLimit(2)
+            }
+        }
+    }
+
+    private var departureAndArrival: some View {
+        HStack(alignment: .lastTextBaseline, spacing: 8) {
+            Text(bus.departure)
+                .font(.headline.weight(.bold))
+                .foregroundStyle(Color.neumoText)
+            Image(systemName: "arrow.right")
+                .font(.caption.weight(.bold))
+                .foregroundStyle(Color.neumoAccent)
+            Text(bus.arrival)
+                .font(.headline.weight(.semibold))
+                .foregroundStyle(Color.neumoMuted)
+            if let note = bus.note {
+                Text(note)
+                    .font(.caption2)
+                    .foregroundStyle(Color.neumoMuted)
+            }
+        }
+    }
+
+    private var routeLine: some View {
+        HStack(spacing: 6) {
+            Circle().fill(Color.neumoAccent.opacity(0.7)).frame(width: 5, height: 5)
+            Rectangle().fill(Color.neumoAccent.opacity(0.18)).frame(height: 1)
+            Image(systemName: "bus.fill")
+                .font(.system(size: 10, weight: .bold))
+                .foregroundStyle(Color.neumoAccent)
+            Rectangle().fill(Color.neumoAccent.opacity(0.18)).frame(height: 1)
+            Circle().fill(Color.neumoAccent.opacity(0.7)).frame(width: 5, height: 5)
+        }
+        .frame(maxWidth: .infinity)
+        .accessibilityHidden(true)
     }
 }
 
