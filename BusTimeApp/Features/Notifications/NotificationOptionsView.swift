@@ -58,7 +58,7 @@ struct NotificationOptionsView: View {
                     systemImage: "point.topleft.down.curvedto.point.bottomright.up"
                 )
                 .font(.caption.weight(.semibold))
-                .foregroundStyle(Color.neumoAccentDeep)
+                    .foregroundStyle(Color.neumoAccentDeep)
             }
             Text(routeName)
                 .font(.caption)
