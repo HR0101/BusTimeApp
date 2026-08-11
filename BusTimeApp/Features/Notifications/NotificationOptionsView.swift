@@ -6,6 +6,7 @@ struct NotificationOptionsView: View {
     let scheduledNotification: ScheduledBusNotification?
     let permissionStatus: BusNotificationPermission
     let liveActivityBusID: String?
+    let onOpenNotificationSettings: () -> Void
     let onSchedule: (Int) -> Void
     let onStartLiveActivity: () -> Void
     let onEndLiveActivity: () -> Void
@@ -32,7 +33,7 @@ struct NotificationOptionsView: View {
             .navigationTitle("この便をお知らせ")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
+                ToolbarItem(placement: .navigationBarTrailing) {
                     Button("閉じる") { dismiss() }
                         .fontWeight(.bold)
                         .foregroundStyle(Color.neumoAccentDeep)
@@ -47,9 +48,18 @@ struct NotificationOptionsView: View {
             Label("対象のバス", systemImage: "bus.fill")
                 .font(.caption.weight(.bold))
                 .foregroundStyle(Color.neumoAccent)
-            Text("\(bus.originName) \(bus.departure)発 → \(bus.destinationName)")
+            Text("\(bus.departure)発｜\(bus.stopSummary)")
                 .font(.headline.weight(.bold))
                 .foregroundStyle(Color.neumoText)
+                .fixedSize(horizontal: false, vertical: true)
+            if !bus.intermediateStops.isEmpty {
+                Label(
+                    "途中停車：\(bus.intermediateStops.map(\.name).joined(separator: "、"))",
+                    systemImage: "point.topleft.down.curvedto.point.bottomright.up"
+                )
+                .font(.caption.weight(.semibold))
+                    .foregroundStyle(Color.neumoAccentDeep)
+            }
             Text(routeName)
                 .font(.caption)
                 .foregroundStyle(Color.neumoMuted)
@@ -78,9 +88,12 @@ struct NotificationOptionsView: View {
                 .foregroundStyle(Color.neumoText)
 
             if let scheduledNotification {
-                Text("現在の設定：(scheduledNotification.notificationDescription)")
+                Text("現在の設定：\(scheduledNotification.notificationDescription)")
                     .font(.caption.weight(.bold))
                     .foregroundStyle(Color.neumoAccentDeep)
+                Text("同じ便の通知は1件だけ設定できます。選び直すと通知時刻が変更されます。")
+                    .font(.caption2)
+                    .foregroundStyle(Color.neumoMuted)
             }
 
             ForEach(reminderMinutes, id: \.self) { minutes in
@@ -98,7 +111,7 @@ struct NotificationOptionsView: View {
                             .foregroundStyle(Color.neumoAccent)
                             .frame(width: 32)
                         VStack(alignment: .leading, spacing: 3) {
-                            Text("(minutes)分前に通知")
+                            Text("\(minutes)分前に通知")
                                 .font(.subheadline.weight(.bold))
                             Text(schedule.map { "通知時刻：\(BusNotificationTimeCalculator.displayString($0.notificationDate))" } ?? "この便では設定できません")
                                 .font(.caption)
@@ -120,10 +133,23 @@ struct NotificationOptionsView: View {
             }
 
             if permissionStatus == .denied {
-                Text("通知が許可されていません。設定後にもう一度このボタンを押してください。")
-                    .font(.caption)
-                    .foregroundStyle(Color.neumoWarning)
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("通知が許可されていません。")
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(Color.neumoWarning)
+                    Button("iPhoneの設定で通知を許可する", action: onOpenNotificationSettings)
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(Color.neumoAccentDeep)
+                }
             }
+
+            Label(
+                "この通知は時刻表の予定時刻を基準にしています。遅延や運休は自動では反映されません。",
+                systemImage: "info.circle"
+            )
+            .font(.caption2)
+            .foregroundStyle(Color.neumoMuted)
+            .fixedSize(horizontal: false, vertical: true)
         }
     }
 
@@ -147,10 +173,10 @@ struct NotificationOptionsView: View {
                         .clipShape(RoundedRectangle(cornerRadius: 17, style: .continuous))
                 }
                 .buttonStyle(SoftPressButtonStyle())
-            } else {
+            } else if liveActivityBusID == nil {
                 Button(action: onStartLiveActivity) {
                     Label(
-                        liveActivityBusID == nil ? "Live Activityを開始" : "現在の表示を終了して開始",
+                        "Live Activityを開始",
                         systemImage: "lock.rectangle.on.rectangle"
                     )
                     .font(.subheadline.weight(.bold))
@@ -167,6 +193,10 @@ struct NotificationOptionsView: View {
                     .clipShape(RoundedRectangle(cornerRadius: 17, style: .continuous))
                 }
                 .buttonStyle(SoftPressButtonStyle())
+            } else {
+                Text("別の便をLive Activityで表示中です。先に管理画面から終了してください。")
+                    .font(.caption)
+                    .foregroundStyle(Color.neumoMuted)
             }
         }
         .padding(16)

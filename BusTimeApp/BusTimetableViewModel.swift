@@ -1,8 +1,8 @@
 import Foundation
 import Combine
-import UserNotifications
 import ActivityKit
 import CoreLocation
+import UIKit
 
 // このクラスが、アプリの状態とロジックを管理します。
 // ObservableObjectなので、SwiftUIのView（画面）はこのクラスのプロパティの変更を監視できます。
@@ -14,12 +14,14 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
     // MARK: - UIの状態を管理するプロパティ
     
     // @Publishedを付けると、このプロパティの値が変更されたときに、自動的にUIが更新されます。
-    @Published var selectedRoute: Route = .mansionToStation      // 選択中のルート
+    @Published private(set) var selectedRoute: Route = .mansionToStation
+    @Published private(set) var selectedOrigin: Stop = .mansion
+    @Published private(set) var selectedDestination: Stop = .station
     @Published var searchType: SearchType = .departure          // 選択中の検索方法（出発 or 到着）
-    @Published var departureTime: Date = Date()                 // 選択中の出発時刻
-    @Published var arrivalTime: Date = Date()                   // 選択中の到着希望時刻
+    @Published var searchTime: Date = Date()
     @Published var searchResults: [Bus] = []                    // 検索結果のバスリスト
     @Published var searchCriteriaDescription: String = "検索条件: まだ検索されていません" // 検索条件の説明テキスト
+    @Published private(set) var searchResultDescription: String = "出発地・目的地と時刻を選んでください"
     @Published var holidayMessage: String? = nil                // 土日・祝日の場合のエラーメッセージ
     
     @Published var countdownMessages: [String: String] = [:]    // カウントダウン表示用
@@ -38,7 +40,7 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
     ]
     private var timer: AnyCancellable?              // カウントダウン用のタイマー
     
-    private var currentActivity: Any? = nil         // 現在のLive Activity (型消去して保持)
+    private var currentActivity: Activity<BusActivityAttributes>? = nil
     private var lastActivityRemainingMinutes: Int? = nil // Live Activityへの過剰な更新を防ぐためのキャッシュ
     private var stateMachine = HomeStateMachine()
     
@@ -52,19 +54,101 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
 
     // MARK: - 選択肢を管理するための列挙型
     
-    // ルートの種類を定義します。CaseIterableに準拠すると、全てのケースを簡単にリストアップできます。
+    enum Stop: String, CaseIterable, Identifiable {
+        case mansion = "コロンブスシティ"
+        case station = "海浜幕張駅"
+        case yokado = "ヨーカドー前"
+
+        var id: Self { self }
+
+        var systemName: String {
+            switch self {
+            case .mansion:
+                return "building.2.fill"
+            case .station:
+                return "tram.fill"
+            case .yokado:
+                return "cart.fill"
+            }
+        }
+    }
+
     enum Route: String, CaseIterable {
         case mansionToStation = "コロンブスシティ → 海浜幕張駅"
         case stationToMansion = "海浜幕張駅 → コロンブスシティ"
         case mansionToYokado = "コロンブスシティ → ヨーカドー前"
         case stationToYokado = "海浜幕張駅 → ヨーカドー前"
         case yokadoToMansion = "ヨーカドー前 → コロンブスシティ"
+
+        var origin: Stop {
+            switch self {
+            case .mansionToStation, .mansionToYokado:
+                return .mansion
+            case .stationToMansion, .stationToYokado:
+                return .station
+            case .yokadoToMansion:
+                return .yokado
+            }
+        }
+
+        var destination: Stop {
+            switch self {
+            case .mansionToStation:
+                return .station
+            case .stationToMansion, .yokadoToMansion:
+                return .mansion
+            case .mansionToYokado, .stationToYokado:
+                return .yokado
+            }
+        }
+
+        var guidance: String {
+            switch self {
+            case .stationToMansion:
+                return "便によってヨーカドー前を経由します"
+            case .mansionToYokado:
+                return "海浜幕張駅を経由してヨーカドー前へ向かいます"
+            default:
+                return "選択した出発地から目的地まで運行します"
+            }
+        }
+
+        static func route(from origin: Stop, to destination: Stop) -> Route? {
+            allCases.first { $0.origin == origin && $0.destination == destination }
+        }
     }
     
     // 検索方法の種類を定義します。
-    enum SearchType: String {
-        case departure = "出発時刻"
-        case arrival = "到着希望時刻"
+    enum SearchType: String, CaseIterable {
+        case departure = "出発する時刻から探す"
+        case arrival = "到着したい時刻から探す"
+
+        var shortTitle: String {
+            switch self {
+            case .departure:
+                return "出発から"
+            case .arrival:
+                return "到着まで"
+            }
+        }
+
+        var timeTitle: String {
+            switch self {
+            case .departure:
+                return "この時刻以降に出発"
+            case .arrival:
+                return "この時刻までに到着"
+            }
+        }
+
+        var explanation: String {
+            switch self {
+            case .departure:
+                return "指定した時刻以降に出発する便を、早い順に表示します"
+            case .arrival:
+                return "指定した時刻までに目的地へ着く便を、到着時刻が近い順に表示します"
+            }
+        }
     }
     
     // MARK: - 初期化処理
@@ -79,11 +163,12 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
         
         checkHoliday()    // 休日かどうかをチェックする
         startTimer()      // カウントダウン用のタイマーを開始する
+        restoreLiveActivity()
     }
     
     // MARK: - CLLocationManagerDelegate
     
-    func checkLocationAndSetRoute() {
+    func checkLocationAndSetOrigin() {
         switch locationManager.authorizationStatus {
         case .notDetermined:
             locationManager.requestWhenInUseAuthorization()
@@ -110,11 +195,10 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
             return
         }
         
-        guard let route = routeForCurrentLocation(location) else { return }
+        guard let origin = stopForCurrentLocation(location) else { return }
         
-        if selectedRoute != route {
-            selectedRoute = route
-            performSearch()
+        if selectedOrigin != origin {
+            selectOrigin(origin)
         }
     }
     
@@ -122,17 +206,63 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
         print("位置情報取得エラー: \(error.localizedDescription)")
     }
     
-    private func routeForCurrentLocation(_ location: CLLocation) -> Route? {
-        let routeCandidates: [(distance: CLLocationDistance, route: Route)] = [
-            (location.distance(from: columbusCityLocation), .mansionToStation),
-            (location.distance(from: kaihinMakuhariStationLocation), .stationToMansion),
-            (location.distance(from: yokadoLocation), .yokadoToMansion)
+    private func stopForCurrentLocation(_ location: CLLocation) -> Stop? {
+        let stopCandidates: [(distance: CLLocationDistance, stop: Stop)] = [
+            (location.distance(from: columbusCityLocation), .mansion),
+            (location.distance(from: kaihinMakuhariStationLocation), .station),
+            (location.distance(from: yokadoLocation), .yokado)
         ]
-        guard let nearest = routeCandidates.min(by: { $0.distance < $1.distance }) else { return nil }
+        guard let nearest = stopCandidates.min(by: { $0.distance < $1.distance }) else { return nil }
         
         guard nearest.distance <= maxAutoRouteDistance else { return nil }
         
-        return nearest.route
+        return nearest.stop
+    }
+
+    var availableOrigins: [Stop] {
+        Stop.allCases.filter { origin in
+            Route.allCases.contains { $0.origin == origin }
+        }
+    }
+
+    var availableDestinations: [Stop] {
+        Stop.allCases.filter { destination in
+            Route.route(from: selectedOrigin, to: destination) != nil
+        }
+    }
+
+    var canSwapEndpoints: Bool {
+        Route.route(from: selectedDestination, to: selectedOrigin) != nil
+    }
+
+    func selectOrigin(_ origin: Stop) {
+        guard origin != selectedOrigin else { return }
+        selectedOrigin = origin
+
+        if let route = Route.route(from: origin, to: selectedDestination) {
+            selectedRoute = route
+        } else if let destination = availableDestinations.first,
+                  let route = Route.route(from: origin, to: destination) {
+            selectedDestination = destination
+            selectedRoute = route
+        }
+    }
+
+    func selectDestination(_ destination: Stop) {
+        guard let route = Route.route(from: selectedOrigin, to: destination) else { return }
+        selectedDestination = destination
+        selectedRoute = route
+    }
+
+    func swapEndpoints() {
+        guard let route = Route.route(from: selectedDestination, to: selectedOrigin) else { return }
+        applyRoute(route)
+    }
+
+    private func applyRoute(_ route: Route) {
+        selectedRoute = route
+        selectedOrigin = route.origin
+        selectedDestination = route.destination
     }
     
     // 時刻表データをプログラム内に直接定義します。
@@ -322,15 +452,9 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
         return minutes < 4 * 60 ? minutes + 24 * 60 : minutes
     }
 
-    // 「現在時刻で検索」ボタンのためのメソッド
+    // 現在選択している検索方法の時刻を現在時刻に合わせます。
     func setSearchToCurrentTime() {
-        // 検索タイプを「出発」に強制的に変更します。
-        self.searchType = .departure
-        
-        // 出発時刻を現在の時刻に設定します。
-        self.departureTime = now()
-        
-        // そのまま検索を実行します。
+        searchTime = now()
         performSearch()
     }
 
@@ -342,6 +466,7 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
         guard holidayMessage == nil else {
             searchResults = []
             searchCriteriaDescription = "検索条件: 本日は運休です。"
+            searchResultDescription = holidayMessage ?? "本日は運休です"
             send(.serviceUnavailable(holidayMessage ?? "本日は運休です。"))
             return
         }
@@ -354,13 +479,16 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
         
         // 検索方法に応じて処理を分岐します。
         if searchType == .arrival {
-            let results = findNextBusesByArrival(timetable: currentTimetable, arrivalTargetTime: arrivalTime)
+            let results = findNextBusesByArrival(timetable: currentTimetable, arrivalTargetTime: searchTime)
             self.searchResults = results
         } else {
-            let results = findNextBusesByDeparture(timetable: currentTimetable, departureRefTime: departureTime)
+            let results = findNextBusesByDeparture(timetable: currentTimetable, departureRefTime: searchTime)
             self.searchResults = results
         }
         updateSearchCriteriaDescription() // 検索条件の表示を更新します。
+        searchResultDescription = searchResults.isEmpty
+            ? "条件に合う便がありません。時刻または目的地を変更してください"
+            : "\(searchResults.count)便見つかりました。\(searchType.explanation)"
         send(.searchSucceeded(hasResults: !searchResults.isEmpty))
     }
 
@@ -409,12 +537,21 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
     // UIに表示する検索条件の説明文を更新します。
     func updateSearchCriteriaDescription() {
         let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "ja_JP")
         formatter.dateFormat = "HH:mm"
+        let time = formatter.string(from: searchTime)
         if searchType == .arrival {
-            searchCriteriaDescription = "\(selectedRoute.rawValue): 到着希望 \(formatter.string(from: arrivalTime))"
+            searchCriteriaDescription = "\(selectedOrigin.rawValue) → \(selectedDestination.rawValue)｜\(time)までに到着"
         } else {
-            searchCriteriaDescription = "\(selectedRoute.rawValue): 出発目安 \(formatter.string(from: departureTime))"
+            searchCriteriaDescription = "\(selectedOrigin.rawValue) → \(selectedDestination.rawValue)｜\(time)以降に出発"
         }
+    }
+
+    func resultReason(for bus: Bus) -> String {
+        let target = searchType == .arrival ? bus.arrival : bus.departure
+        return searchType == .arrival
+            ? "\(target)到着・希望時刻までに到着"
+            : "\(target)出発・指定時刻以降"
     }
     
     // 今日が土日・祝日かどうかをチェックし、メッセージを設定します。
@@ -483,135 +620,77 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
         self.countdownMessages = newMessages
     }
     
-    // MARK: - Notification (通知) 関連のメソッド
-    
-    // 通知の許可をユーザーに求めます
-    func requestNotificationPermission() {
-        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { granted, error in
-            if let error = error {
-                print("通知許可エラー: \(error)")
-            }
-        }
-    }
-    
-    // 指定したバスの出発（到着）時刻の何分か前に通知をスケジュールします
-    func scheduleNotification(for bus: Bus, minutesBefore: Int, completion: @escaping (Bool) -> Void) {
-        requestNotificationPermission()
-        
-        guard let busDate = timeStringToDate(bus.departure) else { 
-            completion(false)
-            return 
-        }
-        
-        let now = Date()
-            let calendar = Calendar.current
-            
-            // 現在時刻（秒切り捨て）
-            let nowComponents = calendar.dateComponents([.year, .month, .day, .hour, .minute], from: now)
-            let nowTruncated = calendar.date(from: nowComponents) ?? now
-            
-            var busComponents = calendar.dateComponents([.hour, .minute], from: busDate)
-            busComponents.year = calendar.component(.year, from: now)
-            busComponents.month = calendar.component(.month, from: now)
-            busComponents.day = calendar.component(.day, from: now)
-            
-            guard var targetDate = calendar.date(from: busComponents) else {
-                completion(false)
-                return
-            }
-            
-            // 現在時刻より前の時間のバスの場合、翌日の便として扱う（秒のズレを防ぐため truncated を使用）
-            if targetDate < nowTruncated {
-                targetDate = calendar.date(byAdding: .day, value: 1, to: targetDate)!
-            }
-            
-            guard let notificationTime = calendar.date(byAdding: .minute, value: -minutesBefore, to: targetDate) else {
-                completion(false)
-                return
-            }
-            
-            // 設定した通知時間が過去の場合はエラー
-            if notificationTime < nowTruncated {
-                completion(false)
-                return
-            }
-        
-        let content = UNMutableNotificationContent()
-        content.title = "バスの出発時間が近づいています"
-        content.body = "\(bus.originName) \(bus.departure)発、\(bus.destinationName)行きのバスがあと\(minutesBefore)分で出発します。"
-        content.sound = .default
-        
-        let triggerComponents = calendar.dateComponents([.year, .month, .day, .hour, .minute], from: notificationTime)
-        let trigger = UNCalendarNotificationTrigger(dateMatching: triggerComponents, repeats: false)
-        
-        let request = UNNotificationRequest(identifier: "bus_notification_\(bus.id)", content: content, trigger: trigger)
-        
-        UNUserNotificationCenter.current().add(request) { error in
-            DispatchQueue.main.async {
-                if let error = error {
-                    print("通知登録エラー: \(error)")
-                    completion(false)
-                } else {
-                    completion(true)
-                }
-            }
-        }
-    }
-    
     // MARK: - Live Activity 関連のメソッド
+
+    var isLiveActivityActive: Bool {
+        trackedBusId != nil
+    }
+
+    private func restoreLiveActivity() {
+        guard let activity = Activity<BusActivityAttributes>.activities.first else { return }
+        currentActivity = activity
+        trackedBusId = activity.attributes.busID
+        lastActivityRemainingMinutes = activity.content.state.remainingMinutes
+    }
     
     func startLiveActivity(for bus: Bus) {
-        // ActivityKitが有効か（Info.plistでYESになっているか、設定で許可されているか）チェック
-        guard ActivityAuthorizationInfo().areActivitiesEnabled else {
-            DispatchQueue.main.async {
-                self.liveActivityError = "Live Activityが有効になっていません。\n\n1. XcodeのInfoタブで「NSSupportsLiveActivities」が「YES」になっているか確認してください。\n2. iPhoneの設定アプリでLive Activityが許可されているか確認してください。"
-            }
+        restoreLiveActivity()
+
+        if let trackedBusId, trackedBusId != bus.id {
+            liveActivityError = "別の便のLive Activityを表示中です。先に「設定した通知」から表示を終了してください。"
             return
         }
-        
-        // 既存のアクティビティがあれば終了させる
-        endLiveActivity()
-        
+
+        guard ActivityAuthorizationInfo().areActivitiesEnabled else {
+            liveActivityError = "Live Activityを開始できません。iPhoneの設定で、BusTimeのLive Activityを許可してください。"
+            return
+        }
+
+        if trackedBusId == bus.id {
+            liveActivityError = "この便はすでにLive Activityで表示中です。"
+            return
+        }
+
+        guard let departureDate = BusNotificationTimeCalculator.nextDepartureDate(for: bus.departure, from: Date()) else {
+            liveActivityError = "出発時刻を確認できないため、Live Activityを開始できません。"
+            return
+        }
+
         let attributes = BusActivityAttributes(
+            busID: bus.id,
             busDepartureTime: bus.departure,
             busArrivalTime: bus.arrival,
+            originName: bus.originName,
+            destinationName: bus.destinationName,
+            departureDate: departureDate,
             routeName: selectedRoute.rawValue
         )
-        
-        // 現在の残り時間を計算
+
         let now = Date()
-        let nowMinutes = shiftTime(timeToMinutes(now))
-        guard let busDate = timeStringToDate(bus.departure) else { return }
-        let busMinutes = shiftTime(timeToMinutes(busDate))
-        let remaining = max(0, busMinutes - nowMinutes)
-        
+        let remaining = max(0, Int(ceil(departureDate.timeIntervalSince(now) / 60)))
         let contentState = BusActivityAttributes.ContentState(remainingMinutes: remaining, isDeparted: false)
-        let activityContent = ActivityContent(state: contentState, staleDate: Calendar.current.date(byAdding: .minute, value: 5, to: Date())!)
-        
+        let activityContent = ActivityContent(state: contentState, staleDate: departureDate)
+
         do {
             let activity = try Activity.request(
                 attributes: attributes,
                 content: activityContent,
                 pushType: nil
             )
-            DispatchQueue.main.async {
-                self.currentActivity = activity
-                self.trackedBusId = bus.id
-                self.lastActivityRemainingMinutes = remaining
-                self.liveActivityError = nil // 成功
-            }
+            currentActivity = activity
+            trackedBusId = bus.id
+            lastActivityRemainingMinutes = remaining
+            liveActivityError = nil
         } catch {
-            DispatchQueue.main.async {
-                self.liveActivityError = "Live Activityの開始に失敗しました: \(error.localizedDescription)\n\n※Widget Extensionが正しく作成されているか、BusActivityAttributes.swiftのTarget MembershipにWidgetが含まれているか確認してください。"
-            }
+            liveActivityError = "Live Activityを開始できませんでした。iPhoneの設定を確認して、もう一度お試しください。"
         }
     }
     
     private func updateLiveActivity(remainingMinutes: Int, isDeparted: Bool) {
         self.lastActivityRemainingMinutes = remainingMinutes
         
-        Task {
-            guard let activity = currentActivity as? Activity<BusActivityAttributes> else { return }
+        Task { @MainActor [weak self] in
+            guard let self, let activity = self.currentActivity else { return }
             let contentState = BusActivityAttributes.ContentState(remainingMinutes: remainingMinutes, isDeparted: isDeparted)
             let activityContent = ActivityContent(state: contentState, staleDate: nil)
             
@@ -622,28 +701,30 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
                 try? await Task.sleep(nanoseconds: 60 * 1_000_000_000)
                 await activity.end(activityContent, dismissalPolicy: .default)
                 
-                DispatchQueue.main.async {
-                    if self.trackedBusId == activity.attributes.busDepartureTime {
-                        self.trackedBusId = nil
-                        self.currentActivity = nil
-                    }
+                if self.trackedBusId == activity.attributes.busID {
+                    self.trackedBusId = nil
+                    self.currentActivity = nil
+                    self.lastActivityRemainingMinutes = nil
                 }
             }
         }
     }
     
     func endLiveActivity() {
-        Task {
-            guard let activity = currentActivity as? Activity<BusActivityAttributes> else { return }
+        Task { @MainActor [weak self] in
+            guard let self else { return }
             for act in Activity<BusActivityAttributes>.activities {
                 await act.end(nil, dismissalPolicy: .immediate)
             }
-            DispatchQueue.main.async {
-                self.currentActivity = nil
-                self.trackedBusId = nil
-                self.lastActivityRemainingMinutes = nil
-            }
+            self.currentActivity = nil
+            self.trackedBusId = nil
+            self.lastActivityRemainingMinutes = nil
         }
+    }
+
+    func openAppSettings() {
+        guard let url = URL(string: UIApplication.openSettingsURLString) else { return }
+        UIApplication.shared.open(url)
     }
     
     // 現在選択されているルートの全時刻表を返します。

@@ -47,6 +47,14 @@ final class NotificationViewModel: ObservableObject {
                 return
             }
 
+            guard BusNotificationTimeCalculator.nextDepartureDate(
+                for: bus.departure,
+                from: now
+            ) != nil else {
+                completion(.failure(.invalidDeparture))
+                return
+            }
+
             guard let scheduledDates = BusNotificationTimeCalculator.notificationDate(
                 for: bus.departure,
                 minutesBefore: minutesBefore,
@@ -61,6 +69,7 @@ final class NotificationViewModel: ObservableObject {
                 busID: bus.id,
                 originName: bus.originName,
                 destinationName: bus.destinationName,
+                stopSummary: bus.stopSummary,
                 departure: bus.departure,
                 routeName: routeName,
                 departureDate: scheduledDates.departureDate,
@@ -70,7 +79,7 @@ final class NotificationViewModel: ObservableObject {
 
             let content = UNMutableNotificationContent()
             content.title = "バスの時間をお知らせします"
-            content.body = "(item.busDescription)が、あと(minutesBefore)分で出発します。\n※時刻表の予定です。遅延・運休は反映されません。"
+            content.body = "\(item.busDescription)が、あと\(minutesBefore)分で出発します。\n※時刻表の予定です。遅延・運休は反映されません。"
             content.sound = .default
 
             let components = Calendar.current.dateComponents(
@@ -80,17 +89,12 @@ final class NotificationViewModel: ObservableObject {
             let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
             let request = UNNotificationRequest(identifier: item.id, content: content, trigger: trigger)
 
-            center.add(request) { [weak self] error in
-                Task { @MainActor in
-                    guard let self else { return }
-                    if error != nil {
-                        completion(.failure(.registrationFailed))
-                        return
-                    }
-
-                    self.upsert(item)
-                    completion(.success(item))
-                }
+            do {
+                try await center.add(request)
+                upsert(item)
+                completion(.success(item))
+            } catch {
+                completion(.failure(.registrationFailed))
             }
         }
     }

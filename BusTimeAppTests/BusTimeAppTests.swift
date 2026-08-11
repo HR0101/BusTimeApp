@@ -45,4 +45,73 @@ struct BusTimeAppTests {
         #expect(coordinator.state == .tutorial)
     }
 
+    @Test
+    func notificationTimeUsesServiceDayBoundary() {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "Asia/Tokyo")!
+
+        let beforeBoundary = calendar.date(
+            from: DateComponents(year: 2026, month: 8, day: 11, hour: 3, minute: 0)
+        )!
+        let sameServiceDay = BusNotificationTimeCalculator.nextDepartureDate(
+            for: "0:04",
+            from: beforeBoundary,
+            calendar: calendar
+        )!
+        #expect(calendar.component(.day, from: sameServiceDay) == 11)
+        #expect(calendar.component(.hour, from: sameServiceDay) == 0)
+        #expect(calendar.component(.minute, from: sameServiceDay) == 4)
+
+        let afterBoundary = calendar.date(
+            from: DateComponents(year: 2026, month: 8, day: 11, hour: 5, minute: 0)
+        )!
+        let nextServiceDay = BusNotificationTimeCalculator.nextDepartureDate(
+            for: "0:04",
+            from: afterBoundary,
+            calendar: calendar
+        )!
+        #expect(calendar.component(.day, from: nextServiceDay) == 12)
+        #expect(calendar.component(.hour, from: nextServiceDay) == 0)
+    }
+
+    @Test
+    func notificationTimeCannotBeScheduledInThePast() {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "Asia/Tokyo")!
+        let now = calendar.date(
+            from: DateComponents(year: 2026, month: 8, day: 11, hour: 7, minute: 55)
+        )!
+
+        let schedule = BusNotificationTimeCalculator.notificationDate(
+            for: "8:00",
+            minutesBefore: 10,
+            from: now,
+            calendar: calendar
+        )
+        #expect(schedule == nil)
+    }
+
+    @Test
+    func routeIsResolvedFromOriginAndDestination() {
+        #expect(
+            HomeViewModel.Route.route(from: .station, to: .mansion)
+                == .stationToMansion
+        )
+        #expect(
+            HomeViewModel.Route.route(from: .mansion, to: .yokado)
+                == .mansionToYokado
+        )
+        #expect(
+            HomeViewModel.Route.route(from: .yokado, to: .station)
+                == nil
+        )
+    }
+
+    @Test
+    func routeAndSearchLabelsExplainTheirMeaning() {
+        #expect(HomeViewModel.Route.stationToMansion.guidance.contains("ヨーカドー前"))
+        #expect(HomeViewModel.SearchType.departure.timeTitle.contains("以降"))
+        #expect(HomeViewModel.SearchType.arrival.timeTitle.contains("まで"))
+    }
+
 }
