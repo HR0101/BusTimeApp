@@ -30,7 +30,7 @@ struct BusTimeWidgetLiveActivity: Widget {
                 
                 Spacer(minLength: 10)
                 
-                // 右側: カウントダウン表示（大きく）
+                // 右側: 出発までの時間を、単位が分かる相対表記で表示
                 VStack(alignment: .trailing, spacing: 0) {
                     if context.state.isDeparted {
                         Text("出発済み")
@@ -41,15 +41,14 @@ struct BusTimeWidgetLiveActivity: Widget {
                             .background(Color.gray.opacity(0.2))
                             .clipShape(Capsule())
                     } else {
-                        Text("出発まで")
+                        Text("出発予定")
                             .font(.caption2.bold())
                             .foregroundColor(Color.gray)
                         
-                        HStack(alignment: .lastTextBaseline, spacing: 2) {
-                            Text(context.attributes.departureDate, style: .timer)
-                                .font(.headline.bold())
-                                .foregroundColor(Color(red: 0.15, green: 0.50, blue: 0.75))
-                        }
+                        Text(context.attributes.departureDate, style: .relative)
+                            .font(.headline.bold())
+                            .foregroundColor(Color(red: 0.15, green: 0.50, blue: 0.75))
+                            .multilineTextAlignment(.trailing)
                     }
                 }
             }
@@ -65,8 +64,8 @@ struct BusTimeWidgetLiveActivity: Widget {
                         .font(.headline)
                 }
                 DynamicIslandExpandedRegion(.trailing) {
-                if !context.state.isDeparted {
-                        Text(context.attributes.departureDate, style: .timer)
+                    if !context.state.isDeparted {
+                        Text(context.attributes.departureDate, style: .relative)
                             .font(.title2.bold())
                             .foregroundColor(.red)
                     } else {
@@ -84,9 +83,11 @@ struct BusTimeWidgetLiveActivity: Widget {
                     .foregroundColor(.blue)
             } compactTrailing: {
                 if !context.state.isDeparted {
-                    Text(context.attributes.departureDate, style: .timer)
+                    Text(context.attributes.departureDate, style: .relative)
                         .foregroundColor(.red)
                         .bold()
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
                 } else {
                     Text("--")
                 }

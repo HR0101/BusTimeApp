@@ -92,6 +92,50 @@ struct BusTimeAppTests {
     }
 
     @Test
+    func currentServiceDayDepartureDoesNotRollToTomorrow() {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "Asia/Tokyo")!
+        let now = calendar.date(
+            from: DateComponents(year: 2026, month: 8, day: 11, hour: 8, minute: 5)
+        )!
+
+        let currentServiceDayDeparture = BusNotificationTimeCalculator.departureDateForCurrentServiceDay(
+            for: "8:00",
+            from: now,
+            calendar: calendar
+        )!
+        let nextDeparture = BusNotificationTimeCalculator.nextDepartureDate(
+            for: "8:00",
+            from: now,
+            calendar: calendar
+        )!
+
+        #expect(calendar.component(.day, from: currentServiceDayDeparture) == 11)
+        #expect(currentServiceDayDeparture < now)
+        #expect(calendar.component(.day, from: nextDeparture) == 12)
+    }
+
+    @Test
+    func currentServiceDayKeepsAfterMidnightBusOnTheCorrectDate() {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "Asia/Tokyo")!
+        let beforeDeparture = calendar.date(
+            from: DateComponents(year: 2026, month: 8, day: 11, hour: 0, minute: 10)
+        )!
+
+        let departure = BusNotificationTimeCalculator.departureDateForCurrentServiceDay(
+            for: "0:13",
+            from: beforeDeparture,
+            calendar: calendar
+        )!
+
+        #expect(calendar.component(.day, from: departure) == 11)
+        #expect(calendar.component(.hour, from: departure) == 0)
+        #expect(calendar.component(.minute, from: departure) == 13)
+        #expect(departure > beforeDeparture)
+    }
+
+    @Test
     func routeIsResolvedFromOriginAndDestination() {
         #expect(
             HomeViewModel.Route.route(from: .station, to: .mansion)
