@@ -304,6 +304,7 @@ struct BusTimeAppTests {
         let beforeViewModel = HomeViewModel(nowProvider: { beforeLastBus })
         beforeViewModel.updateOriginForCurrentLocation(yokadoLocation, at: beforeLastBus)
         #expect(beforeViewModel.selectedOrigin == .yokado)
+        #expect(beforeViewModel.selectedRoute == .yokadoToMansion)
 
         let afterViewModel = HomeViewModel(nowProvider: { afterLastBus })
         afterViewModel.updateOriginForCurrentLocation(yokadoLocation, at: afterLastBus)
@@ -317,6 +318,24 @@ struct BusTimeAppTests {
         afterViewModel.refreshRouteAvailability(at: nextServiceDay)
         #expect(afterViewModel.availableOrigins.contains(.yokado))
         #expect(afterViewModel.routeAvailabilityMessage == nil)
+    }
+
+    @Test @MainActor
+    func currentLocationSelectsTheNextAvailableRouteAfterYokadoServiceEnds() {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "Asia/Tokyo")!
+        let afterYokadoService = calendar.date(
+            from: DateComponents(year: 2026, month: 8, day: 12, hour: 16, minute: 47)
+        )!
+        let stationLocation = CLLocation(latitude: 35.6485608, longitude: 140.0416924)
+        let viewModel = HomeViewModel(nowProvider: { afterYokadoService })
+
+        viewModel.updateOriginForCurrentLocation(stationLocation, at: afterYokadoService)
+
+        #expect(viewModel.selectedOrigin == .station)
+        #expect(viewModel.selectedDestination == .mansion)
+        #expect(viewModel.selectedRoute == .stationToMansion)
+        #expect(!viewModel.availableDestinations.contains(.yokado))
     }
 
 }

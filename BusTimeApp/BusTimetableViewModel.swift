@@ -221,14 +221,14 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
         return nearest.stop
     }
 
-    /// 現在地に最も近い停留所を出発地にします。
+    /// 現在地に最も近い停留所から、次に利用できるルートを自動選択します。
     /// その停留所から本日これ以降の便がない場合は、自動選択せず案内を表示します。
     func updateOriginForCurrentLocation(_ location: CLLocation, at referenceDate: Date? = nil) {
         let referenceDate = referenceDate ?? now()
         refreshRouteAvailability(at: referenceDate)
 
         guard let origin = stopForCurrentLocation(location) else { return }
-        guard availableOrigins.contains(origin) else {
+        guard let route = recommendedRoute(from: origin, at: referenceDate) else {
             routeAvailabilityMessage = origin == .yokado
                 ? "ヨーカドー前から出発する本日の便は終了しました"
                 : "現在地付近から出発する本日の便は終了しました"
@@ -236,9 +236,7 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
         }
 
         routeAvailabilityMessage = nil
-        if selectedOrigin != origin {
-            selectOrigin(origin)
-        }
+        applyRoute(route)
     }
 
     private var remainingRoutes: [Route] {
@@ -246,16 +244,30 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
     }
 
     func routeHasRemainingService(_ route: Route, at referenceDate: Date) -> Bool {
-        guard let timetable = allTimetables[route] else { return false }
-        return timetable.contains { bus in
-            guard let departureDate = BusNotificationTimeCalculator.departureDateForCurrentServiceDay(
+        nextDepartureDate(for: route, at: referenceDate) != nil
+    }
+
+    func recommendedRoute(from origin: Stop, at referenceDate: Date) -> Route? {
+        Route.allCases
+            .filter { $0.origin == origin }
+            .compactMap { route -> (route: Route, departure: Date)? in
+                guard let departure = nextDepartureDate(for: route, at: referenceDate) else { return nil }
+                return (route, departure)
+            }
+            .min { lhs, rhs in lhs.departure < rhs.departure }?
+            .route
+    }
+
+    private func nextDepartureDate(for route: Route, at referenceDate: Date) -> Date? {
+        guard let timetable = allTimetables[route] else { return nil }
+        return timetable.compactMap { bus in
+            BusNotificationTimeCalculator.departureDateForCurrentServiceDay(
                 for: bus.departure,
                 from: referenceDate
-            ) else {
-                return false
-            }
-            return departureDate > referenceDate
+            )
         }
+        .filter { $0 > referenceDate }
+        .min()
     }
 
     func refreshRouteAvailability(at referenceDate: Date? = nil) {
