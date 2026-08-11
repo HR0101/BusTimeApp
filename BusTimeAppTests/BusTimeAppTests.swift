@@ -136,6 +136,39 @@ struct BusTimeAppTests {
     }
 
     @Test
+    func liveActivityRemainingTimeOmitsSeconds() {
+        let now = Date(timeIntervalSince1970: 0)
+
+        #expect(
+            BusRemainingTimeFormatter.string(
+                until: now.addingTimeInterval(27 * 60 + 15),
+                now: now
+            ) == "27分"
+        )
+        #expect(
+            BusRemainingTimeFormatter.string(
+                until: now.addingTimeInterval(60 * 60 + 27 * 60 + 15),
+                now: now
+            ) == "1時間27分"
+        )
+        #expect(
+            BusRemainingTimeFormatter.string(
+                until: now.addingTimeInterval(2 * 60 * 60),
+                now: now
+            ) == "2時間"
+        )
+        #expect(
+            BusRemainingTimeFormatter.string(
+                until: now.addingTimeInterval(59),
+                now: now
+            ) == "1分未満"
+        )
+        #expect(
+            BusRemainingTimeFormatter.string(until: now, now: now) == "出発済み"
+        )
+    }
+
+    @Test
     func routeIsResolvedFromOriginAndDestination() {
         #expect(
             HomeViewModel.Route.route(from: .station, to: .mansion)

@@ -30,7 +30,7 @@ struct BusTimeWidgetLiveActivity: Widget {
                 
                 Spacer(minLength: 10)
                 
-                // 右側: 出発までの時間を、単位が分かる相対表記で表示
+                // 右側: 出発までの時間を、秒を含まない時間・分表記で表示
                 VStack(alignment: .trailing, spacing: 0) {
                     if context.state.isDeparted {
                         Text("出発済み")
@@ -41,11 +41,13 @@ struct BusTimeWidgetLiveActivity: Widget {
                             .background(Color.gray.opacity(0.2))
                             .clipShape(Capsule())
                     } else {
-                        Text("出発予定")
+                        Text("出発まで")
                             .font(.caption2.bold())
                             .foregroundColor(Color.gray)
                         
-                        Text(context.attributes.departureDate, style: .relative)
+                        RemainingDepartureTimeText(
+                            departureDate: context.attributes.departureDate
+                        )
                             .font(.headline.bold())
                             .foregroundColor(Color(red: 0.15, green: 0.50, blue: 0.75))
                             .multilineTextAlignment(.trailing)
@@ -65,7 +67,9 @@ struct BusTimeWidgetLiveActivity: Widget {
                 }
                 DynamicIslandExpandedRegion(.trailing) {
                     if !context.state.isDeparted {
-                        Text(context.attributes.departureDate, style: .relative)
+                        RemainingDepartureTimeText(
+                            departureDate: context.attributes.departureDate
+                        )
                             .font(.title2.bold())
                             .foregroundColor(.red)
                     } else {
@@ -83,7 +87,9 @@ struct BusTimeWidgetLiveActivity: Widget {
                     .foregroundColor(.blue)
             } compactTrailing: {
                 if !context.state.isDeparted {
-                    Text(context.attributes.departureDate, style: .relative)
+                    RemainingDepartureTimeText(
+                        departureDate: context.attributes.departureDate
+                    )
                         .foregroundColor(.red)
                         .bold()
                         .lineLimit(1)
@@ -95,6 +101,21 @@ struct BusTimeWidgetLiveActivity: Widget {
                 Image(systemName: "bus.fill")
                     .foregroundColor(.blue)
             }
+        }
+    }
+}
+
+private struct RemainingDepartureTimeText: View {
+    let departureDate: Date
+
+    var body: some View {
+        TimelineView(.everyMinute) { timeline in
+            Text(
+                BusRemainingTimeFormatter.string(
+                    until: departureDate,
+                    now: timeline.date
+                )
+            )
         }
     }
 }
