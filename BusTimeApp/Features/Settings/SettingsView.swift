@@ -214,6 +214,20 @@ struct SettingsDesignPreview: View {
                     .fill(Color.minimalBlush)
                     .frame(width: 10, height: 10)
                     .offset(x: 22, y: -20)
+            case .maximalism:
+                RoundedRectangle(cornerRadius: 17, style: .continuous)
+                    .fill(Color.maximalNeon)
+                MaximalStripePattern()
+                    .frame(width: 66, height: 66)
+                    .clipShape(RoundedRectangle(cornerRadius: 17, style: .continuous))
+                Circle()
+                    .stroke(Color.maximalInk, lineWidth: 9)
+                    .frame(width: 48, height: 48)
+                    .offset(x: -19, y: -14)
+                Rectangle()
+                    .fill(Color.maximalInk)
+                    .frame(width: 38, height: 22)
+                    .offset(x: 21, y: 17)
             }
         }
         .frame(width: 66, height: 66)

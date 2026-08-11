@@ -7,6 +7,7 @@ enum AppDesignMode: String, CaseIterable, Identifiable {
     case neumorphic
     case claymorphic
     case minimalCute
+    case maximalism
 
     var id: String { rawValue }
 
@@ -15,6 +16,7 @@ enum AppDesignMode: String, CaseIterable, Identifiable {
         case .neumorphic: return "シンプル"
         case .claymorphic: return "カラフル"
         case .minimalCute: return "やさしいモノクロ"
+        case .maximalism: return "ネオンポップ"
         }
     }
 
@@ -23,6 +25,7 @@ enum AppDesignMode: String, CaseIterable, Identifiable {
         case .neumorphic: return "シンプル"
         case .claymorphic: return "カラフル"
         case .minimalCute: return "モノクロ"
+        case .maximalism: return "ネオン"
         }
     }
 
@@ -34,11 +37,22 @@ enum AppDesignMode: String, CaseIterable, Identifiable {
             return "青を基調にした、明るくはっきりした画面"
         case .minimalCute:
             return "白黒と丸い模様を使った、すっきり可愛い画面"
+        case .maximalism:
+            return "鮮やかな緑と太い線を使った、元気で目立つ画面"
         }
     }
 
     var prefersLightColorScheme: Bool {
         self != .neumorphic
+    }
+
+    var interfaceAccentColor: Color {
+        switch self {
+        case .minimalCute, .maximalism:
+            return .minimalInk
+        case .neumorphic, .claymorphic:
+            return .neumoAccent
+        }
     }
 }
 
@@ -106,6 +120,9 @@ extension Color {
     static let minimalInk = Color(red: 0.08, green: 0.075, blue: 0.07)
     static let minimalSoft = Color(red: 0.91, green: 0.90, blue: 0.87)
     static let minimalBlush = Color(red: 0.95, green: 0.78, blue: 0.79)
+    static let maximalNeon = Color(red: 0.0, green: 0.94, blue: 0.25)
+    static let maximalInk = Color.black
+    static let maximalPaper = Color.white
 }
 
 struct SoftWave: Shape {
@@ -141,6 +158,8 @@ struct NeumorphicBackground: View {
                 ClaymorphicBackground()
             case .minimalCute:
                 MinimalCuteBackground()
+            case .maximalism:
+                MaximalismBackground()
             case .neumorphic:
                 NeumorphicBackdrop()
             }
@@ -307,6 +326,63 @@ struct MinimalCuteBackground: View {
     }
 }
 
+struct MaximalStripePattern: View {
+    var body: some View {
+        Canvas { context, size in
+            context.fill(
+                Path(CGRect(origin: .zero, size: size)),
+                with: .color(.maximalNeon)
+            )
+
+            var stripes = Path()
+            for offset in stride(
+                from: -size.height,
+                through: size.width + size.height,
+                by: CGFloat(86)
+            ) {
+                stripes.move(to: CGPoint(x: offset, y: size.height))
+                stripes.addLine(to: CGPoint(x: offset + size.height, y: 0))
+            }
+            context.stroke(stripes, with: .color(.white), lineWidth: 34)
+        }
+        .allowsHitTesting(false)
+    }
+}
+
+struct MaximalismBackground: View {
+    var body: some View {
+        GeometryReader { proxy in
+            ZStack {
+                MaximalStripePattern()
+
+                Circle()
+                    .stroke(Color.maximalInk, lineWidth: 60)
+                    .frame(width: proxy.size.width * 0.58, height: proxy.size.width * 0.58)
+                    .offset(x: -proxy.size.width * 0.67, y: -proxy.size.height * 0.30)
+
+                Rectangle()
+                    .fill(Color.maximalInk)
+                    .frame(width: proxy.size.width * 0.48, height: 130)
+                    .rotationEffect(.degrees(8))
+                    .offset(x: proxy.size.width * 0.43, y: -proxy.size.height * 0.42)
+
+                Circle()
+                    .fill(Color.maximalInk)
+                    .frame(width: proxy.size.width * 0.46, height: proxy.size.width * 0.46)
+                    .offset(x: proxy.size.width * 0.43, y: proxy.size.height * 0.34)
+
+                RoundedRectangle(cornerRadius: 0)
+                    .stroke(Color.maximalInk, lineWidth: 22)
+                    .frame(width: proxy.size.width * 0.52, height: 180)
+                    .rotationEffect(.degrees(-12))
+                    .offset(x: -proxy.size.width * 0.40, y: proxy.size.height * 0.40)
+            }
+            .frame(width: proxy.size.width, height: proxy.size.height)
+        }
+        .ignoresSafeArea()
+    }
+}
+
 enum NeumorphicMode: Equatable {
     /// 背景から押し出された凸面。
     case convex
@@ -355,7 +431,20 @@ struct NeumorphicSurface<S: Shape>: ViewModifier {
 
     @ViewBuilder
     func body(content: Content) -> some View {
-        if designMode == .minimalCute {
+        if designMode == .maximalism {
+            content
+                .background(
+                    shape
+                        .fill(Color.maximalPaper)
+                        .shadow(
+                            color: Color.maximalInk,
+                            radius: 0,
+                            x: pressed ? 3 : 7,
+                            y: pressed ? 3 : 7
+                        )
+                )
+                .overlay(shape.stroke(Color.maximalInk, lineWidth: pressed ? 2 : 3))
+        } else if designMode == .minimalCute {
             content
                 .background(
                     shape
@@ -622,7 +711,7 @@ struct SectionHeading: View {
                 Text(eyebrow.uppercased())
                     .font(.system(size: 10, weight: .bold, design: .rounded))
                     .tracking(1.1)
-                    .foregroundStyle(designMode == .minimalCute ? Color.minimalInk : Color.neumoAccent)
+                    .foregroundStyle(designMode.interfaceAccentColor)
                 Text(title)
                     .font(
                         .system(
@@ -659,7 +748,7 @@ struct ContentView: View {
     }
 
     private var dashboardAccentColor: Color {
-        currentDesignMode == .minimalCute ? .minimalInk : .neumoAccent
+        currentDesignMode.interfaceAccentColor
     }
 
     private var scheduledBusIDs: Set<String> {
@@ -943,7 +1032,9 @@ struct ContentView: View {
                     .fill(
                         currentDesignMode == .minimalCute
                             ? Color.minimalSoft.opacity(0.88)
-                            : Color.neumoAccent.opacity(0.11)
+                            : (currentDesignMode == .maximalism
+                                ? Color.maximalNeon
+                                : Color.neumoAccent.opacity(0.11))
                     )
                     .frame(width: 52, height: 52)
                 Image(systemName: "bus.fill")
@@ -1003,7 +1094,9 @@ struct ContentView: View {
             } label: {
                 IconBubble(
                     systemName: "questionmark",
-                    tint: currentDesignMode == .minimalCute ? .minimalInk : .neumoMuted,
+                    tint: currentDesignMode == .maximalism
+                        ? .maximalInk
+                        : (currentDesignMode == .minimalCute ? .minimalInk : .neumoMuted),
                     size: 44
                 )
             }
@@ -1120,7 +1213,7 @@ struct BusNotificationActionButton: View {
     @Environment(\.appDesignMode) private var designMode
 
     private var accentColor: Color {
-        designMode == .minimalCute ? .minimalInk : .neumoAccent
+        designMode.interfaceAccentColor
     }
 
     var body: some View {
@@ -1130,7 +1223,11 @@ struct BusNotificationActionButton: View {
                 systemImage: isScheduled ? "bell.fill" : "bell"
             )
             .font(.caption2.weight(.bold))
-            .foregroundStyle(designMode == .minimalCute ? Color.minimalInk : (isScheduled ? Color.neumoAccentDeep : Color.neumoAccent))
+            .foregroundStyle(
+                designMode == .minimalCute || designMode == .maximalism
+                    ? Color.minimalInk
+                    : (isScheduled ? Color.neumoAccentDeep : Color.neumoAccent)
+            )
             .padding(.horizontal, 8)
             .padding(.vertical, 7)
             .background(
@@ -1138,7 +1235,9 @@ struct BusNotificationActionButton: View {
                     .fill(
                         designMode == .minimalCute
                             ? Color.minimalSoft.opacity(isScheduled ? 0.92 : 0.56)
-                            : (isScheduled ? Color.neumoAccentSoft.opacity(0.8) : accentColor.opacity(0.08))
+                            : (designMode == .maximalism
+                                ? Color.maximalNeon
+                                : (isScheduled ? Color.neumoAccentSoft.opacity(0.8) : accentColor.opacity(0.08)))
                     )
             )
         }
@@ -1815,16 +1914,16 @@ struct NextBusCard: View {
     @Environment(\.appDesignMode) private var designMode
 
     private var accentColor: Color {
-        designMode == .minimalCute ? .minimalInk : .neumoAccent
+        designMode.interfaceAccentColor
     }
 
     private var accentDeepColor: Color {
-        designMode == .minimalCute ? .minimalInk : .neumoAccentDeep
+        designMode == .minimalCute || designMode == .maximalism ? .minimalInk : .neumoAccentDeep
     }
 
     private var cardColors: [Color] {
         switch designMode {
-        case .claymorphic, .minimalCute:
+        case .claymorphic, .minimalCute, .maximalism:
             return [Color.white, Color.white.opacity(0.94)]
         case .neumorphic:
             return [Color.neumoSurfaceTop, Color.neumoSurface, Color.neumoSurfaceBottom]
@@ -1838,7 +1937,7 @@ struct NextBusCard: View {
                     Text("次のバス")
                         .font(
                             .system(
-                                size: designMode == .minimalCute ? 15 : 12,
+                                size: designMode == .minimalCute || designMode == .maximalism ? 15 : 12,
                                 weight: .bold,
                                 design: designMode == .minimalCute ? .serif : .rounded
                             )
@@ -1860,7 +1959,9 @@ struct NextBusCard: View {
                             Capsule().fill(
                                 designMode == .minimalCute
                                     ? Color.minimalInk
-                                    : Color.neumoAccentSoft.opacity(0.65)
+                                    : (designMode == .maximalism
+                                        ? Color.maximalNeon
+                                        : Color.neumoAccentSoft.opacity(0.65))
                             )
                         )
                 }
@@ -1912,15 +2013,15 @@ struct NextBusCard: View {
         .overlay(
             RoundedRectangle(cornerRadius: 28, style: .continuous)
                 .stroke(
-                    (designMode == .minimalCute
+                    (designMode == .minimalCute || designMode == .maximalism
                         ? Color.minimalInk
                         : (designMode == .claymorphic ? Color.white : Color.neumoHighlight)
-                    ).opacity(designMode == .minimalCute ? 0.14 : 0.42),
-                    lineWidth: 1
+                    ).opacity(designMode == .maximalism ? 1 : (designMode == .minimalCute ? 0.14 : 0.42)),
+                    lineWidth: designMode == .maximalism ? 3 : 1
                 )
         )
         .shadow(
-            color: designMode == .minimalCute
+            color: designMode == .minimalCute || designMode == .maximalism
                 ? Color.clear
                 : (designMode == .claymorphic ? Color.white : Color.neumoHighlight).opacity(designMode == .claymorphic ? 1.0 : 0.94),
             radius: designMode == .claymorphic ? 18 : 23,
@@ -1928,12 +2029,14 @@ struct NextBusCard: View {
             y: designMode == .claymorphic ? -9 : -12
         )
         .shadow(
-            color: designMode == .minimalCute
-                ? Color.minimalInk.opacity(0.12)
-                : (designMode == .claymorphic ? Color.clayShadow : Color.neumoShadow).opacity(designMode == .claymorphic ? 0.30 : 0.64),
-            radius: designMode == .minimalCute ? 14 : (designMode == .claymorphic ? 24 : 26),
-            x: designMode == .minimalCute ? 0 : (designMode == .claymorphic ? 10 : 12),
-            y: designMode == .minimalCute ? 8 : (designMode == .claymorphic ? 13 : 16)
+            color: designMode == .maximalism
+                ? Color.maximalInk
+                : (designMode == .minimalCute
+                    ? Color.minimalInk.opacity(0.12)
+                    : (designMode == .claymorphic ? Color.clayShadow : Color.neumoShadow).opacity(designMode == .claymorphic ? 0.30 : 0.64)),
+            radius: designMode == .maximalism ? 0 : (designMode == .minimalCute ? 14 : (designMode == .claymorphic ? 24 : 26)),
+            x: designMode == .maximalism ? 8 : (designMode == .minimalCute ? 0 : (designMode == .claymorphic ? 10 : 12)),
+            y: designMode == .maximalism ? 8 : (designMode == .minimalCute ? 8 : (designMode == .claymorphic ? 13 : 16))
         )
     }
 }
@@ -1966,7 +2069,7 @@ struct SearchCriteriaBanner: View {
         HStack(alignment: .top, spacing: 12) {
             IconBubble(
                 systemName: "magnifyingglass.circle.fill",
-                tint: designMode == .minimalCute ? .minimalInk : .neumoAccent,
+                tint: designMode.interfaceAccentColor,
                 size: 42
             )
             VStack(alignment: .leading, spacing: 5) {
@@ -2057,7 +2160,7 @@ struct RouteSelectorCard: View {
                         .font(.caption.weight(.bold))
                 }
                 .font(.caption.weight(.bold))
-                .foregroundStyle(designMode == .minimalCute ? Color.minimalInk : Color.neumoAccent)
+                .foregroundStyle(designMode.interfaceAccentColor)
             }
             .buttonStyle(SoftPressButtonStyle())
             .padding(.horizontal, 4)
@@ -2107,7 +2210,7 @@ struct TripEndpointSelector: View {
                 .font(.caption.weight(.bold))
                 .foregroundStyle(
                     viewModel.canSwapEndpoints
-                        ? (designMode == .minimalCute ? Color.minimalInk : Color.neumoAccentDeep)
+                        ? (designMode == .minimalCute || designMode == .maximalism ? Color.minimalInk : Color.neumoAccentDeep)
                         : Color.neumoMuted
                 )
                 .frame(width: 40, height: 40)
@@ -2115,7 +2218,9 @@ struct TripEndpointSelector: View {
                     Circle().fill(
                         designMode == .minimalCute
                             ? Color.minimalSoft.opacity(0.76)
-                            : Color.neumoAccentSoft.opacity(0.45)
+                            : (designMode == .maximalism
+                                ? Color.maximalNeon
+                                : Color.neumoAccentSoft.opacity(0.45))
                     )
                 )
         }
@@ -2155,7 +2260,7 @@ struct EndpointMenu: View {
                     .foregroundStyle(Color.neumoMuted)
                 HStack(spacing: 6) {
                     Image(systemName: selected.systemName)
-                        .foregroundStyle(designMode == .minimalCute ? Color.minimalInk : Color.neumoAccent)
+                        .foregroundStyle(designMode.interfaceAccentColor)
                     Text(selected.rawValue)
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(Color.neumoText)
@@ -2164,7 +2269,7 @@ struct EndpointMenu: View {
                     Spacer(minLength: 2)
                     Image(systemName: "chevron.down")
                         .font(.caption2.weight(.bold))
-                        .foregroundStyle(designMode == .minimalCute ? Color.minimalInk : Color.neumoAccent)
+                        .foregroundStyle(designMode.interfaceAccentColor)
                 }
             }
             .frame(maxWidth: .infinity, minHeight: 46, alignment: .leading)
@@ -2231,7 +2336,7 @@ struct SearchPanel: View {
                         .font(.subheadline.weight(.bold))
                 }
                 .font(.subheadline.weight(.bold))
-                .foregroundStyle(.white)
+                .foregroundStyle(designMode == .maximalism ? Color.maximalInk : Color.white)
                 .padding(.horizontal, 18)
                 .padding(.vertical, 16)
                 .background(
@@ -2240,14 +2345,18 @@ struct SearchPanel: View {
                             LinearGradient(
                                 colors: designMode == .minimalCute
                                     ? [Color.minimalInk, Color.black]
-                                    : [Color.neumoAccent, Color.neumoAccentDeep],
+                                    : (designMode == .maximalism
+                                        ? [Color.maximalNeon, Color.maximalNeon]
+                                        : [Color.neumoAccent, Color.neumoAccentDeep]),
                                 startPoint: .topLeading,
                                 endPoint: .bottomTrailing
                             )
                         )
                 )
                 .shadow(
-                    color: (designMode == .minimalCute ? Color.minimalInk : Color.neumoAccent).opacity(0.23),
+                    color: (designMode == .maximalism
+                        ? Color.maximalInk
+                        : designMode.interfaceAccentColor).opacity(0.23),
                     radius: 13,
                     x: 5,
                     y: 7
@@ -2280,7 +2389,7 @@ struct SearchModeButton: View {
             }
             .foregroundStyle(
                 isSelected
-                    ? (designMode == .minimalCute ? Color.minimalInk : Color.neumoAccentDeep)
+                    ? (designMode == .minimalCute || designMode == .maximalism ? Color.minimalInk : Color.neumoAccentDeep)
                     : Color.neumoMuted
             )
             .frame(maxWidth: .infinity, minHeight: 44)
@@ -2291,7 +2400,9 @@ struct SearchModeButton: View {
                         isSelected
                             ? (designMode == .minimalCute
                                 ? Color.minimalSoft.opacity(0.62)
-                                : Color.neumoAccentSoft.opacity(0.42))
+                                : (designMode == .maximalism
+                                    ? Color.maximalNeon
+                                    : Color.neumoAccentSoft.opacity(0.42)))
                             : Color.clear
                     )
             )
@@ -2335,7 +2446,7 @@ struct TimePickerRow: View {
         HStack(spacing: 12) {
             IconBubble(
                 systemName: "clock.fill",
-                tint: designMode == .minimalCute ? .minimalInk : .neumoAccent,
+                tint: designMode.interfaceAccentColor,
                 size: 42
             )
             VStack(alignment: .leading, spacing: 3) {
@@ -2356,7 +2467,7 @@ struct TimePickerRow: View {
         Button(action: currentAction) {
             Label("現在時刻にする", systemImage: "clock.arrow.circlepath")
                 .font(.caption.weight(.bold))
-                .foregroundStyle(designMode == .minimalCute ? Color.minimalInk : Color.neumoAccent)
+                .foregroundStyle(designMode.interfaceAccentColor)
                 .padding(.horizontal, 12)
                 .frame(minHeight: 44)
             }
