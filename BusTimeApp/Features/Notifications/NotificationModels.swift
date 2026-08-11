@@ -46,6 +46,7 @@ struct ScheduledBusNotification: Identifiable, Codable, Equatable {
     let busID: String
     let originName: String
     let destinationName: String
+    let stopSummary: String?
     let departure: String
     let routeName: String
     let departureDate: Date
@@ -53,7 +54,7 @@ struct ScheduledBusNotification: Identifiable, Codable, Equatable {
     let minutesBefore: Int
 
     var busDescription: String {
-        "(originName) (departure)発 → (destinationName)"
+        "\(departure)発｜\(stopSummary ?? "\(originName) → \(destinationName)")"
     }
 
     var notificationDescription: String {

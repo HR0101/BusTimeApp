@@ -59,7 +59,7 @@ struct SettingsView: View {
             .navigationTitle("設定")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
+                ToolbarItem(placement: .navigationBarTrailing) {
                     Button("完了") { dismiss() }
                         .fontWeight(.bold)
                         .foregroundStyle(Color.neumoAccentDeep)

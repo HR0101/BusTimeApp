@@ -69,6 +69,7 @@ final class NotificationViewModel: ObservableObject {
                 busID: bus.id,
                 originName: bus.originName,
                 destinationName: bus.destinationName,
+                stopSummary: bus.stopSummary,
                 departure: bus.departure,
                 routeName: routeName,
                 departureDate: scheduledDates.departureDate,
