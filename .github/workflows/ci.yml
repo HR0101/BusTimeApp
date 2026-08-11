@@ -38,7 +38,7 @@ jobs:
           - name: "Xcode 16.2 / iOS 18"
             runner: macos-15
             xcode: "16.2"
-            destination: "platform=iOS Simulator,name=iPhone 16,OS=18.2"
+            destination: "generic/platform=iOS Simulator"
             ios_version: "18.2"
 
           # ── macOS 15 + Xcode 16.4 (iOS 18 SDK / 最新 16 系) ──
@@ -197,7 +197,7 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: build-logs-${{ matrix.name }}
+          name: build-logs-${{ matrix.ios_version }}
           path: build/*.log
           retention-days: 7
 
@@ -206,7 +206,7 @@ jobs:
         if: always() && matrix.ios_version != 'latest'
         uses: actions/upload-artifact@v4
         with:
-          name: test-results-${{ matrix.name }}
+          name: test-results-${{ matrix.ios_version }}
           path: build/TestResults.xcresult
           retention-days: 7
           if-no-files-found: ignore
