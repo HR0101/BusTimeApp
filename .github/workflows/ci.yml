@@ -35,11 +35,11 @@ jobs:
       matrix:
         include:
           # ── macOS 15 + Xcode 16.2 (iOS 18 SDK) ──
-          - name: "Xcode 16.2 / iOS 18"
+          - name: "Xcode 16.2 / iOS 18.5 runtime"
             runner: macos-15
             xcode: "16.2"
-            destination: "generic/platform=iOS Simulator"
-            ios_version: "18.2"
+            destination: "platform=iOS Simulator,name=iPhone 16,OS=18.5"
+            ios_version: "18.5-xcode16.2"
 
           # ── macOS 15 + Xcode 16.4 (iOS 18 SDK / 最新 16 系) ──
           - name: "Xcode 16.4 / iOS 18"
