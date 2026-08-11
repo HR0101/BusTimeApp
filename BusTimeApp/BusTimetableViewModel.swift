@@ -579,33 +579,36 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
         }
         
         var newMessages: [String: String] = [:]
+        let now = Date()
         
         for bus in searchResults {
-            guard let busDate = timeStringToDate(bus.departure) else { continue }
-            
-            let now = Date()
-            
-            let nowMinutes = shiftTime(timeToMinutes(now))
-            let busMinutes = shiftTime(timeToMinutes(busDate))
-            let diffMinutes = busMinutes - nowMinutes
+            guard let departureDate = BusNotificationTimeCalculator.departureDateForCurrentServiceDay(
+                for: bus.departure,
+                from: now
+            ) else { continue }
+            let remainingSeconds = departureDate.timeIntervalSince(now)
             
             var currentRemainingMinutes = 0
             var isDeparted = false
             
-            if diffMinutes < 0 {
+            if remainingSeconds <= 0 {
                 newMessages[bus.id] = "出発済み"
                 isDeparted = true
-            } else if diffMinutes == 0 {
+            } else if remainingSeconds < 60 {
                 newMessages[bus.id] = "まもなく出発"
+                currentRemainingMinutes = 1
             } else {
-                let h = diffMinutes / 60
-                let m = diffMinutes % 60
+                let remainingMinutes = Int(ceil(remainingSeconds / 60))
+                let h = remainingMinutes / 60
+                let m = remainingMinutes % 60
                 if h > 0 {
-                    newMessages[bus.id] = String(format: "あと%d時間%d分", h, m)
+                    newMessages[bus.id] = m == 0
+                        ? String(format: "あと%d時間", h)
+                        : String(format: "あと%d時間%d分", h, m)
                 } else {
                     newMessages[bus.id] = String(format: "あと%d分", m)
                 }
-                currentRemainingMinutes = diffMinutes
+                currentRemainingMinutes = remainingMinutes
             }
             
             // もしこのバスがLive Activityで追跡されている場合、更新を行う
@@ -651,8 +654,17 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
             return
         }
 
-        guard let departureDate = BusNotificationTimeCalculator.nextDepartureDate(for: bus.departure, from: Date()) else {
+        let now = Date()
+        guard let departureDate = BusNotificationTimeCalculator.departureDateForCurrentServiceDay(
+            for: bus.departure,
+            from: now
+        ) else {
             liveActivityError = "出発時刻を確認できないため、Live Activityを開始できません。"
+            return
+        }
+
+        guard departureDate > now else {
+            liveActivityError = "この便はすでに出発しています。別の便を選んでください。"
             return
         }
 
@@ -666,7 +678,6 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
             routeName: selectedRoute.rawValue
         )
 
-        let now = Date()
         let remaining = max(0, Int(ceil(departureDate.timeIntervalSince(now) / 60)))
         let contentState = BusActivityAttributes.ContentState(remainingMinutes: remaining, isDeparted: false)
         let activityContent = ActivityContent(state: contentState, staleDate: departureDate)

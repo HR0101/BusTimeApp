@@ -42,6 +42,49 @@ struct SettingsView: View {
                         }
                     }
 
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("バスのお知らせ")
+                            .font(.headline.weight(.bold))
+                            .foregroundStyle(Color.neumoText)
+
+                        Toggle(
+                            isOn: Binding(
+                                get: { viewModel.prefersLiveActivity },
+                                set: viewModel.setLiveActivityEnabled
+                            )
+                        ) {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Label(
+                                    "Live Activityを使う",
+                                    systemImage: "lock.rectangle.on.rectangle"
+                                )
+                                .font(.subheadline.weight(.bold))
+                                .foregroundStyle(Color.neumoText)
+                                Text("通常の通知と一緒に、ロック画面やDynamic Islandへ残り時間を表示します。")
+                                    .font(.caption2)
+                                    .foregroundStyle(Color.neumoMuted)
+                            }
+                        }
+                        .tint(Color.neumoAccent)
+                        .disabled(!viewModel.isLiveActivityAvailable)
+
+                        if !viewModel.isLiveActivityAvailable {
+                            Label(
+                                "この端末では利用できないか、iPhoneの設定でLive Activityがオフになっています。",
+                                systemImage: "info.circle"
+                            )
+                            .font(.caption2)
+                            .foregroundStyle(Color.neumoWarning)
+                        } else {
+                            Text("対応端末では最初からオンです。ここでいつでも変更できます。")
+                                .font(.caption2)
+                                .foregroundStyle(Color.neumoMuted)
+                        }
+                    }
+                    .padding(16)
+                    .background(Color.white.opacity(0.76))
+                    .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+
                     HStack(alignment: .top, spacing: 10) {
                         Image(systemName: "checkmark.icloud.fill")
                             .foregroundStyle(Color.neumoAccent)
@@ -66,6 +109,9 @@ struct SettingsView: View {
                 }
             }
             .preferredColorScheme(viewModel.selectedMode == .claymorphic ? .light : nil)
+            .onAppear {
+                viewModel.refreshLiveActivityAvailability()
+            }
         }
     }
 }

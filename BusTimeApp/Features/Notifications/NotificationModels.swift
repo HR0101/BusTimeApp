@@ -62,12 +62,20 @@ struct ScheduledBusNotification: Identifiable, Codable, Equatable {
     }
 }
 
+enum BusNotificationIdentifier {
+    static func value(for busID: String) -> String {
+        "bus_notification_\(busID)"
+    }
+}
+
 /// 時刻表の「午前4時を運行日の境目とする」ルールを通知にも適用します。
 /// これにより、深夜0〜3時台の便を通常の暦日だけで判定するずれを防ぎます。
 enum BusNotificationTimeCalculator {
     static let serviceDayBoundaryHour = 4
 
-    static func nextDepartureDate(
+    /// `now` が属する運行日（午前4時区切り）における出発日時を返します。
+    /// 出発済みでも翌日に繰り越さないため、選択中の便そのものの判定に使用できます。
+    static func departureDateForCurrentServiceDay(
         for departure: String,
         from now: Date,
         calendar: Calendar = .current
@@ -92,36 +100,38 @@ enum BusNotificationTimeCalculator {
             ? calendar.date(byAdding: .day, value: 1, to: serviceDayStart)
             : serviceDayStart
 
-        guard let targetDay,
-              var target = calendar.date(
-                bySettingHour: hour,
-                minute: minute,
-                second: 0,
-                of: targetDay
-              ) else {
+        guard let targetDay else { return nil }
+        return calendar.date(
+            bySettingHour: hour,
+            minute: minute,
+            second: 0,
+            of: targetDay
+        )
+    }
+
+    static func nextDepartureDate(
+        for departure: String,
+        from now: Date,
+        calendar: Calendar = .current
+    ) -> Date? {
+        guard let target = departureDateForCurrentServiceDay(
+            for: departure,
+            from: now,
+            calendar: calendar
+        ) else {
             return nil
         }
 
-        if target <= now {
-            guard let nextServiceDay = calendar.date(byAdding: .day, value: 1, to: serviceDayStart) else {
-                return nil
-            }
-            let nextTargetDay = hour < serviceDayBoundaryHour
-                ? calendar.date(byAdding: .day, value: 1, to: nextServiceDay)
-                : nextServiceDay
-            guard let nextTargetDay,
-                  let nextTarget = calendar.date(
-                    bySettingHour: hour,
-                    minute: minute,
-                    second: 0,
-                    of: nextTargetDay
-                  ) else {
-                return nil
-            }
-            target = nextTarget
-        }
+        guard target <= now else { return target }
 
-        return target
+        guard let nextServiceDayReference = calendar.date(byAdding: .day, value: 1, to: now) else {
+            return nil
+        }
+        return departureDateForCurrentServiceDay(
+            for: departure,
+            from: nextServiceDayReference,
+            calendar: calendar
+        )
     }
 
     static func notificationDate(

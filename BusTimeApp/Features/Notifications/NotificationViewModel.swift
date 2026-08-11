@@ -65,7 +65,7 @@ final class NotificationViewModel: ObservableObject {
             }
 
             let item = ScheduledBusNotification(
-                id: notificationIdentifier(for: bus.id),
+                id: BusNotificationIdentifier.value(for: bus.id),
                 busID: bus.id,
                 originName: bus.originName,
                 destinationName: bus.destinationName,
@@ -172,10 +172,6 @@ final class NotificationViewModel: ObservableObject {
         @unknown default:
             return .denied
         }
-    }
-
-    private func notificationIdentifier(for busID: String) -> String {
-        "bus_notification_(busID)"
     }
 
     private func loadNotifications() {

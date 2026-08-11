@@ -53,14 +53,21 @@ struct BusTimeAppTests {
         let beforeBoundary = calendar.date(
             from: DateComponents(year: 2026, month: 8, day: 11, hour: 3, minute: 0)
         )!
-        let sameServiceDay = BusNotificationTimeCalculator.nextDepartureDate(
+        let currentServiceDay = BusNotificationTimeCalculator.departureDateForCurrentServiceDay(
             for: "0:04",
             from: beforeBoundary,
             calendar: calendar
         )!
-        #expect(calendar.component(.day, from: sameServiceDay) == 11)
-        #expect(calendar.component(.hour, from: sameServiceDay) == 0)
-        #expect(calendar.component(.minute, from: sameServiceDay) == 4)
+        #expect(calendar.component(.day, from: currentServiceDay) == 11)
+        #expect(calendar.component(.hour, from: currentServiceDay) == 0)
+        #expect(calendar.component(.minute, from: currentServiceDay) == 4)
+
+        let nextDeparture = BusNotificationTimeCalculator.nextDepartureDate(
+            for: "0:04",
+            from: beforeBoundary,
+            calendar: calendar
+        )!
+        #expect(calendar.component(.day, from: nextDeparture) == 12)
 
         let afterBoundary = calendar.date(
             from: DateComponents(year: 2026, month: 8, day: 11, hour: 5, minute: 0)
@@ -89,6 +96,130 @@ struct BusTimeAppTests {
             calendar: calendar
         )
         #expect(schedule == nil)
+    }
+
+    @Test
+    func currentServiceDayDepartureDoesNotRollToTomorrow() {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "Asia/Tokyo")!
+        let now = calendar.date(
+            from: DateComponents(year: 2026, month: 8, day: 11, hour: 8, minute: 5)
+        )!
+
+        let currentServiceDayDeparture = BusNotificationTimeCalculator.departureDateForCurrentServiceDay(
+            for: "8:00",
+            from: now,
+            calendar: calendar
+        )!
+        let nextDeparture = BusNotificationTimeCalculator.nextDepartureDate(
+            for: "8:00",
+            from: now,
+            calendar: calendar
+        )!
+
+        #expect(calendar.component(.day, from: currentServiceDayDeparture) == 11)
+        #expect(currentServiceDayDeparture < now)
+        #expect(calendar.component(.day, from: nextDeparture) == 12)
+    }
+
+    @Test
+    func currentServiceDayKeepsAfterMidnightBusOnTheCorrectDate() {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "Asia/Tokyo")!
+        let beforeDeparture = calendar.date(
+            from: DateComponents(year: 2026, month: 8, day: 11, hour: 0, minute: 10)
+        )!
+
+        let departure = BusNotificationTimeCalculator.departureDateForCurrentServiceDay(
+            for: "0:13",
+            from: beforeDeparture,
+            calendar: calendar
+        )!
+
+        #expect(calendar.component(.day, from: departure) == 11)
+        #expect(calendar.component(.hour, from: departure) == 0)
+        #expect(calendar.component(.minute, from: departure) == 13)
+        #expect(departure > beforeDeparture)
+    }
+
+    @Test
+    func liveActivityRemainingTimeOmitsSeconds() {
+        let now = Date(timeIntervalSince1970: 0)
+
+        #expect(
+            BusRemainingTimeFormatter.string(
+                until: now.addingTimeInterval(27 * 60 + 15),
+                now: now
+            ) == "27分"
+        )
+        #expect(
+            BusRemainingTimeFormatter.string(
+                until: now.addingTimeInterval(60 * 60 + 27 * 60 + 15),
+                now: now
+            ) == "1時間27分"
+        )
+        #expect(
+            BusRemainingTimeFormatter.string(
+                until: now.addingTimeInterval(2 * 60 * 60),
+                now: now
+            ) == "2時間"
+        )
+        #expect(
+            BusRemainingTimeFormatter.string(
+                until: now.addingTimeInterval(59),
+                now: now
+            ) == "1分未満"
+        )
+        #expect(
+            BusRemainingTimeFormatter.string(until: now, now: now) == "出発済み"
+        )
+    }
+
+    @Test @MainActor
+    func liveActivityDefaultsOnWhenAvailableAndPersistsChanges() {
+        let suiteName = "BusTimeAppTests.LiveActivityPreference"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defaults.removePersistentDomain(forName: suiteName)
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        let defaultViewModel = SettingsViewModel(
+            defaults: defaults,
+            liveActivityAvailability: { true }
+        )
+        #expect(defaultViewModel.prefersLiveActivity)
+        #expect(defaultViewModel.shouldUseLiveActivity)
+
+        defaultViewModel.setLiveActivityEnabled(false)
+        let restoredViewModel = SettingsViewModel(
+            defaults: defaults,
+            liveActivityAvailability: { true }
+        )
+        #expect(!restoredViewModel.prefersLiveActivity)
+        #expect(!restoredViewModel.shouldUseLiveActivity)
+    }
+
+    @Test @MainActor
+    func liveActivityDefaultsOffWhenUnavailable() {
+        let suiteName = "BusTimeAppTests.LiveActivityUnavailable"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defaults.removePersistentDomain(forName: suiteName)
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        let viewModel = SettingsViewModel(
+            defaults: defaults,
+            liveActivityAvailability: { false }
+        )
+        #expect(!viewModel.prefersLiveActivity)
+        #expect(!viewModel.shouldUseLiveActivity)
+    }
+
+    @Test
+    func notificationIdentifiersAreUniqueForEachBus() {
+        let first = BusNotificationIdentifier.value(for: "8:00-station")
+        let second = BusNotificationIdentifier.value(for: "8:10-station")
+
+        #expect(first == "bus_notification_8:00-station")
+        #expect(first != second)
     }
 
     @Test

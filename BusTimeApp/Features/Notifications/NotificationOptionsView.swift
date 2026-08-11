@@ -6,6 +6,8 @@ struct NotificationOptionsView: View {
     let scheduledNotification: ScheduledBusNotification?
     let permissionStatus: BusNotificationPermission
     let liveActivityBusID: String?
+    let isLiveActivityEnabled: Bool
+    let isLiveActivityAvailable: Bool
     let onOpenNotificationSettings: () -> Void
     let onSchedule: (Int) -> Void
     let onStartLiveActivity: () -> Void
@@ -74,7 +76,7 @@ struct NotificationOptionsView: View {
             Text("お知らせ方法を選んでください")
                 .font(.headline.weight(.bold))
                 .foregroundStyle(Color.neumoText)
-            Text("通常の通知は指定した時刻に1回だけ届きます。Live Activityはロック画面やDynamic Islandに出発までの時間を表示します。")
+            Text("通常の通知とLive Activityは併用できます。Live Activityを使っても、5分前などに設定した通常の通知は解除されません。")
                 .font(.subheadline)
                 .foregroundStyle(Color.neumoMuted)
                 .fixedSize(horizontal: false, vertical: true)
@@ -162,6 +164,24 @@ struct NotificationOptionsView: View {
                 .font(.caption)
                 .foregroundStyle(Color.neumoMuted)
 
+            if !isLiveActivityAvailable {
+                Text("この端末では利用できないか、iPhoneの設定でLive Activityがオフになっています。")
+                    .font(.caption)
+                    .foregroundStyle(Color.neumoWarning)
+            } else if !isLiveActivityEnabled {
+                Text("アプリの設定で自動表示がオフです。必要なときは下のボタンから開始できます。")
+                    .font(.caption)
+                    .foregroundStyle(Color.neumoMuted)
+            } else if let scheduledNotification {
+                Text("設定済みの\(scheduledNotification.minutesBefore)分前通知も、そのまま届きます。")
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(Color.neumoAccentDeep)
+            } else {
+                Text("通常の通知を設定すると、Live Activityも自動で開始します。下のボタンから始める場合は5分前通知も一緒に設定します。")
+                    .font(.caption)
+                    .foregroundStyle(Color.neumoAccentDeep)
+            }
+
             if liveActivityBusID == bus.id {
                 Button(action: onEndLiveActivity) {
                     Label("この便の表示を終了", systemImage: "stop.circle.fill")
@@ -176,7 +196,9 @@ struct NotificationOptionsView: View {
             } else if liveActivityBusID == nil {
                 Button(action: onStartLiveActivity) {
                     Label(
-                        "Live Activityを開始",
+                        scheduledNotification == nil
+                            ? "5分前通知とLive Activityを開始"
+                            : "Live Activityを開始（通知は継続）",
                         systemImage: "lock.rectangle.on.rectangle"
                     )
                     .font(.subheadline.weight(.bold))
@@ -193,6 +215,8 @@ struct NotificationOptionsView: View {
                     .clipShape(RoundedRectangle(cornerRadius: 17, style: .continuous))
                 }
                 .buttonStyle(SoftPressButtonStyle())
+                .disabled(!isLiveActivityAvailable)
+                .opacity(isLiveActivityAvailable ? 1 : 0.48)
             } else {
                 Text("別の便をLive Activityで表示中です。先に管理画面から終了してください。")
                     .font(.caption)
