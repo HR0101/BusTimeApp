@@ -123,6 +123,7 @@ jobs:
       # ── ビルド (BusTimeApp) ──
       - name: "🔨 BusTimeApp をビルド (Debug)"
         run: |
+          mkdir -p build
           set -o pipefail
           xcodebuild build \
             -project BusTimeApp.xcodeproj \
@@ -140,6 +141,7 @@ jobs:
       # ── ビルド (Release) ──
       - name: "🔨 BusTimeApp をビルド (Release)"
         run: |
+          mkdir -p build
           set -o pipefail
           xcodebuild build \
             -project BusTimeApp.xcodeproj \
@@ -159,6 +161,7 @@ jobs:
         if: matrix.ios_version != 'latest'
         continue-on-error: true
         run: |
+          mkdir -p build
           set -o pipefail
           xcodebuild test \
             -project BusTimeApp.xcodeproj \
@@ -230,6 +233,7 @@ jobs:
 
       - name: "🔨 BusTimeWidgetExtension をビルド"
         run: |
+          mkdir -p build
           set -o pipefail
           xcodebuild build \
             -project BusTimeApp.xcodeproj \
