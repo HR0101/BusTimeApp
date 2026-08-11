@@ -43,6 +43,10 @@ struct BusTimeAppTests {
         #expect(coordinator.state == .dashboard)
         coordinator.send(.showTutorial)
         #expect(coordinator.state == .tutorial)
+        coordinator.send(.dismiss)
+        coordinator.send(.changeDesignMode(.minimalCute))
+        #expect(coordinator.designMode == .minimalCute)
+        #expect(defaults.string(forKey: "appDesignMode") == AppDesignMode.minimalCute.rawValue)
     }
 
     @Test
@@ -226,8 +230,11 @@ struct BusTimeAppTests {
     func designModesUseFamiliarNames() {
         #expect(AppDesignMode.neumorphic.title == "シンプル")
         #expect(AppDesignMode.claymorphic.title == "カラフル")
+        #expect(AppDesignMode.minimalCute.title == "やさしいモノクロ")
         #expect(AppDesignMode.neumorphic.description.contains("落ち着いた"))
         #expect(AppDesignMode.claymorphic.description.contains("明るく"))
+        #expect(AppDesignMode.minimalCute.description.contains("白黒"))
+        #expect(AppDesignMode.allCases.count == 3)
     }
 
     @Test

@@ -30,7 +30,7 @@ struct NotificationManagementView: View {
                         .foregroundStyle(Color.neumoAccentDeep)
                 }
             }
-            .preferredColorScheme(designMode == .claymorphic ? .light : nil)
+            .preferredColorScheme(designMode.prefersLightColorScheme ? .light : nil)
         }
     }
 

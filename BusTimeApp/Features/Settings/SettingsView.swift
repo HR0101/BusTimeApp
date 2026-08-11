@@ -108,7 +108,7 @@ struct SettingsView: View {
                         .foregroundStyle(Color.neumoAccentDeep)
                 }
             }
-            .preferredColorScheme(viewModel.selectedMode == .claymorphic ? .light : nil)
+            .preferredColorScheme(viewModel.selectedMode.prefersLightColorScheme ? .light : nil)
             .onAppear {
                 viewModel.refreshLiveActivityAvailability()
             }
@@ -165,7 +165,8 @@ struct SettingsDesignPreview: View {
 
     var body: some View {
         ZStack {
-            if mode == .neumorphic {
+            switch mode {
+            case .neumorphic:
                 RoundedRectangle(cornerRadius: 17, style: .continuous)
                     .fill(Color.neumoBackground)
                 RoundedRectangle(cornerRadius: 8, style: .continuous)
@@ -177,7 +178,7 @@ struct SettingsDesignPreview: View {
                     .fill(Color.neumoAccent)
                     .frame(width: 12, height: 12)
                     .offset(x: 19, y: -18)
-            } else {
+            case .claymorphic:
                 RoundedRectangle(cornerRadius: 17, style: .continuous)
                     .fill(
                         LinearGradient(
@@ -194,6 +195,25 @@ struct SettingsDesignPreview: View {
                     .fill(Color.clayYellow)
                     .frame(width: 13, height: 13)
                     .offset(x: 20, y: -18)
+            case .minimalCute:
+                RoundedRectangle(cornerRadius: 17, style: .continuous)
+                    .fill(Color.minimalBackground)
+                MinimalOrganicBlob()
+                    .fill(Color.minimalSoft)
+                    .frame(width: 48, height: 38)
+                    .offset(x: -14, y: -10)
+                MinimalOrganicBlob()
+                    .fill(Color.minimalInk)
+                    .frame(width: 34, height: 28)
+                    .rotationEffect(.degrees(16))
+                    .offset(x: 20, y: 4)
+                MinimalDotPattern()
+                    .frame(width: 26, height: 24)
+                    .offset(x: -8, y: 18)
+                Circle()
+                    .fill(Color.minimalBlush)
+                    .frame(width: 10, height: 10)
+                    .offset(x: 22, y: -20)
             }
         }
         .frame(width: 66, height: 66)
