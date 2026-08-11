@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import CoreLocation
 import Testing
 @testable import BusTimeApp
 
@@ -263,6 +264,59 @@ struct BusTimeAppTests {
         #expect(HomeViewModel.Route.stationToMansion.guidance.contains("ヨーカドー前"))
         #expect(HomeViewModel.SearchType.departure.timeTitle.contains("以降"))
         #expect(HomeViewModel.SearchType.arrival.timeTitle.contains("まで"))
+    }
+
+    @Test @MainActor
+    func yokadoIsRemovedAfterItsLastBusForTheCurrentOrigin() {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "Asia/Tokyo")!
+        var currentDate = calendar.date(
+            from: DateComponents(year: 2026, month: 8, day: 12, hour: 16, minute: 29)
+        )!
+        let viewModel = HomeViewModel(nowProvider: { currentDate })
+
+        #expect(viewModel.availableDestinations.contains(.yokado))
+        viewModel.selectDestination(.yokado)
+        #expect(viewModel.selectedRoute == .mansionToYokado)
+
+        currentDate = calendar.date(
+            from: DateComponents(year: 2026, month: 8, day: 12, hour: 16, minute: 30)
+        )!
+        viewModel.refreshRouteAvailability(at: currentDate)
+
+        #expect(!viewModel.availableDestinations.contains(.yokado))
+        #expect(viewModel.selectedRoute == .mansionToStation)
+        #expect(viewModel.routeAvailabilityMessage?.contains("候補から外しました") == true)
+    }
+
+    @Test @MainActor
+    func currentLocationDoesNotSelectYokadoAfterTheLastDeparture() {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "Asia/Tokyo")!
+        let beforeLastBus = calendar.date(
+            from: DateComponents(year: 2026, month: 8, day: 12, hour: 16, minute: 45)
+        )!
+        let afterLastBus = calendar.date(
+            from: DateComponents(year: 2026, month: 8, day: 12, hour: 16, minute: 47)
+        )!
+        let yokadoLocation = CLLocation(latitude: 35.6569440, longitude: 140.0510100)
+
+        let beforeViewModel = HomeViewModel(nowProvider: { beforeLastBus })
+        beforeViewModel.updateOriginForCurrentLocation(yokadoLocation, at: beforeLastBus)
+        #expect(beforeViewModel.selectedOrigin == .yokado)
+
+        let afterViewModel = HomeViewModel(nowProvider: { afterLastBus })
+        afterViewModel.updateOriginForCurrentLocation(yokadoLocation, at: afterLastBus)
+        #expect(afterViewModel.selectedOrigin != .yokado)
+        #expect(!afterViewModel.availableOrigins.contains(.yokado))
+        #expect(afterViewModel.routeAvailabilityMessage?.contains("終了") == true)
+
+        let nextServiceDay = calendar.date(
+            from: DateComponents(year: 2026, month: 8, day: 13, hour: 4, minute: 0)
+        )!
+        afterViewModel.refreshRouteAvailability(at: nextServiceDay)
+        #expect(afterViewModel.availableOrigins.contains(.yokado))
+        #expect(afterViewModel.routeAvailabilityMessage == nil)
     }
 
 }

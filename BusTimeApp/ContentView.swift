@@ -776,12 +776,14 @@ struct ContentView: View {
             .preferredColorScheme(currentDesignMode.prefersLightColorScheme ? .light : nil)
             .onAppear {
                 coordinator.send(.launch)
+                viewModel.refreshRouteAvailability()
                 viewModel.performSearch()
                 viewModel.checkLocationAndSetOrigin()
                 notificationViewModel.refresh()
             }
             .onChange(of: scenePhase) { newPhase in
                 if newPhase == .active {
+                    viewModel.refreshRouteAvailability()
                     viewModel.checkLocationAndSetOrigin()
                     settingsViewModel.refreshLiveActivityAvailability()
                 }
@@ -2190,9 +2192,16 @@ struct TripEndpointSelector: View {
                 .foregroundStyle(Color.neumoMuted)
                 .fixedSize(horizontal: false, vertical: true)
 
-            Text("現在運行している出発地・目的地の組み合わせだけを表示しています")
-                .font(.caption2)
-                .foregroundStyle(Color.neumoMuted)
+            if let message = viewModel.routeAvailabilityMessage {
+                Label(message, systemImage: "exclamationmark.circle.fill")
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(Color.orange)
+                    .fixedSize(horizontal: false, vertical: true)
+            } else {
+                Text("現在地と現在時刻から、本日利用できる組み合わせだけを表示しています")
+                    .font(.caption2)
+                    .foregroundStyle(Color.neumoMuted)
+            }
         }
     }
 
@@ -2244,6 +2253,10 @@ struct EndpointMenu: View {
     let action: (BusTimetableViewModel.Stop) -> Void
     @Environment(\.appDesignMode) private var designMode
 
+    private var isSelectedStopAvailable: Bool {
+        options.contains(selected)
+    }
+
     var body: some View {
         Menu {
             ForEach(options) { stop in
@@ -2259,9 +2272,9 @@ struct EndpointMenu: View {
                     .font(.caption2.weight(.bold))
                     .foregroundStyle(Color.neumoMuted)
                 HStack(spacing: 6) {
-                    Image(systemName: selected.systemName)
+                    Image(systemName: isSelectedStopAvailable ? selected.systemName : "clock.fill")
                         .foregroundStyle(designMode.interfaceAccentColor)
-                    Text(selected.rawValue)
+                    Text(isSelectedStopAvailable ? selected.rawValue : "本日の運行終了")
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(Color.neumoText)
                         .lineLimit(2)
@@ -2281,7 +2294,12 @@ struct EndpointMenu: View {
             )
         }
         .buttonStyle(SoftPressButtonStyle())
-        .accessibilityLabel("\(title)、\(selected.rawValue)")
+        .disabled(options.isEmpty)
+        .accessibilityLabel(
+            isSelectedStopAvailable
+                ? "\(title)、\(selected.rawValue)"
+                : "\(title)、本日の運行終了"
+        )
     }
 }
 
