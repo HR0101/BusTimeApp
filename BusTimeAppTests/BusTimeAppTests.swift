@@ -53,14 +53,21 @@ struct BusTimeAppTests {
         let beforeBoundary = calendar.date(
             from: DateComponents(year: 2026, month: 8, day: 11, hour: 3, minute: 0)
         )!
-        let sameServiceDay = BusNotificationTimeCalculator.nextDepartureDate(
+        let currentServiceDay = BusNotificationTimeCalculator.departureDateForCurrentServiceDay(
             for: "0:04",
             from: beforeBoundary,
             calendar: calendar
         )!
-        #expect(calendar.component(.day, from: sameServiceDay) == 11)
-        #expect(calendar.component(.hour, from: sameServiceDay) == 0)
-        #expect(calendar.component(.minute, from: sameServiceDay) == 4)
+        #expect(calendar.component(.day, from: currentServiceDay) == 11)
+        #expect(calendar.component(.hour, from: currentServiceDay) == 0)
+        #expect(calendar.component(.minute, from: currentServiceDay) == 4)
+
+        let nextDeparture = BusNotificationTimeCalculator.nextDepartureDate(
+            for: "0:04",
+            from: beforeBoundary,
+            calendar: calendar
+        )!
+        #expect(calendar.component(.day, from: nextDeparture) == 12)
 
         let afterBoundary = calendar.date(
             from: DateComponents(year: 2026, month: 8, day: 11, hour: 5, minute: 0)
@@ -166,6 +173,53 @@ struct BusTimeAppTests {
         #expect(
             BusRemainingTimeFormatter.string(until: now, now: now) == "出発済み"
         )
+    }
+
+    @Test @MainActor
+    func liveActivityDefaultsOnWhenAvailableAndPersistsChanges() {
+        let suiteName = "BusTimeAppTests.LiveActivityPreference"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defaults.removePersistentDomain(forName: suiteName)
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        let defaultViewModel = SettingsViewModel(
+            defaults: defaults,
+            liveActivityAvailability: { true }
+        )
+        #expect(defaultViewModel.prefersLiveActivity)
+        #expect(defaultViewModel.shouldUseLiveActivity)
+
+        defaultViewModel.setLiveActivityEnabled(false)
+        let restoredViewModel = SettingsViewModel(
+            defaults: defaults,
+            liveActivityAvailability: { true }
+        )
+        #expect(!restoredViewModel.prefersLiveActivity)
+        #expect(!restoredViewModel.shouldUseLiveActivity)
+    }
+
+    @Test @MainActor
+    func liveActivityDefaultsOffWhenUnavailable() {
+        let suiteName = "BusTimeAppTests.LiveActivityUnavailable"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defaults.removePersistentDomain(forName: suiteName)
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        let viewModel = SettingsViewModel(
+            defaults: defaults,
+            liveActivityAvailability: { false }
+        )
+        #expect(!viewModel.prefersLiveActivity)
+        #expect(!viewModel.shouldUseLiveActivity)
+    }
+
+    @Test
+    func notificationIdentifiersAreUniqueForEachBus() {
+        let first = BusNotificationIdentifier.value(for: "8:00-station")
+        let second = BusNotificationIdentifier.value(for: "8:10-station")
+
+        #expect(first == "bus_notification_8:00-station")
+        #expect(first != second)
     }
 
     @Test

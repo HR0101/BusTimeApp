@@ -62,6 +62,12 @@ struct ScheduledBusNotification: Identifiable, Codable, Equatable {
     }
 }
 
+enum BusNotificationIdentifier {
+    static func value(for busID: String) -> String {
+        "bus_notification_\(busID)"
+    }
+}
+
 /// 時刻表の「午前4時を運行日の境目とする」ルールを通知にも適用します。
 /// これにより、深夜0〜3時台の便を通常の暦日だけで判定するずれを防ぎます。
 enum BusNotificationTimeCalculator {

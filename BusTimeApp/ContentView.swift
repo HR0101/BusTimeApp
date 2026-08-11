@@ -556,6 +556,7 @@ struct ContentView: View {
             .onChange(of: scenePhase) { newPhase in
                 if newPhase == .active {
                     viewModel.checkLocationAndSetOrigin()
+                    settingsViewModel.refreshLiveActivityAvailability()
                 }
             }
             .onChange(of: viewModel.selectedRoute) { _ in
@@ -602,11 +603,17 @@ struct ContentView: View {
                         scheduledNotification: notificationViewModel.notification(for: bus.id),
                         permissionStatus: notificationViewModel.permissionStatus,
                         liveActivityBusID: viewModel.trackedBusId,
+                        isLiveActivityEnabled: settingsViewModel.shouldUseLiveActivity,
+                        isLiveActivityAvailable: settingsViewModel.isLiveActivityAvailable,
                         onOpenNotificationSettings: notificationViewModel.openNotificationSettings,
                         onSchedule: { minutes in scheduleNotification(minutes: minutes) },
                         onStartLiveActivity: {
-                            viewModel.startLiveActivity(for: bus)
-                            coordinator.send(.dismiss)
+                            if notificationViewModel.notification(for: bus.id) == nil {
+                                scheduleNotification(minutes: 5, startLiveActivity: true)
+                            } else {
+                                viewModel.startLiveActivity(for: bus)
+                                coordinator.send(.dismiss)
+                            }
                         },
                         onEndLiveActivity: {
                             viewModel.endLiveActivity()
@@ -906,7 +913,10 @@ struct ContentView: View {
         }
     }
 
-    private func scheduleNotification(minutes: Int) {
+    private func scheduleNotification(
+        minutes: Int,
+        startLiveActivity: Bool? = nil
+    ) {
         guard let bus = coordinator.selectedBus else { return }
         notificationViewModel.scheduleNotification(
             for: bus,
@@ -915,13 +925,40 @@ struct ContentView: View {
         ) { result in
             switch result {
             case let .success(item):
+                let shouldStartLiveActivity = startLiveActivity
+                    ?? settingsViewModel.shouldUseLiveActivity
+                let liveActivityMessage = startLiveActivityIfNeeded(
+                    for: bus,
+                    shouldStart: shouldStartLiveActivity
+                )
                 coordinator.send(.notificationScheduled(
-                    "通知を設定しました。\n\n\(item.busDescription)\n\(item.notificationDescription)にお知らせします。\n\n※時刻表の予定です。遅延・運休は反映されません。"
+                    "通知を設定しました。\n\n\(item.busDescription)\n\(item.notificationDescription)にお知らせします。\(liveActivityMessage)\n\n※時刻表の予定です。遅延・運休は反映されません。"
                 ))
             case let .failure(error):
                 coordinator.send(.notificationScheduled(error.localizedDescription))
             }
         }
+    }
+
+    private func startLiveActivityIfNeeded(for bus: Bus, shouldStart: Bool) -> String {
+        guard shouldStart else { return "" }
+
+        if viewModel.trackedBusId == bus.id {
+            return "\nLive Activityも表示中です。"
+        }
+
+        guard viewModel.trackedBusId == nil else {
+            return "\n別の便をLive Activityで表示中のため、通常通知だけを設定しました。"
+        }
+
+        viewModel.startLiveActivity(for: bus)
+        if viewModel.trackedBusId == bus.id {
+            return "\nLive Activityも開始しました。"
+        }
+
+        // 通常通知は登録済みなので、Live Activityの失敗も同じ完了画面で伝えます。
+        viewModel.liveActivityError = nil
+        return "\n通常通知は設定されましたが、Live Activityは開始できませんでした。"
     }
 }
 
