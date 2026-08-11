@@ -33,7 +33,7 @@ struct NotificationOptionsView: View {
             .navigationTitle("この便をお知らせ")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
+                ToolbarItem(placement: .navigationBarTrailing) {
                     Button("閉じる") { dismiss() }
                         .fontWeight(.bold)
                         .foregroundStyle(Color.neumoAccentDeep)
