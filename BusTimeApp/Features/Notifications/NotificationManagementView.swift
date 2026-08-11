@@ -24,7 +24,7 @@ struct NotificationManagementView: View {
             .navigationTitle("設定した通知")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
+                ToolbarItem(placement: .navigationBarTrailing) {
                     Button("閉じる") { dismiss() }
                         .fontWeight(.bold)
                         .foregroundStyle(Color.neumoAccentDeep)

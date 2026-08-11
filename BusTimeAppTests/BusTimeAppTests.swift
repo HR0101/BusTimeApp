@@ -91,4 +91,27 @@ struct BusTimeAppTests {
         #expect(schedule == nil)
     }
 
+    @Test
+    func routeIsResolvedFromOriginAndDestination() {
+        #expect(
+            HomeViewModel.Route.route(from: .station, to: .mansion)
+                == .stationToMansion
+        )
+        #expect(
+            HomeViewModel.Route.route(from: .mansion, to: .yokado)
+                == .mansionToYokado
+        )
+        #expect(
+            HomeViewModel.Route.route(from: .yokado, to: .station)
+                == nil
+        )
+    }
+
+    @Test
+    func routeAndSearchLabelsExplainTheirMeaning() {
+        #expect(HomeViewModel.Route.stationToMansion.guidance.contains("ヨーカドー前"))
+        #expect(HomeViewModel.SearchType.departure.timeTitle.contains("以降"))
+        #expect(HomeViewModel.SearchType.arrival.timeTitle.contains("まで"))
+    }
+
 }

@@ -14,12 +14,14 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
     // MARK: - UIの状態を管理するプロパティ
     
     // @Publishedを付けると、このプロパティの値が変更されたときに、自動的にUIが更新されます。
-    @Published var selectedRoute: Route = .mansionToStation      // 選択中のルート
+    @Published private(set) var selectedRoute: Route = .mansionToStation
+    @Published private(set) var selectedOrigin: Stop = .mansion
+    @Published private(set) var selectedDestination: Stop = .station
     @Published var searchType: SearchType = .departure          // 選択中の検索方法（出発 or 到着）
-    @Published var departureTime: Date = Date()                 // 選択中の出発時刻
-    @Published var arrivalTime: Date = Date()                   // 選択中の到着希望時刻
+    @Published var searchTime: Date = Date()
     @Published var searchResults: [Bus] = []                    // 検索結果のバスリスト
     @Published var searchCriteriaDescription: String = "検索条件: まだ検索されていません" // 検索条件の説明テキスト
+    @Published private(set) var searchResultDescription: String = "出発地・目的地と時刻を選んでください"
     @Published var holidayMessage: String? = nil                // 土日・祝日の場合のエラーメッセージ
     
     @Published var countdownMessages: [String: String] = [:]    // カウントダウン表示用
@@ -52,19 +54,101 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
 
     // MARK: - 選択肢を管理するための列挙型
     
-    // ルートの種類を定義します。CaseIterableに準拠すると、全てのケースを簡単にリストアップできます。
+    enum Stop: String, CaseIterable, Identifiable {
+        case mansion = "コロンブスシティ"
+        case station = "海浜幕張駅"
+        case yokado = "ヨーカドー前"
+
+        var id: Self { self }
+
+        var systemName: String {
+            switch self {
+            case .mansion:
+                return "building.2.fill"
+            case .station:
+                return "tram.fill"
+            case .yokado:
+                return "cart.fill"
+            }
+        }
+    }
+
     enum Route: String, CaseIterable {
         case mansionToStation = "コロンブスシティ → 海浜幕張駅"
         case stationToMansion = "海浜幕張駅 → コロンブスシティ"
         case mansionToYokado = "コロンブスシティ → ヨーカドー前"
         case stationToYokado = "海浜幕張駅 → ヨーカドー前"
         case yokadoToMansion = "ヨーカドー前 → コロンブスシティ"
+
+        var origin: Stop {
+            switch self {
+            case .mansionToStation, .mansionToYokado:
+                return .mansion
+            case .stationToMansion, .stationToYokado:
+                return .station
+            case .yokadoToMansion:
+                return .yokado
+            }
+        }
+
+        var destination: Stop {
+            switch self {
+            case .mansionToStation:
+                return .station
+            case .stationToMansion, .yokadoToMansion:
+                return .mansion
+            case .mansionToYokado, .stationToYokado:
+                return .yokado
+            }
+        }
+
+        var guidance: String {
+            switch self {
+            case .stationToMansion:
+                return "便によってヨーカドー前を経由します"
+            case .mansionToYokado:
+                return "海浜幕張駅を経由してヨーカドー前へ向かいます"
+            default:
+                return "選択した出発地から目的地まで運行します"
+            }
+        }
+
+        static func route(from origin: Stop, to destination: Stop) -> Route? {
+            allCases.first { $0.origin == origin && $0.destination == destination }
+        }
     }
     
     // 検索方法の種類を定義します。
-    enum SearchType: String {
-        case departure = "出発時刻"
-        case arrival = "到着希望時刻"
+    enum SearchType: String, CaseIterable {
+        case departure = "出発する時刻から探す"
+        case arrival = "到着したい時刻から探す"
+
+        var shortTitle: String {
+            switch self {
+            case .departure:
+                return "出発から"
+            case .arrival:
+                return "到着まで"
+            }
+        }
+
+        var timeTitle: String {
+            switch self {
+            case .departure:
+                return "この時刻以降に出発"
+            case .arrival:
+                return "この時刻までに到着"
+            }
+        }
+
+        var explanation: String {
+            switch self {
+            case .departure:
+                return "指定した時刻以降に出発する便を、早い順に表示します"
+            case .arrival:
+                return "指定した時刻までに目的地へ着く便を、到着時刻が近い順に表示します"
+            }
+        }
     }
     
     // MARK: - 初期化処理
@@ -84,7 +168,7 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
     
     // MARK: - CLLocationManagerDelegate
     
-    func checkLocationAndSetRoute() {
+    func checkLocationAndSetOrigin() {
         switch locationManager.authorizationStatus {
         case .notDetermined:
             locationManager.requestWhenInUseAuthorization()
@@ -111,11 +195,10 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
             return
         }
         
-        guard let route = routeForCurrentLocation(location) else { return }
+        guard let origin = stopForCurrentLocation(location) else { return }
         
-        if selectedRoute != route {
-            selectedRoute = route
-            performSearch()
+        if selectedOrigin != origin {
+            selectOrigin(origin)
         }
     }
     
@@ -123,17 +206,63 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
         print("位置情報取得エラー: \(error.localizedDescription)")
     }
     
-    private func routeForCurrentLocation(_ location: CLLocation) -> Route? {
-        let routeCandidates: [(distance: CLLocationDistance, route: Route)] = [
-            (location.distance(from: columbusCityLocation), .mansionToStation),
-            (location.distance(from: kaihinMakuhariStationLocation), .stationToMansion),
-            (location.distance(from: yokadoLocation), .yokadoToMansion)
+    private func stopForCurrentLocation(_ location: CLLocation) -> Stop? {
+        let stopCandidates: [(distance: CLLocationDistance, stop: Stop)] = [
+            (location.distance(from: columbusCityLocation), .mansion),
+            (location.distance(from: kaihinMakuhariStationLocation), .station),
+            (location.distance(from: yokadoLocation), .yokado)
         ]
-        guard let nearest = routeCandidates.min(by: { $0.distance < $1.distance }) else { return nil }
+        guard let nearest = stopCandidates.min(by: { $0.distance < $1.distance }) else { return nil }
         
         guard nearest.distance <= maxAutoRouteDistance else { return nil }
         
-        return nearest.route
+        return nearest.stop
+    }
+
+    var availableOrigins: [Stop] {
+        Stop.allCases.filter { origin in
+            Route.allCases.contains { $0.origin == origin }
+        }
+    }
+
+    var availableDestinations: [Stop] {
+        Stop.allCases.filter { destination in
+            Route.route(from: selectedOrigin, to: destination) != nil
+        }
+    }
+
+    var canSwapEndpoints: Bool {
+        Route.route(from: selectedDestination, to: selectedOrigin) != nil
+    }
+
+    func selectOrigin(_ origin: Stop) {
+        guard origin != selectedOrigin else { return }
+        selectedOrigin = origin
+
+        if let route = Route.route(from: origin, to: selectedDestination) {
+            selectedRoute = route
+        } else if let destination = availableDestinations.first,
+                  let route = Route.route(from: origin, to: destination) {
+            selectedDestination = destination
+            selectedRoute = route
+        }
+    }
+
+    func selectDestination(_ destination: Stop) {
+        guard let route = Route.route(from: selectedOrigin, to: destination) else { return }
+        selectedDestination = destination
+        selectedRoute = route
+    }
+
+    func swapEndpoints() {
+        guard let route = Route.route(from: selectedDestination, to: selectedOrigin) else { return }
+        applyRoute(route)
+    }
+
+    private func applyRoute(_ route: Route) {
+        selectedRoute = route
+        selectedOrigin = route.origin
+        selectedDestination = route.destination
     }
     
     // 時刻表データをプログラム内に直接定義します。
@@ -323,15 +452,9 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
         return minutes < 4 * 60 ? minutes + 24 * 60 : minutes
     }
 
-    // 「現在時刻で検索」ボタンのためのメソッド
+    // 現在選択している検索方法の時刻を現在時刻に合わせます。
     func setSearchToCurrentTime() {
-        // 検索タイプを「出発」に強制的に変更します。
-        self.searchType = .departure
-        
-        // 出発時刻を現在の時刻に設定します。
-        self.departureTime = now()
-        
-        // そのまま検索を実行します。
+        searchTime = now()
         performSearch()
     }
 
@@ -343,6 +466,7 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
         guard holidayMessage == nil else {
             searchResults = []
             searchCriteriaDescription = "検索条件: 本日は運休です。"
+            searchResultDescription = holidayMessage ?? "本日は運休です"
             send(.serviceUnavailable(holidayMessage ?? "本日は運休です。"))
             return
         }
@@ -355,13 +479,16 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
         
         // 検索方法に応じて処理を分岐します。
         if searchType == .arrival {
-            let results = findNextBusesByArrival(timetable: currentTimetable, arrivalTargetTime: arrivalTime)
+            let results = findNextBusesByArrival(timetable: currentTimetable, arrivalTargetTime: searchTime)
             self.searchResults = results
         } else {
-            let results = findNextBusesByDeparture(timetable: currentTimetable, departureRefTime: departureTime)
+            let results = findNextBusesByDeparture(timetable: currentTimetable, departureRefTime: searchTime)
             self.searchResults = results
         }
         updateSearchCriteriaDescription() // 検索条件の表示を更新します。
+        searchResultDescription = searchResults.isEmpty
+            ? "条件に合う便がありません。時刻または目的地を変更してください"
+            : "\(searchResults.count)便見つかりました。\(searchType.explanation)"
         send(.searchSucceeded(hasResults: !searchResults.isEmpty))
     }
 
@@ -410,12 +537,21 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
     // UIに表示する検索条件の説明文を更新します。
     func updateSearchCriteriaDescription() {
         let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "ja_JP")
         formatter.dateFormat = "HH:mm"
+        let time = formatter.string(from: searchTime)
         if searchType == .arrival {
-            searchCriteriaDescription = "\(selectedRoute.rawValue): 到着希望 \(formatter.string(from: arrivalTime))"
+            searchCriteriaDescription = "\(selectedOrigin.rawValue) → \(selectedDestination.rawValue)｜\(time)までに到着"
         } else {
-            searchCriteriaDescription = "\(selectedRoute.rawValue): 出発目安 \(formatter.string(from: departureTime))"
+            searchCriteriaDescription = "\(selectedOrigin.rawValue) → \(selectedDestination.rawValue)｜\(time)以降に出発"
         }
+    }
+
+    func resultReason(for bus: Bus) -> String {
+        let target = searchType == .arrival ? bus.arrival : bus.departure
+        return searchType == .arrival
+            ? "\(target)到着・希望時刻までに到着"
+            : "\(target)出発・指定時刻以降"
     }
     
     // 今日が土日・祝日かどうかをチェックし、メッセージを設定します。
