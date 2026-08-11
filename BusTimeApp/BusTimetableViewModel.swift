@@ -28,6 +28,8 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
     @Published var trackedBusId: String? = nil                  // Live Activityで追跡中のバスID
     @Published var liveActivityError: String? = nil             // Live Activity関連のエラーメッセージ
     @Published private(set) var state: HomeState = .idle
+    @Published private(set) var routeAvailabilityMessage: String? = nil
+    @Published private(set) var availabilityReferenceDate: Date
 
     // MARK: - 内部でだけ使うプロパティ
     
@@ -43,6 +45,7 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
     private var currentActivity: Activity<BusActivityAttributes>? = nil
     private var lastActivityRemainingMinutes: Int? = nil // Live Activityへの過剰な更新を防ぐためのキャッシュ
     private var stateMachine = HomeStateMachine()
+    private let nowProvider: () -> Date
     
     private let locationManager = CLLocationManager() // 位置情報取得用マネージャー
     private let columbusCityLocation = CLLocation(latitude: 35.6589411, longitude: 140.0357708)
@@ -153,7 +156,9 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
     
     // MARK: - 初期化処理
     
-    override init() {
+    init(nowProvider: @escaping () -> Date = Date.init) {
+        self.nowProvider = nowProvider
+        self.availabilityReferenceDate = nowProvider()
         super.init()
         setupTimetables() // 時刻表データを準備する
         
@@ -162,6 +167,7 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
         locationManager.desiredAccuracy = kCLLocationAccuracyHundredMeters
         
         checkHoliday()    // 休日かどうかをチェックする
+        refreshRouteAvailability(at: availabilityReferenceDate)
         startTimer()      // カウントダウン用のタイマーを開始する
         restoreLiveActivity()
     }
@@ -195,11 +201,7 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
             return
         }
         
-        guard let origin = stopForCurrentLocation(location) else { return }
-        
-        if selectedOrigin != origin {
-            selectOrigin(origin)
-        }
+        updateOriginForCurrentLocation(location)
     }
     
     func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
@@ -219,44 +221,137 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
         return nearest.stop
     }
 
-    var availableOrigins: [Stop] {
-        Stop.allCases.filter { origin in
-            Route.allCases.contains { $0.origin == origin }
+    /// 現在地に最も近い停留所から、次に利用できるルートを自動選択します。
+    /// その停留所から本日これ以降の便がない場合は、自動選択せず案内を表示します。
+    func updateOriginForCurrentLocation(_ location: CLLocation, at referenceDate: Date? = nil) {
+        let referenceDate = referenceDate ?? now()
+        refreshRouteAvailability(at: referenceDate)
+
+        guard let origin = stopForCurrentLocation(location) else { return }
+        guard let route = recommendedRoute(from: origin, at: referenceDate) else {
+            routeAvailabilityMessage = origin == .yokado
+                ? "ヨーカドー前から出発する本日の便は終了しました"
+                : "現在地付近から出発する本日の便は終了しました"
+            return
         }
+
+        routeAvailabilityMessage = nil
+        applyRoute(route)
+    }
+
+    private var remainingRoutes: [Route] {
+        Route.allCases.filter { routeHasRemainingService($0, at: availabilityReferenceDate) }
+    }
+
+    func routeHasRemainingService(_ route: Route, at referenceDate: Date) -> Bool {
+        nextDepartureDate(for: route, at: referenceDate) != nil
+    }
+
+    func recommendedRoute(from origin: Stop, at referenceDate: Date) -> Route? {
+        Route.allCases
+            .filter { $0.origin == origin }
+            .compactMap { route -> (route: Route, departure: Date)? in
+                guard let departure = nextDepartureDate(for: route, at: referenceDate) else { return nil }
+                return (route, departure)
+            }
+            .min { lhs, rhs in lhs.departure < rhs.departure }?
+            .route
+    }
+
+    private func nextDepartureDate(for route: Route, at referenceDate: Date) -> Date? {
+        guard let timetable = allTimetables[route] else { return nil }
+        return timetable.compactMap { bus in
+            BusNotificationTimeCalculator.departureDateForCurrentServiceDay(
+                for: bus.departure,
+                from: referenceDate
+            )
+        }
+        .filter { $0 > referenceDate }
+        .min()
+    }
+
+    func refreshRouteAvailability(at referenceDate: Date? = nil) {
+        let referenceDate = referenceDate ?? now()
+        let previousServiceDay = serviceDayStart(for: availabilityReferenceDate)
+        availabilityReferenceDate = referenceDate
+        if previousServiceDay != serviceDayStart(for: referenceDate) {
+            routeAvailabilityMessage = nil
+        }
+
+        guard !routeHasRemainingService(selectedRoute, at: referenceDate) else { return }
+
+        if let replacement = remainingRoutes.first(where: { $0.origin == selectedOrigin }) {
+            let removedYokado = selectedRoute.destination == .yokado
+            applyRoute(replacement)
+            if removedYokado {
+                routeAvailabilityMessage = "ヨーカドー前へ向かう本日の便は終了したため、候補から外しました"
+            }
+        } else if selectedOrigin == .yokado {
+            routeAvailabilityMessage = "ヨーカドー前から出発する本日の便は終了しました"
+        } else if remainingRoutes.isEmpty {
+            routeAvailabilityMessage = "本日のバスはすべて終了しました"
+        }
+    }
+
+    private func serviceDayStart(for date: Date) -> Date? {
+        let calendar = Calendar.current
+        guard let boundary = calendar.date(
+            bySettingHour: BusNotificationTimeCalculator.serviceDayBoundaryHour,
+            minute: 0,
+            second: 0,
+            of: date
+        ) else {
+            return nil
+        }
+        return date >= boundary
+            ? boundary
+            : calendar.date(byAdding: .day, value: -1, to: boundary)
+    }
+
+    var availableOrigins: [Stop] {
+        Stop.allCases.filter { origin in remainingRoutes.contains { $0.origin == origin } }
     }
 
     var availableDestinations: [Stop] {
         Stop.allCases.filter { destination in
-            Route.route(from: selectedOrigin, to: destination) != nil
+            guard let route = Route.route(from: selectedOrigin, to: destination) else { return false }
+            return remainingRoutes.contains(route)
         }
     }
 
     var canSwapEndpoints: Bool {
-        Route.route(from: selectedDestination, to: selectedOrigin) != nil
+        guard let route = Route.route(from: selectedDestination, to: selectedOrigin) else { return false }
+        return remainingRoutes.contains(route)
     }
 
     func selectOrigin(_ origin: Stop) {
-        guard origin != selectedOrigin else { return }
+        guard availableOrigins.contains(origin), origin != selectedOrigin else { return }
         selectedOrigin = origin
 
-        if let route = Route.route(from: origin, to: selectedDestination) {
+        if let route = Route.route(from: origin, to: selectedDestination),
+           remainingRoutes.contains(route) {
             selectedRoute = route
         } else if let destination = availableDestinations.first,
                   let route = Route.route(from: origin, to: destination) {
             selectedDestination = destination
             selectedRoute = route
         }
+        routeAvailabilityMessage = nil
     }
 
     func selectDestination(_ destination: Stop) {
-        guard let route = Route.route(from: selectedOrigin, to: destination) else { return }
+        guard let route = Route.route(from: selectedOrigin, to: destination),
+              remainingRoutes.contains(route) else { return }
         selectedDestination = destination
         selectedRoute = route
+        routeAvailabilityMessage = nil
     }
 
     func swapEndpoints() {
-        guard let route = Route.route(from: selectedDestination, to: selectedOrigin) else { return }
+        guard let route = Route.route(from: selectedDestination, to: selectedOrigin),
+              remainingRoutes.contains(route) else { return }
         applyRoute(route)
+        routeAvailabilityMessage = nil
     }
 
     private func applyRoute(_ route: Route) {
@@ -421,7 +516,16 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
     private func startTimer() {
         // [weak self] は、メモリリークを防ぐためのおまじないです。
         timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect().sink { [weak self] _ in
-            self?.updateCountdown()
+            guard let self else { return }
+            let currentDate = self.now()
+            if !Calendar.current.isDate(
+                currentDate,
+                equalTo: self.availabilityReferenceDate,
+                toGranularity: .minute
+            ) {
+                self.refreshRouteAvailability(at: currentDate)
+            }
+            self.updateCountdown(at: currentDate)
         }
     }
 
@@ -429,7 +533,7 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
     
     // 現在時刻をDate型で取得します。
     private func now() -> Date {
-        return Date()
+        return nowProvider()
     }
     
     // "HH:mm"形式の文字列を、日付情報を持たない純粋な「時刻」のDateオブジェクトに変換します。
@@ -557,7 +661,7 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
     // 今日が土日・祝日かどうかをチェックし、メッセージを設定します。
     private func checkHoliday() {
         let calendar = Calendar.current
-        let today = Date()
+        let today = now()
         let weekday = calendar.component(.weekday, from: today) // 1が日曜, 7が土曜
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd"
@@ -571,7 +675,7 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
         }
     }
     
-    private func updateCountdown() {
+    private func updateCountdown(at currentDate: Date? = nil) {
         // 検索結果がなければ何もしません。
         guard !searchResults.isEmpty else {
             countdownMessages = [:] // メッセージを空にする
@@ -579,7 +683,7 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
         }
         
         var newMessages: [String: String] = [:]
-        let now = Date()
+        let now = currentDate ?? self.now()
         
         for bus in searchResults {
             guard let departureDate = BusNotificationTimeCalculator.departureDateForCurrentServiceDay(

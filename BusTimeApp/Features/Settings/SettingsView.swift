@@ -12,7 +12,7 @@ struct SettingsView: View {
                     HStack(spacing: 14) {
                         IconBubble(systemName: "paintpalette.fill", tint: .neumoAccent, size: 52)
                         VStack(alignment: .leading, spacing: 4) {
-                            Text("画面デザイン")
+                            Text("画面の見た目")
                                 .font(.system(size: 22, weight: .bold, design: .rounded))
                                 .foregroundStyle(Color.neumoText)
                             Text("アプリ全体の見た目を選択できます")
@@ -25,7 +25,7 @@ struct SettingsView: View {
                     .neumorphicSurface(in: RoundedRectangle(cornerRadius: 24, style: .continuous), depth: 12)
 
                     VStack(alignment: .leading, spacing: 12) {
-                        Text("外観")
+                        Text("デザインを選ぶ")
                             .font(.headline.weight(.bold))
                             .foregroundStyle(Color.neumoText)
 
@@ -108,7 +108,7 @@ struct SettingsView: View {
                         .foregroundStyle(Color.neumoAccentDeep)
                 }
             }
-            .preferredColorScheme(viewModel.selectedMode == .claymorphic ? .light : nil)
+            .preferredColorScheme(viewModel.selectedMode.prefersLightColorScheme ? .light : nil)
             .onAppear {
                 viewModel.refreshLiveActivityAvailability()
             }
@@ -121,26 +121,16 @@ struct SettingsDesignOption: View {
     let isSelected: Bool
     let action: () -> Void
 
-    private var title: String {
-        mode == .neumorphic ? "ネオモーフィズム" : "クレイモーフィズム"
-    }
-
-    private var description: String {
-        mode == .neumorphic
-            ? "光と影のコントラストで奥行きを表現"
-            : "青い背景と白いカードを重ねた立体表現"
-    }
-
     var body: some View {
         Button(action: action) {
             HStack(spacing: 14) {
                 SettingsDesignPreview(mode: mode)
 
                 VStack(alignment: .leading, spacing: 5) {
-                    Text(title)
+                    Text(mode.title)
                         .font(.subheadline.weight(.bold))
                         .foregroundStyle(Color.neumoText)
-                    Text(description)
+                    Text(mode.description)
                         .font(.caption2)
                         .foregroundStyle(Color.neumoMuted)
                         .multilineTextAlignment(.leading)
@@ -166,7 +156,7 @@ struct SettingsDesignOption: View {
             .shadow(color: Color.neumoShadow.opacity(0.18), radius: 12, x: 6, y: 8)
         }
         .buttonStyle(SoftPressButtonStyle())
-        .accessibilityLabel("\(title)\(isSelected ? "、選択中" : "")")
+        .accessibilityLabel("\(mode.title)\(isSelected ? "、選択中" : "")")
     }
 }
 
@@ -175,7 +165,8 @@ struct SettingsDesignPreview: View {
 
     var body: some View {
         ZStack {
-            if mode == .neumorphic {
+            switch mode {
+            case .neumorphic:
                 RoundedRectangle(cornerRadius: 17, style: .continuous)
                     .fill(Color.neumoBackground)
                 RoundedRectangle(cornerRadius: 8, style: .continuous)
@@ -187,7 +178,7 @@ struct SettingsDesignPreview: View {
                     .fill(Color.neumoAccent)
                     .frame(width: 12, height: 12)
                     .offset(x: 19, y: -18)
-            } else {
+            case .claymorphic:
                 RoundedRectangle(cornerRadius: 17, style: .continuous)
                     .fill(
                         LinearGradient(
@@ -204,6 +195,39 @@ struct SettingsDesignPreview: View {
                     .fill(Color.clayYellow)
                     .frame(width: 13, height: 13)
                     .offset(x: 20, y: -18)
+            case .minimalCute:
+                RoundedRectangle(cornerRadius: 17, style: .continuous)
+                    .fill(Color.minimalBackground)
+                MinimalOrganicBlob()
+                    .fill(Color.minimalSoft)
+                    .frame(width: 48, height: 38)
+                    .offset(x: -14, y: -10)
+                MinimalOrganicBlob()
+                    .fill(Color.minimalInk)
+                    .frame(width: 34, height: 28)
+                    .rotationEffect(.degrees(16))
+                    .offset(x: 20, y: 4)
+                MinimalDotPattern()
+                    .frame(width: 26, height: 24)
+                    .offset(x: -8, y: 18)
+                Circle()
+                    .fill(Color.minimalBlush)
+                    .frame(width: 10, height: 10)
+                    .offset(x: 22, y: -20)
+            case .maximalism:
+                RoundedRectangle(cornerRadius: 17, style: .continuous)
+                    .fill(Color.maximalNeon)
+                MaximalStripePattern()
+                    .frame(width: 66, height: 66)
+                    .clipShape(RoundedRectangle(cornerRadius: 17, style: .continuous))
+                Circle()
+                    .stroke(Color.maximalInk, lineWidth: 9)
+                    .frame(width: 48, height: 48)
+                    .offset(x: -19, y: -14)
+                Rectangle()
+                    .fill(Color.maximalInk)
+                    .frame(width: 38, height: 22)
+                    .offset(x: 21, y: 17)
             }
         }
         .frame(width: 66, height: 66)

@@ -56,7 +56,7 @@ struct TutorialView: View {
             .padding(.bottom, 22)
         }
         .background(NeumorphicBackground())
-        .preferredColorScheme(designMode == .claymorphic ? .light : nil)
+        .preferredColorScheme(designMode.prefersLightColorScheme ? .light : nil)
     }
 }
 
