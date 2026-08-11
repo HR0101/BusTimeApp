@@ -12,7 +12,7 @@ struct SettingsView: View {
                     HStack(spacing: 14) {
                         IconBubble(systemName: "paintpalette.fill", tint: .neumoAccent, size: 52)
                         VStack(alignment: .leading, spacing: 4) {
-                            Text("画面デザイン")
+                            Text("画面の見た目")
                                 .font(.system(size: 22, weight: .bold, design: .rounded))
                                 .foregroundStyle(Color.neumoText)
                             Text("アプリ全体の見た目を選択できます")
@@ -25,7 +25,7 @@ struct SettingsView: View {
                     .neumorphicSurface(in: RoundedRectangle(cornerRadius: 24, style: .continuous), depth: 12)
 
                     VStack(alignment: .leading, spacing: 12) {
-                        Text("外観")
+                        Text("デザインを選ぶ")
                             .font(.headline.weight(.bold))
                             .foregroundStyle(Color.neumoText)
 
@@ -121,26 +121,16 @@ struct SettingsDesignOption: View {
     let isSelected: Bool
     let action: () -> Void
 
-    private var title: String {
-        mode == .neumorphic ? "ネオモーフィズム" : "クレイモーフィズム"
-    }
-
-    private var description: String {
-        mode == .neumorphic
-            ? "光と影のコントラストで奥行きを表現"
-            : "青い背景と白いカードを重ねた立体表現"
-    }
-
     var body: some View {
         Button(action: action) {
             HStack(spacing: 14) {
                 SettingsDesignPreview(mode: mode)
 
                 VStack(alignment: .leading, spacing: 5) {
-                    Text(title)
+                    Text(mode.title)
                         .font(.subheadline.weight(.bold))
                         .foregroundStyle(Color.neumoText)
-                    Text(description)
+                    Text(mode.description)
                         .font(.caption2)
                         .foregroundStyle(Color.neumoMuted)
                         .multilineTextAlignment(.leading)
@@ -166,7 +156,7 @@ struct SettingsDesignOption: View {
             .shadow(color: Color.neumoShadow.opacity(0.18), radius: 12, x: 6, y: 8)
         }
         .buttonStyle(SoftPressButtonStyle())
-        .accessibilityLabel("\(title)\(isSelected ? "、選択中" : "")")
+        .accessibilityLabel("\(mode.title)\(isSelected ? "、選択中" : "")")
     }
 }
 

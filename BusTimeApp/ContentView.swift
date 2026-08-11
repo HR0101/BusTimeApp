@@ -11,15 +11,24 @@ enum AppDesignMode: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .neumorphic: return "Neumorphism"
-        case .claymorphic: return "Claymorphism"
+        case .neumorphic: return "シンプル"
+        case .claymorphic: return "カラフル"
         }
     }
 
     var shortTitle: String {
         switch self {
-        case .neumorphic: return "ネオ"
-        case .claymorphic: return "クレイ"
+        case .neumorphic: return "シンプル"
+        case .claymorphic: return "カラフル"
+        }
+    }
+
+    var description: String {
+        switch self {
+        case .neumorphic:
+            return "淡いグレーを基調にした、見やすく落ち着いた画面"
+        case .claymorphic:
+            return "青を基調にした、明るくはっきりした画面"
         }
     }
 }

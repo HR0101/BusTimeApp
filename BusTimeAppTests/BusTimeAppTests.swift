@@ -223,6 +223,14 @@ struct BusTimeAppTests {
     }
 
     @Test
+    func designModesUseFamiliarNames() {
+        #expect(AppDesignMode.neumorphic.title == "シンプル")
+        #expect(AppDesignMode.claymorphic.title == "カラフル")
+        #expect(AppDesignMode.neumorphic.description.contains("落ち着いた"))
+        #expect(AppDesignMode.claymorphic.description.contains("明るく"))
+    }
+
+    @Test
     func routeIsResolvedFromOriginAndDestination() {
         #expect(
             HomeViewModel.Route.route(from: .station, to: .mansion)
