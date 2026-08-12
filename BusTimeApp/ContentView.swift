@@ -773,11 +773,17 @@ private struct MainTabBar: View {
 
     @ViewBuilder
     var body: some View {
+        // Liquid Glass APIs are introduced with the Xcode 26 SDK. The compiler
+        // guard keeps the iOS 18 compatibility builds on Xcode 16 compilable.
+#if compiler(>=6.2)
         if #available(iOS 26.0, *) {
             liquidGlassBody
         } else {
             legacyBody
         }
+#else
+        legacyBody
+#endif
     }
 
     @ViewBuilder
@@ -791,19 +797,6 @@ private struct MainTabBar: View {
             in: RoundedRectangle(cornerRadius: 24, style: .continuous),
             depth: 12
         )
-        .padding(.horizontal, 16)
-        .padding(.vertical, 8)
-    }
-
-    @available(iOS 26.0, *)
-    private var liquidGlassBody: some View {
-        GlassEffectContainer(spacing: 10) {
-            HStack(spacing: 10) {
-                liquidGlassTabButton(.home)
-                liquidGlassTabButton(.timetable)
-            }
-            .padding(8)
-        }
         .padding(.horizontal, 16)
         .padding(.vertical, 8)
     }
@@ -835,6 +828,20 @@ private struct MainTabBar: View {
         .buttonStyle(SoftPressButtonStyle())
         .accessibilityLabel(tab.accessibilityLabel)
         .accessibilityAddTraits(isSelected ? .isSelected : [])
+    }
+
+#if compiler(>=6.2)
+    @available(iOS 26.0, *)
+    private var liquidGlassBody: some View {
+        GlassEffectContainer(spacing: 10) {
+            HStack(spacing: 10) {
+                liquidGlassTabButton(.home)
+                liquidGlassTabButton(.timetable)
+            }
+            .padding(8)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 8)
     }
 
     @available(iOS 26.0, *)
@@ -869,6 +876,7 @@ private struct MainTabBar: View {
             .accessibilityLabel(tab.accessibilityLabel)
         }
     }
+#endif
 
     private var selectedForeground: Color {
         switch designMode {
