@@ -9,7 +9,7 @@ struct TutorialView: View {
         VStack(spacing: 0) {
             HStack {
                 Text("WELCOME")
-                    .font(.system(size: 11, weight: .bold, design: .rounded))
+                    .dynamicFont(size: 11, relativeTo: .caption, weight: .bold, design: .rounded)
                     .tracking(2)
                     .foregroundStyle(Color.neumoAccent)
                 Spacer()
@@ -64,27 +64,39 @@ struct TutorialPage: View {
     let title: String
     let description: String
     let systemName: String
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     var body: some View {
-        VStack(spacing: 24) {
-            Spacer()
-            ZStack {
-                Circle()
-                    .fill(Color.neumoAccent.opacity(0.11))
-                    .frame(width: 170, height: 170)
-                IconBubble(systemName: systemName, tint: .neumoAccent, size: 88)
+        ScrollView(showsIndicators: false) {
+            VStack(spacing: dynamicTypeSize.isAccessibilitySize ? 18 : 24) {
+                Spacer(minLength: dynamicTypeSize.isAccessibilitySize ? 12 : 52)
+                ZStack {
+                    Circle()
+                        .fill(Color.neumoAccent.opacity(0.11))
+                        .frame(
+                            width: dynamicTypeSize.isAccessibilitySize ? 120 : 170,
+                            height: dynamicTypeSize.isAccessibilitySize ? 120 : 170
+                        )
+                    IconBubble(
+                        systemName: systemName,
+                        tint: .neumoAccent,
+                        size: dynamicTypeSize.isAccessibilitySize ? 68 : 88
+                    )
+                }
+                Text(title)
+                    .dynamicFont(size: 28, relativeTo: .title, weight: .bold, design: .rounded)
+                    .foregroundStyle(Color.neumoText)
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+                Text(description)
+                    .font(.subheadline)
+                    .foregroundStyle(Color.neumoMuted)
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+                Spacer(minLength: 24)
             }
-            Text(title)
-                .font(.system(size: 28, weight: .bold, design: .rounded))
-                .foregroundStyle(Color.neumoText)
-                .multilineTextAlignment(.center)
-            Text(description)
-                .font(.subheadline)
-                .foregroundStyle(Color.neumoMuted)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal, 34)
-            Spacer()
+            .padding(.horizontal, dynamicTypeSize.isAccessibilitySize ? 20 : 34)
+            .frame(maxWidth: .infinity)
         }
-        .frame(maxWidth: .infinity)
     }
 }

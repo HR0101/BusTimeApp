@@ -706,23 +706,23 @@ struct SectionHeading: View {
     @Environment(\.appDesignMode) private var designMode
 
     var body: some View {
-        HStack(alignment: .bottom) {
+        DynamicTypeStack(verticalAlignment: .bottom, spacing: 10) {
             VStack(alignment: .leading, spacing: 3) {
                 Text(eyebrow.uppercased())
-                    .font(.system(size: 10, weight: .bold, design: .rounded))
+                    .dynamicFont(size: 10, relativeTo: .caption2, weight: .bold, design: .rounded)
                     .tracking(1.1)
                     .foregroundStyle(designMode.interfaceAccentColor)
                 Text(title)
-                    .font(
-                        .system(
-                            size: 21,
-                            weight: .bold,
-                            design: designMode == .minimalCute ? .serif : .rounded
-                        )
+                    .dynamicFont(
+                        size: 21,
+                        relativeTo: .title2,
+                        weight: .bold,
+                        design: designMode == .minimalCute ? .serif : .rounded
                     )
                     .foregroundStyle(Color.neumoText)
+                    .fixedSize(horizontal: false, vertical: true)
             }
-            Spacer()
+            .frame(maxWidth: .infinity, alignment: .leading)
             if let actionTitle, let action {
                 Button(action: action) {
                     Text(actionTitle)
@@ -1028,7 +1028,7 @@ struct ContentView: View {
     }
 
     private var appBrand: some View {
-        HStack(spacing: 13) {
+        DynamicTypeStack(spacing: 13) {
             ZStack {
                 RoundedRectangle(cornerRadius: 17, style: .continuous)
                     .fill(
@@ -1048,21 +1048,23 @@ struct ContentView: View {
 
             VStack(alignment: .leading, spacing: 3) {
                 Text("コロンブスシティ")
-                    .font(
-                        .system(
-                            size: 20,
-                            weight: .bold,
-                            design: currentDesignMode == .minimalCute ? .serif : .rounded
-                        )
+                    .dynamicFont(
+                        size: 20,
+                        relativeTo: .title3,
+                        weight: .bold,
+                        design: currentDesignMode == .minimalCute ? .serif : .rounded
                     )
                     .foregroundStyle(Color.neumoText)
+                    .fixedSize(horizontal: false, vertical: true)
                 Text("SHUTTLE SERVICE")
-                    .font(.system(size: 10, weight: .bold, design: .rounded))
+                    .dynamicFont(size: 10, relativeTo: .caption2, weight: .bold, design: .rounded)
                     .tracking(1.8)
                     .foregroundStyle(Color.neumoMuted)
+                    .fixedSize(horizontal: false, vertical: true)
             }
-            .fixedSize(horizontal: true, vertical: false)
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityElement(children: .combine)
     }
 
@@ -1075,7 +1077,7 @@ struct ContentView: View {
                     Image(systemName: scheduledBusIDs.isEmpty ? "bell" : "bell.badge.fill")
                         .font(.system(size: 14, weight: .bold))
                     Text("通知")
-                        .font(.system(size: 9, weight: .bold))
+                        .dynamicFont(size: 9, relativeTo: .caption2, weight: .bold)
                 }
                 .foregroundStyle(dashboardAccentColor)
                 .frame(minWidth: 44, minHeight: 44)
@@ -1275,7 +1277,7 @@ struct ClayHeaderBar: View {
     }
 
     private var brand: some View {
-        HStack(spacing: 12) {
+        DynamicTypeStack(spacing: 12) {
             ZStack {
                 RoundedRectangle(cornerRadius: 16, style: .continuous)
                     .fill(
@@ -1294,17 +1296,20 @@ struct ClayHeaderBar: View {
 
             VStack(alignment: .leading, spacing: 3) {
                 Text("コロンブスシティ")
-                    .font(.system(size: 19, weight: .bold, design: .rounded))
+                    .dynamicFont(size: 19, relativeTo: .title3, weight: .bold, design: .rounded)
                     .foregroundStyle(Color.neumoText)
+                    .fixedSize(horizontal: false, vertical: true)
                 HStack(spacing: 5) {
                     Circle().fill(Color.clayMint).frame(width: 6, height: 6)
                     Text("SHUTTLE IS ACTIVE")
-                        .font(.system(size: 9, weight: .bold, design: .rounded))
+                        .dynamicFont(size: 9, relativeTo: .caption2, weight: .bold, design: .rounded)
                         .tracking(1.2)
                         .foregroundStyle(Color.neumoMuted)
                 }
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityElement(children: .combine)
     }
 
@@ -1315,7 +1320,7 @@ struct ClayHeaderBar: View {
                     Image(systemName: notificationCount == 0 ? "bell" : "bell.badge.fill")
                         .font(.system(size: 14, weight: .bold))
                     Text("通知")
-                        .font(.system(size: 9, weight: .bold))
+                        .dynamicFont(size: 9, relativeTo: .caption2, weight: .bold)
                 }
                 .foregroundStyle(Color.claySkyDeep)
                 .frame(minWidth: 44, minHeight: 44)
@@ -1379,17 +1384,17 @@ struct ClayNextBusHero: View {
                     .offset(x: 116, y: 61)
 
                 VStack(spacing: 13) {
-                    HStack {
+                    DynamicTypeStack(spacing: 8) {
                         VStack(alignment: .leading, spacing: 3) {
                             Text("NEXT SHUTTLE")
-                                .font(.system(size: 10, weight: .bold, design: .rounded))
+                                .dynamicFont(size: 10, relativeTo: .caption2, weight: .bold, design: .rounded)
                                 .tracking(1.6)
                                 .foregroundStyle(.white.opacity(0.78))
                             Text("次のバス")
-                                .font(.system(size: 22, weight: .bold, design: .rounded))
+                                .dynamicFont(size: 22, relativeTo: .title2, weight: .bold, design: .rounded)
                                 .foregroundStyle(.white)
                         }
-                        Spacer()
+                        .frame(maxWidth: .infinity, alignment: .leading)
                         Text(countdown ?? "まもなく")
                             .font(.caption.weight(.bold))
                             .foregroundStyle(Color.claySkyDeep)
@@ -1398,7 +1403,7 @@ struct ClayNextBusHero: View {
                             .background(Capsule().fill(Color.white.opacity(0.92)))
                     }
 
-                    HStack(spacing: 16) {
+                    DynamicTypeStack(spacing: 16) {
                         ZStack {
                             Circle()
                                 .fill(Color.white)
@@ -1423,7 +1428,7 @@ struct ClayNextBusHero: View {
                             Text(bus.originName)
                                 .font(.subheadline.weight(.bold))
                                 .foregroundStyle(.white)
-                                .lineLimit(1)
+                                .fixedSize(horizontal: false, vertical: true)
                             HStack(spacing: 5) {
                                 Circle().fill(.white).frame(width: 7, height: 7)
                                 Capsule().fill(.white.opacity(0.5)).frame(width: 46, height: 3)
@@ -1434,9 +1439,9 @@ struct ClayNextBusHero: View {
                             Text(bus.destinationName)
                                 .font(.subheadline.weight(.bold))
                                 .foregroundStyle(.white)
-                                .lineLimit(1)
+                                .fixedSize(horizontal: false, vertical: true)
                         }
-                        Spacer(minLength: 0)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                     }
                 }
                 .padding(21)
@@ -1445,17 +1450,16 @@ struct ClayNextBusHero: View {
             .shadow(color: Color.clayShadow.opacity(0.34), radius: 22, x: 9, y: 14)
 
             VStack(spacing: 14) {
-                HStack(alignment: .lastTextBaseline, spacing: 11) {
+                DynamicTypeStack(verticalAlignment: .lastTextBaseline, spacing: 11) {
                     Text(bus.departure)
-                        .font(.system(size: 36, weight: .bold, design: .rounded))
+                        .dynamicFont(size: 36, relativeTo: .largeTitle, weight: .bold, design: .rounded)
                         .foregroundStyle(Color.neumoText)
                     Image(systemName: "arrow.right")
                         .font(.subheadline.weight(.bold))
                         .foregroundStyle(Color.claySkyDeep)
                     Text(bus.arrival)
-                        .font(.system(size: 27, weight: .bold, design: .rounded))
+                        .dynamicFont(size: 27, relativeTo: .title, weight: .bold, design: .rounded)
                         .foregroundStyle(Color.neumoMuted)
-                    Spacer()
                     BusNotificationActionButton(
                         isScheduled: isNotificationScheduled,
                         action: notifyAction
@@ -1481,7 +1485,7 @@ struct ClayMessageCard: View {
     let message: String
 
     var body: some View {
-        HStack(spacing: 14) {
+        DynamicTypeStack(spacing: 14) {
             ZStack {
                 RoundedRectangle(cornerRadius: 16, style: .continuous)
                     .fill(Color.clayYellow.opacity(0.92))
@@ -1492,14 +1496,13 @@ struct ClayMessageCard: View {
             }
             VStack(alignment: .leading, spacing: 4) {
                 Text("SERVICE INFORMATION")
-                    .font(.system(size: 9, weight: .bold, design: .rounded))
+                    .dynamicFont(size: 9, relativeTo: .caption2, weight: .bold, design: .rounded)
                     .tracking(1.1)
                     .foregroundStyle(Color.claySkyDeep)
                 Text(message)
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(Color.neumoText)
             }
-            Spacer(minLength: 0)
         }
         .padding(18)
         .clayCard(in: RoundedRectangle(cornerRadius: 25, style: .continuous), elevation: 18)
@@ -1512,17 +1515,17 @@ struct ClayRouteSearchCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 15) {
-            HStack {
+            DynamicTypeStack(spacing: 8) {
                 VStack(alignment: .leading, spacing: 3) {
                     Text("PLAN YOUR RIDE")
-                        .font(.system(size: 9, weight: .bold, design: .rounded))
+                        .dynamicFont(size: 9, relativeTo: .caption2, weight: .bold, design: .rounded)
                         .tracking(1.4)
                         .foregroundStyle(Color.claySkyDeep)
                     Text("乗車プラン")
-                        .font(.system(size: 22, weight: .bold, design: .rounded))
+                        .dynamicFont(size: 22, relativeTo: .title2, weight: .bold, design: .rounded)
                         .foregroundStyle(Color.neumoText)
                 }
-                Spacer()
+                .frame(maxWidth: .infinity, alignment: .leading)
                 Image(systemName: "square.grid.2x2.fill")
                     .font(.title3)
                     .foregroundStyle(Color.claySkyDeep)
@@ -1530,7 +1533,7 @@ struct ClayRouteSearchCard: View {
 
             TripEndpointSelector(viewModel: viewModel)
 
-            HStack(spacing: 9) {
+            DynamicTypeStack(spacing: 9) {
                 ClaySearchTypeChip(
                     title: BusTimetableViewModel.SearchType.departure.shortTitle,
                     systemName: "arrow.up.right",
@@ -1552,7 +1555,7 @@ struct ClayRouteSearchCard: View {
                 .foregroundStyle(Color.neumoMuted)
                 .fixedSize(horizontal: false, vertical: true)
 
-            HStack(spacing: 12) {
+            DynamicTypeStack(spacing: 12) {
                 ZStack {
                     RoundedRectangle(cornerRadius: 15, style: .continuous)
                         .fill(Color.clayPurple.opacity(0.13))
@@ -1568,14 +1571,14 @@ struct ClayRouteSearchCard: View {
                     DatePicker("", selection: $viewModel.searchTime, displayedComponents: .hourAndMinute)
                         .labelsHidden()
                 }
-                Spacer()
+                .frame(maxWidth: .infinity, alignment: .leading)
                 Button {
                     viewModel.setSearchToCurrentTime()
                 } label: {
                     VStack(spacing: 2) {
                         Image(systemName: "clock.arrow.circlepath")
                         Text("現在時刻")
-                            .font(.system(size: 9, weight: .bold))
+                            .dynamicFont(size: 9, relativeTo: .caption2, weight: .bold)
                     }
                     .font(.caption.weight(.bold))
                     .foregroundStyle(Color.claySkyDeep)
@@ -1621,7 +1624,7 @@ struct ClayRouteSearchCard: View {
                             .foregroundStyle(.white)
                     }
                 }
-                .frame(height: 54)
+                .frame(minHeight: 54)
                 .background(
                     RoundedRectangle(cornerRadius: 17, style: .continuous)
                         .fill(
@@ -1684,11 +1687,11 @@ struct ClayUpcomingCard: View {
             HStack {
                 VStack(alignment: .leading, spacing: 3) {
                     Text("UPCOMING")
-                        .font(.system(size: 9, weight: .bold, design: .rounded))
+                        .dynamicFont(size: 9, relativeTo: .caption2, weight: .bold, design: .rounded)
                         .tracking(1.3)
                         .foregroundStyle(Color.claySkyDeep)
                     Text("候補のバス")
-                        .font(.system(size: 21, weight: .bold, design: .rounded))
+                        .dynamicFont(size: 21, relativeTo: .title2, weight: .bold, design: .rounded)
                         .foregroundStyle(Color.neumoText)
                 }
                 Spacer()
@@ -1774,13 +1777,13 @@ struct ClayUpcomingRow: View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(alignment: .lastTextBaseline, spacing: 6) {
                 Text(bus.departure)
-                    .font(.system(size: 20, weight: .bold, design: .rounded))
+                    .dynamicFont(size: 20, relativeTo: .title3, weight: .bold, design: .rounded)
                     .foregroundStyle(Color.neumoText)
                 Image(systemName: "arrow.right")
                     .font(.caption2.weight(.bold))
                     .foregroundStyle(Color.claySkyDeep)
                 Text(bus.arrival)
-                    .font(.system(size: 16, weight: .semibold, design: .rounded))
+                    .dynamicFont(size: 16, relativeTo: .body, weight: .semibold, design: .rounded)
                     .foregroundStyle(Color.neumoMuted)
             }
             Text(bus.stopSummary)
@@ -1822,11 +1825,11 @@ struct ClayTimetableCard: View {
             HStack {
                 VStack(alignment: .leading, spacing: 3) {
                     Text("TODAY'S SCHEDULE")
-                        .font(.system(size: 9, weight: .bold, design: .rounded))
+                        .dynamicFont(size: 9, relativeTo: .caption2, weight: .bold, design: .rounded)
                         .tracking(1.4)
                         .foregroundStyle(.white.opacity(0.78))
                     Text("本日の時刻表")
-                        .font(.system(size: 22, weight: .bold, design: .rounded))
+                        .dynamicFont(size: 22, relativeTo: .title2, weight: .bold, design: .rounded)
                         .foregroundStyle(.white)
                 }
                 Spacer()
@@ -1876,7 +1879,7 @@ struct ClayTimetableRow: View {
     let action: () -> Void
 
     var body: some View {
-        HStack(spacing: 12) {
+        DynamicTypeStack(spacing: 12) {
             ZStack {
                 RoundedRectangle(cornerRadius: 10, style: .continuous)
                     .fill(isRecommended ? Color.clayYellow.opacity(0.23) : Color.neumoAccentSoft.opacity(0.38))
@@ -1886,7 +1889,7 @@ struct ClayTimetableRow: View {
                     .foregroundStyle(isRecommended ? Color.clayWarningText : Color.claySkyDeep)
             }
             Text(bus.departure)
-                .font(.system(size: 17, weight: .bold, design: .rounded))
+                .dynamicFont(size: 17, relativeTo: .body, weight: .bold, design: .rounded)
                 .foregroundStyle(Color.neumoText)
             Capsule()
                 .fill(Color.claySky.opacity(0.28))
@@ -1895,7 +1898,7 @@ struct ClayTimetableRow: View {
                 .font(.caption2.weight(.bold))
                 .foregroundStyle(Color.claySkyDeep)
             Text(bus.arrival)
-                .font(.system(size: 16, weight: .semibold, design: .rounded))
+                .dynamicFont(size: 16, relativeTo: .body, weight: .semibold, design: .rounded)
                 .foregroundStyle(Color.neumoMuted)
             BusNotificationActionButton(
                 isScheduled: isNotificationScheduled,
@@ -1934,23 +1937,22 @@ struct NextBusCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 19) {
-            HStack(alignment: .top) {
+            DynamicTypeStack(verticalAlignment: .top, spacing: 8) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("次のバス")
-                        .font(
-                            .system(
-                                size: designMode == .minimalCute || designMode == .maximalism ? 15 : 12,
-                                weight: .bold,
-                                design: designMode == .minimalCute ? .serif : .rounded
-                            )
+                        .dynamicFont(
+                            size: designMode == .minimalCute || designMode == .maximalism ? 15 : 12,
+                            relativeTo: .subheadline,
+                            weight: .bold,
+                            design: designMode == .minimalCute ? .serif : .rounded
                         )
                         .foregroundStyle(accentColor)
                     Text("NEXT DEPARTURE")
-                        .font(.system(size: 9, weight: .bold, design: .rounded))
+                        .dynamicFont(size: 9, relativeTo: .caption2, weight: .bold, design: .rounded)
                         .tracking(1.5)
                         .foregroundStyle(Color.neumoMuted)
                 }
-                Spacer()
+                .frame(maxWidth: .infinity, alignment: .leading)
                 if let countdown {
                     Text(countdown)
                         .font(.caption.weight(.bold))
@@ -1969,7 +1971,7 @@ struct NextBusCard: View {
                 }
             }
 
-            HStack(alignment: .bottom, spacing: 12) {
+            DynamicTypeStack(verticalAlignment: .bottom, spacing: 12) {
                 TimePoint(time: bus.departure, label: bus.originName, isPrimary: true)
 
                 VStack(spacing: 6) {
@@ -1983,18 +1985,16 @@ struct NextBusCard: View {
                 .padding(.bottom, 20)
 
                 TimePoint(time: bus.arrival, label: bus.destinationName, isPrimary: false)
-                Spacer(minLength: 0)
             }
 
-            HStack(spacing: 8) {
+            DynamicTypeStack(spacing: 8) {
                 Image(systemName: "arrow.triangle.turn.up.right.diamond.fill")
                     .font(.caption)
                     .foregroundStyle(Color.neumoMuted)
                 Text(routeName)
                     .font(.caption.weight(.medium))
                     .foregroundStyle(Color.neumoMuted)
-                    .lineLimit(1)
-                Spacer()
+                    .fixedSize(horizontal: false, vertical: true)
                 BusNotificationActionButton(
                     isScheduled: isNotificationScheduled,
                     action: notifyAction
@@ -2051,13 +2051,18 @@ struct TimePoint: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 5) {
             Text(time)
-                .font(.system(size: isPrimary ? 40 : 31, weight: .bold, design: .rounded))
+                .dynamicFont(
+                    size: isPrimary ? 40 : 31,
+                    relativeTo: isPrimary ? .largeTitle : .title,
+                    weight: .bold,
+                    design: .rounded
+                )
                 .foregroundStyle(isPrimary ? Color.neumoText : Color.neumoMuted)
                 .minimumScaleFactor(0.7)
             Text(label)
-                .font(.system(size: 11, weight: .medium))
+                .dynamicFont(size: 11, relativeTo: .caption, weight: .medium)
                 .foregroundStyle(Color.neumoMuted)
-                .lineLimit(1)
+                .fixedSize(horizontal: false, vertical: true)
         }
     }
 }
@@ -2068,7 +2073,7 @@ struct SearchCriteriaBanner: View {
     @Environment(\.appDesignMode) private var designMode
 
     var body: some View {
-        HStack(alignment: .top, spacing: 12) {
+        DynamicTypeStack(verticalAlignment: .top, spacing: 12) {
             IconBubble(
                 systemName: "magnifyingglass.circle.fill",
                 tint: designMode.interfaceAccentColor,
@@ -2087,7 +2092,6 @@ struct SearchCriteriaBanner: View {
                     .foregroundStyle(Color.neumoMuted)
                     .fixedSize(horizontal: false, vertical: true)
             }
-            Spacer(minLength: 0)
         }
         .padding(15)
         .neumorphicSurface(in: RoundedRectangle(cornerRadius: 20, style: .continuous), depth: 9)
@@ -2099,7 +2103,7 @@ struct ServiceMessageCard: View {
     let message: String
 
     var body: some View {
-        HStack(spacing: 14) {
+        DynamicTypeStack(spacing: 14) {
             IconBubble(systemName: "calendar.badge.exclamationmark", tint: .neumoWarning, size: 48)
             VStack(alignment: .leading, spacing: 4) {
                 Text("本日の運行")
@@ -2109,7 +2113,6 @@ struct ServiceMessageCard: View {
                     .font(.subheadline)
                     .foregroundStyle(Color.neumoMuted)
             }
-            Spacer(minLength: 0)
         }
         .padding(18)
         .neumorphicSurface(in: RoundedRectangle(cornerRadius: 24, style: .continuous), depth: 12)
@@ -2140,13 +2143,13 @@ struct RouteSelectorCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            HStack {
+            DynamicTypeStack(spacing: 8) {
                 Label("出発地と目的地", systemImage: "point.topleft.down.curvedto.point.bottomright.up")
                     .font(.subheadline.weight(.bold))
                     .foregroundStyle(Color.neumoText)
-                Spacer()
+                    .fixedSize(horizontal: false, vertical: true)
                 Text("TRIP")
-                    .font(.system(size: 9, weight: .bold, design: .rounded))
+                    .dynamicFont(size: 9, relativeTo: .caption2, weight: .bold, design: .rounded)
                     .tracking(1.2)
                     .foregroundStyle(Color.neumoMuted)
             }
@@ -2311,7 +2314,7 @@ struct SearchPanel: View {
         VStack(alignment: .leading, spacing: 15) {
             SectionHeading(eyebrow: "SEARCH", title: "時刻を検索")
 
-            HStack(spacing: 10) {
+            DynamicTypeStack(spacing: 10) {
                 SearchModeButton(
                     title: "出発から探す",
                     systemName: "arrow.up.right",
@@ -2474,7 +2477,7 @@ struct TimePickerRow: View {
                     .fixedSize(horizontal: false, vertical: true)
                 DatePicker("", selection: $date, displayedComponents: .hourAndMinute)
                     .labelsHidden()
-                    .font(.system(size: 25, weight: .bold, design: .rounded))
+                    .dynamicFont(size: 25, relativeTo: .title2, weight: .bold, design: .rounded)
                     .tint(Color.neumoText)
                     .fixedSize()
             }
@@ -2526,28 +2529,28 @@ struct BusResultRow: View {
         VStack(alignment: .leading, spacing: 5) {
             HStack(spacing: 7) {
                 Text("おすすめ")
-                    .font(.system(size: 10, weight: .bold))
+                    .dynamicFont(size: 10, relativeTo: .caption2, weight: .bold)
                     .foregroundStyle(Color.neumoAccentDeep)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 4)
                     .background(Capsule().fill(Color.neumoAccentSoft.opacity(0.78)))
                 if let note = bus.note {
                     Text(note)
-                        .font(.system(size: 10, weight: .bold))
+                        .dynamicFont(size: 10, relativeTo: .caption2, weight: .bold)
                         .foregroundStyle(Color.neumoMuted)
                         .lineLimit(2)
                 }
             }
-            HStack(alignment: .lastTextBaseline, spacing: 8) {
+            DynamicTypeStack(verticalAlignment: .lastTextBaseline, spacing: 8) {
                 Text(bus.departure)
-                    .font(.system(size: 29, weight: .bold, design: .rounded))
+                    .dynamicFont(size: 29, relativeTo: .title, weight: .bold, design: .rounded)
                     .foregroundStyle(Color.neumoText)
                     .minimumScaleFactor(0.75)
                 Image(systemName: "arrow.right")
                     .font(.caption.weight(.bold))
                     .foregroundStyle(Color.neumoAccent)
                 Text(bus.arrival)
-                    .font(.system(size: 23, weight: .bold, design: .rounded))
+                    .dynamicFont(size: 23, relativeTo: .title2, weight: .bold, design: .rounded)
                     .foregroundStyle(Color.neumoMuted)
                     .minimumScaleFactor(0.75)
             }
@@ -2610,7 +2613,7 @@ struct BusTimetableRow: View {
                         .frame(width: 76, alignment: .leading)
                     routeLine
                     Text(bus.arrival)
-                        .font(.system(size: 17, weight: .semibold, design: .rounded))
+                        .dynamicFont(size: 17, relativeTo: .body, weight: .semibold, design: .rounded)
                         .foregroundStyle(Color.neumoMuted)
                         .frame(width: 52, alignment: .trailing)
                     BusNotificationActionButton(
@@ -2642,11 +2645,11 @@ struct BusTimetableRow: View {
     private var departureAndNote: some View {
         VStack(alignment: .leading, spacing: 2) {
             Text(bus.departure)
-                .font(.system(size: 19, weight: .bold, design: .rounded))
+                .dynamicFont(size: 19, relativeTo: .title3, weight: .bold, design: .rounded)
                 .foregroundStyle(Color.neumoText)
             if let note = bus.note {
                 Text(note)
-                    .font(.system(size: 9, weight: .medium))
+                    .dynamicFont(size: 9, relativeTo: .caption2, weight: .medium)
                     .foregroundStyle(Color.neumoMuted)
                     .lineLimit(2)
             }

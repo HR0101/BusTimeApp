@@ -9,18 +9,18 @@ struct SettingsView: View {
         NavigationStack {
             ScrollView(showsIndicators: false) {
                 VStack(spacing: 22) {
-                    HStack(spacing: 14) {
+                    DynamicTypeStack(spacing: 14) {
                         IconBubble(systemName: "paintpalette.fill", tint: .neumoAccent, size: 52)
                         VStack(alignment: .leading, spacing: 4) {
                             Text("画面の見た目")
-                                .font(.system(size: 22, weight: .bold, design: .rounded))
+                                .dynamicFont(size: 22, relativeTo: .title2, weight: .bold, design: .rounded)
                                 .foregroundStyle(Color.neumoText)
                             Text("アプリ全体の見た目を選択できます")
                                 .font(.caption)
                                 .foregroundStyle(Color.neumoMuted)
                         }
-                        Spacer()
                     }
+                    .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(18)
                     .neumorphicSurface(in: RoundedRectangle(cornerRadius: 24, style: .continuous), depth: 12)
 
@@ -123,7 +123,7 @@ struct SettingsDesignOption: View {
 
     var body: some View {
         Button(action: action) {
-            HStack(spacing: 14) {
+            DynamicTypeStack(spacing: 14) {
                 SettingsDesignPreview(mode: mode)
 
                 VStack(alignment: .leading, spacing: 5) {
@@ -134,10 +134,9 @@ struct SettingsDesignOption: View {
                         .font(.caption2)
                         .foregroundStyle(Color.neumoMuted)
                         .multilineTextAlignment(.leading)
-                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
-
-                Spacer(minLength: 4)
+                .frame(maxWidth: .infinity, alignment: .leading)
 
                 Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
                     .font(.title3.weight(.bold))

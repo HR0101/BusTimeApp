@@ -107,7 +107,7 @@ struct NotificationOptionsView: View {
                 Button {
                     onSchedule(minutes)
                 } label: {
-                    HStack(spacing: 12) {
+                    DynamicTypeStack(spacing: 12) {
                         Image(systemName: "bell.badge.fill")
                             .font(.title3)
                             .foregroundStyle(Color.neumoAccent)
@@ -119,7 +119,7 @@ struct NotificationOptionsView: View {
                                 .font(.caption)
                                 .foregroundStyle(Color.neumoMuted)
                         }
-                        Spacer()
+                        .frame(maxWidth: .infinity, alignment: .leading)
                         Image(systemName: "chevron.right")
                             .font(.caption.weight(.bold))
                             .foregroundStyle(Color.neumoMuted)
