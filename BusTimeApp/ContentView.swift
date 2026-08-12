@@ -771,10 +771,20 @@ private struct MainTabBar: View {
     @Binding var selection: MainTab
     @Environment(\.appDesignMode) private var designMode
 
+    @ViewBuilder
     var body: some View {
+        if #available(iOS 26.0, *) {
+            liquidGlassBody
+        } else {
+            legacyBody
+        }
+    }
+
+    @ViewBuilder
+    private var legacyBody: some View {
         HStack(spacing: 8) {
-            tabButton(.home)
-            tabButton(.timetable)
+            legacyTabButton(.home)
+            legacyTabButton(.timetable)
         }
         .padding(8)
         .neumorphicSurface(
@@ -785,7 +795,20 @@ private struct MainTabBar: View {
         .padding(.vertical, 8)
     }
 
-    private func tabButton(_ tab: MainTab) -> some View {
+    @available(iOS 26.0, *)
+    private var liquidGlassBody: some View {
+        GlassEffectContainer(spacing: 10) {
+            HStack(spacing: 10) {
+                liquidGlassTabButton(.home)
+                liquidGlassTabButton(.timetable)
+            }
+            .padding(8)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 8)
+    }
+
+    private func legacyTabButton(_ tab: MainTab) -> some View {
         let isSelected = selection == tab
 
         return Button {
@@ -812,6 +835,39 @@ private struct MainTabBar: View {
         .buttonStyle(SoftPressButtonStyle())
         .accessibilityLabel(tab.accessibilityLabel)
         .accessibilityAddTraits(isSelected ? .isSelected : [])
+    }
+
+    @available(iOS 26.0, *)
+    @ViewBuilder
+    private func liquidGlassTabButton(_ tab: MainTab) -> some View {
+        let isSelected = selection == tab
+        let label = Label(tab.title, systemImage: tab.systemName)
+            .dynamicFont(size: 14, relativeTo: .subheadline, weight: .bold)
+            .frame(maxWidth: .infinity, minHeight: 48)
+            .padding(.horizontal, 8)
+
+        if isSelected {
+            Button {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    selection = tab
+                }
+            } label: {
+                label
+            }
+            .buttonStyle(.glassProminent)
+            .accessibilityLabel(tab.accessibilityLabel)
+            .accessibilityAddTraits(.isSelected)
+        } else {
+            Button {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    selection = tab
+                }
+            } label: {
+                label
+            }
+            .buttonStyle(.glass)
+            .accessibilityLabel(tab.accessibilityLabel)
+        }
     }
 
     private var selectedForeground: Color {
