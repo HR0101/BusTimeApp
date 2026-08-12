@@ -346,6 +346,7 @@ struct BusTimeAppTests {
             from: DateComponents(year: 2026, month: 8, day: 12, hour: 8)
         )!
         let viewModel = HomeViewModel(nowProvider: { currentDate })
+        viewModel.searchTime = currentDate
         viewModel.performSearch()
         let morningDepartures = viewModel.searchResults.map(\.departure)
 
@@ -357,6 +358,14 @@ struct BusTimeAppTests {
         #expect(viewModel.searchTime == currentDate)
         #expect(viewModel.searchCriteriaDescription.contains("18:00以降に出発"))
         #expect(viewModel.searchResults.map(\.departure) != morningDepartures)
+
+        let futureSearchTime = calendar.date(
+            from: DateComponents(year: 2026, month: 8, day: 12, hour: 20)
+        )!
+        viewModel.searchTime = futureSearchTime
+        viewModel.refreshForAppActivation()
+
+        #expect(viewModel.searchTime == futureSearchTime)
     }
 
 }
