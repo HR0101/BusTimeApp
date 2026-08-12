@@ -32,6 +32,32 @@ final class BusTimeAppUITests: XCTestCase {
     }
 
     @MainActor
+    func testMainTabsSwitchBetweenHomeAndTimetable() throws {
+        let app = XCUIApplication()
+        app.launch()
+
+        // 初回起動時だけチュートリアルが表示されるため、完了してからタブを確認します。
+        if app.buttons["次へ"].waitForExistence(timeout: 3) {
+            for _ in 0..<2 {
+                XCTAssertTrue(app.buttons["次へ"].waitForExistence(timeout: 3))
+                app.buttons["次へ"].tap()
+            }
+            XCTAssertTrue(app.buttons["はじめる"].waitForExistence(timeout: 3))
+            app.buttons["はじめる"].tap()
+        }
+
+        let timetableTab = app.buttons["時刻表タブ"]
+        XCTAssertTrue(timetableTab.waitForExistence(timeout: 5))
+        timetableTab.tap()
+
+        XCTAssertTrue(app.staticTexts["TIMETABLE"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["ホームタブ"].exists)
+
+        app.buttons["ホームタブ"].tap()
+        XCTAssertTrue(app.staticTexts["現在の検索条件"].waitForExistence(timeout: 5))
+    }
+
+    @MainActor
     func testLaunchPerformance() throws {
         // This measures how long it takes to launch your application.
         measure(metrics: [XCTApplicationLaunchMetric()]) {
