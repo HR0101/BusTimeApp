@@ -735,11 +735,116 @@ struct SectionHeading: View {
     }
 }
 
+private enum MainTab: Hashable {
+    case home
+    case timetable
+
+    var title: String {
+        switch self {
+        case .home:
+            return "ホーム"
+        case .timetable:
+            return "時刻表"
+        }
+    }
+
+    var systemName: String {
+        switch self {
+        case .home:
+            return "house.fill"
+        case .timetable:
+            return "clock.fill"
+        }
+    }
+
+    var accessibilityLabel: String {
+        switch self {
+        case .home:
+            return "ホームタブ"
+        case .timetable:
+            return "時刻表タブ"
+        }
+    }
+}
+
+private struct MainTabBar: View {
+    @Binding var selection: MainTab
+    @Environment(\.appDesignMode) private var designMode
+
+    var body: some View {
+        HStack(spacing: 8) {
+            tabButton(.home)
+            tabButton(.timetable)
+        }
+        .padding(8)
+        .neumorphicSurface(
+            in: RoundedRectangle(cornerRadius: 24, style: .continuous),
+            depth: 12
+        )
+        .padding(.horizontal, 16)
+        .padding(.vertical, 8)
+    }
+
+    private func tabButton(_ tab: MainTab) -> some View {
+        let isSelected = selection == tab
+
+        return Button {
+            withAnimation(.easeInOut(duration: 0.2)) {
+                selection = tab
+            }
+        } label: {
+            Label(tab.title, systemImage: tab.systemName)
+                .dynamicFont(size: 14, relativeTo: .subheadline, weight: .bold)
+                .foregroundStyle(isSelected ? selectedForeground : Color.neumoMuted)
+                .frame(maxWidth: .infinity, minHeight: 48)
+                .padding(.horizontal, 8)
+                .background(
+                    RoundedRectangle(cornerRadius: 17, style: .continuous)
+                        .fill(isSelected ? selectedBackground : Color.clear)
+                )
+                .neumorphicSurface(
+                    in: RoundedRectangle(cornerRadius: 17, style: .continuous),
+                    mode: isSelected ? .concave : .convex,
+                    shadowRadius: isSelected ? 5 : 6,
+                    offset: isSelected ? 3 : 4
+                )
+        }
+        .buttonStyle(SoftPressButtonStyle())
+        .accessibilityLabel(tab.accessibilityLabel)
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
+    }
+
+    private var selectedForeground: Color {
+        switch designMode {
+        case .minimalCute:
+            return .white
+        case .maximalism:
+            return .maximalInk
+        case .neumorphic, .claymorphic:
+            return .white
+        }
+    }
+
+    private var selectedBackground: Color {
+        switch designMode {
+        case .minimalCute:
+            return .minimalInk
+        case .maximalism:
+            return .maximalNeon
+        case .neumorphic:
+            return .neumoAccent
+        case .claymorphic:
+            return .claySkyDeep
+        }
+    }
+}
+
 struct ContentView: View {
     @StateObject private var viewModel = HomeViewModel()
     @StateObject private var coordinator = AppCoordinator()
     @StateObject private var settingsViewModel = SettingsViewModel()
     @StateObject private var notificationViewModel = NotificationViewModel()
+    @State private var selectedTab: MainTab = .home
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
@@ -761,15 +866,22 @@ struct ContentView: View {
 
     var body: some View {
         NavigationStack {
-            ScrollView(showsIndicators: false) {
-                Group {
-                    if currentDesignMode == .claymorphic {
-                        claymorphicDashboard
-                    } else {
-                        neumorphicDashboard
-                    }
+            VStack(spacing: 0) {
+                TabView(selection: $selectedTab) {
+                    homeTab
+                        .tag(MainTab.home)
+
+                    TimetableTabView(
+                        viewModel: viewModel,
+                        scheduledBusIDs: scheduledBusIDs,
+                        onSelectBus: selectBus
+                    )
+                    .tag(MainTab.timetable)
                 }
-                .transition(.opacity.combined(with: .scale(scale: 0.985)))
+                .tabViewStyle(.page(indexDisplayMode: .never))
+                .animation(.easeInOut(duration: 0.2), value: selectedTab)
+
+                MainTabBar(selection: $selectedTab)
             }
             .background(NeumorphicBackground())
             .toolbar(.hidden, for: .navigationBar)
@@ -892,6 +1004,19 @@ struct ContentView: View {
         .environment(\.appDesignMode, currentDesignMode)
     }
 
+    private var homeTab: some View {
+        ScrollView(showsIndicators: false) {
+            Group {
+                if currentDesignMode == .claymorphic {
+                    claymorphicDashboard
+                } else {
+                    neumorphicDashboard
+                }
+            }
+            .transition(.opacity.combined(with: .scale(scale: 0.985)))
+        }
+    }
+
     private var neumorphicDashboard: some View {
         VStack(spacing: 24) {
             appHeader
@@ -922,7 +1047,6 @@ struct ContentView: View {
 
             if viewModel.holidayMessage == nil {
                 upcomingSection
-                timetableSection
             }
 
             serviceFooter
@@ -976,13 +1100,6 @@ struct ContentView: View {
                             ($0.id, viewModel.resultReason(for: $0))
                         }
                     )
-                ) { bus in
-                    selectBus(bus)
-                }
-                ClayTimetableCard(
-                    buses: viewModel.currentFullTimetable,
-                    recommendedIds: Set(viewModel.searchResults.map(\.id)),
-                    scheduledBusIDs: scheduledBusIDs
                 ) { bus in
                     selectBus(bus)
                 }
@@ -1131,37 +1248,6 @@ struct ContentView: View {
         }
     }
 
-    private var timetableSection: some View {
-        VStack(spacing: 12) {
-            SectionHeading(eyebrow: "TODAY", title: "本日の時刻表")
-
-            VStack(spacing: 0) {
-                HStack {
-                    Text("出発")
-                    Spacer()
-                    Text("到着")
-                    Text("")
-                        .frame(width: 42)
-                }
-                .font(.caption.weight(.bold))
-                .foregroundStyle(Color.neumoMuted)
-                .padding(.horizontal, 18)
-                .padding(.vertical, 13)
-
-                ForEach(viewModel.currentFullTimetable) { bus in
-                    BusTimetableRow(
-                        bus: bus,
-                        isRecommended: viewModel.searchResults.contains(where: { $0.id == bus.id }),
-                        isNotificationScheduled: scheduledBusIDs.contains(bus.id)
-                    ) {
-                        selectBus(bus)
-                    }
-                }
-            }
-            .neumorphicSurface(in: RoundedRectangle(cornerRadius: 24, style: .continuous), depth: 14)
-        }
-    }
-
     private func scheduleNotification(
         minutes: Int,
         startLiveActivity: Bool? = nil
@@ -1208,6 +1294,99 @@ struct ContentView: View {
         // 通常通知は登録済みなので、Live Activityの失敗も同じ完了画面で伝えます。
         viewModel.liveActivityError = nil
         return "\n通常通知は設定されましたが、Live Activityは開始できませんでした。"
+    }
+}
+
+struct TimetableTabView: View {
+    @ObservedObject var viewModel: HomeViewModel
+    let scheduledBusIDs: Set<String>
+    let onSelectBus: (Bus) -> Void
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
+    private var horizontalPadding: CGFloat {
+        dynamicTypeSize.isAccessibilitySize ? 12 : 20
+    }
+
+    var body: some View {
+        ScrollView(showsIndicators: false) {
+            VStack(spacing: 16) {
+                timetableHeader
+
+                if let holidayMessage = viewModel.holidayMessage {
+                    ServiceMessageCard(message: holidayMessage)
+                } else if viewModel.currentFullTimetable.isEmpty {
+                    EmptyBusCard()
+                } else {
+                    timetableList
+                }
+            }
+            .padding(.horizontal, horizontalPadding)
+            .padding(.top, 14)
+            .padding(.bottom, 28)
+        }
+    }
+
+    private var timetableHeader: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            SectionHeading(eyebrow: "TIMETABLE", title: "時刻表")
+
+            DynamicTypeStack(verticalAlignment: .top, spacing: 10) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(viewModel.selectedRoute.rawValue)
+                        .dynamicFont(size: 17, relativeTo: .headline, weight: .bold, design: .rounded)
+                        .foregroundStyle(Color.neumoText)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Text(viewModel.selectedRoute.guidance)
+                        .font(.caption)
+                        .foregroundStyle(Color.neumoMuted)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+                Text("\(viewModel.currentFullTimetable.count)便")
+                    .dynamicFont(size: 15, relativeTo: .subheadline, weight: .bold)
+                    .foregroundStyle(Color.neumoAccentDeep)
+                    .padding(.horizontal, 11)
+                    .padding(.vertical, 8)
+                    .background(Capsule().fill(Color.neumoAccentSoft.opacity(0.62)))
+            }
+
+            Label(
+                "ルートを変更する場合は、ホームタブで出発地と目的地を選択してください",
+                systemImage: "arrow.left.arrow.right"
+            )
+            .font(.caption2)
+            .foregroundStyle(Color.neumoMuted)
+            .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(18)
+        .neumorphicSurface(in: RoundedRectangle(cornerRadius: 24, style: .continuous), depth: 12)
+    }
+
+    private var timetableList: some View {
+        VStack(spacing: 0) {
+            HStack {
+                Text("出発")
+                Spacer()
+                Text("到着")
+                Text("")
+                    .frame(width: 42)
+            }
+            .font(.caption.weight(.bold))
+            .foregroundStyle(Color.neumoMuted)
+            .padding(.horizontal, 18)
+            .padding(.vertical, 13)
+
+            ForEach(viewModel.currentFullTimetable) { bus in
+                BusTimetableRow(
+                    bus: bus,
+                    isRecommended: viewModel.searchResults.contains(where: { $0.id == bus.id }),
+                    isNotificationScheduled: scheduledBusIDs.contains(bus.id),
+                    action: { onSelectBus(bus) }
+                )
+            }
+        }
+        .neumorphicSurface(in: RoundedRectangle(cornerRadius: 24, style: .continuous), depth: 14)
     }
 }
 
@@ -1811,102 +1990,6 @@ struct ClayUpcomingRow: View {
                 action: action
             )
         }
-    }
-}
-
-struct ClayTimetableCard: View {
-    let buses: [Bus]
-    let recommendedIds: Set<String>
-    let scheduledBusIDs: Set<String>
-    let action: (Bus) -> Void
-
-    var body: some View {
-        VStack(spacing: 0) {
-            HStack {
-                VStack(alignment: .leading, spacing: 3) {
-                    Text("TODAY'S SCHEDULE")
-                        .dynamicFont(size: 9, relativeTo: .caption2, weight: .bold, design: .rounded)
-                        .tracking(1.4)
-                        .foregroundStyle(.white.opacity(0.78))
-                    Text("本日の時刻表")
-                        .dynamicFont(size: 22, relativeTo: .title2, weight: .bold, design: .rounded)
-                        .foregroundStyle(.white)
-                }
-                Spacer()
-                ZStack {
-                    Circle().fill(Color.clayYellow).frame(width: 42, height: 42)
-                    Text("\(buses.count)")
-                        .font(.caption.weight(.bold))
-                        .foregroundStyle(.white)
-                }
-            }
-            .padding(19)
-            .background(
-                LinearGradient(
-                    colors: [.claySky, .claySkyDeep],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-            )
-
-            ForEach(buses) { bus in
-                ClayTimetableRow(
-                    bus: bus,
-                    isRecommended: recommendedIds.contains(bus.id),
-                    isNotificationScheduled: scheduledBusIDs.contains(bus.id)
-                ) {
-                    action(bus)
-                }
-                if bus.id != buses.last?.id {
-                    Divider().padding(.leading, 18)
-                }
-            }
-        }
-        .background(Color.white)
-        .clipShape(RoundedRectangle(cornerRadius: 27, style: .continuous))
-        .shadow(color: Color.clayShadow.opacity(0.28), radius: 22, x: 8, y: 14)
-        .overlay(
-            RoundedRectangle(cornerRadius: 27, style: .continuous)
-                .stroke(Color.white.opacity(0.7), lineWidth: 1)
-        )
-    }
-}
-
-struct ClayTimetableRow: View {
-    let bus: Bus
-    let isRecommended: Bool
-    let isNotificationScheduled: Bool
-    let action: () -> Void
-
-    var body: some View {
-        DynamicTypeStack(spacing: 12) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .fill(isRecommended ? Color.clayYellow.opacity(0.23) : Color.neumoAccentSoft.opacity(0.38))
-                    .frame(width: 35, height: 35)
-                Image(systemName: isRecommended ? "sparkles" : "bus.fill")
-                    .font(.caption.weight(.bold))
-                    .foregroundStyle(isRecommended ? Color.clayWarningText : Color.claySkyDeep)
-            }
-            Text(bus.departure)
-                .dynamicFont(size: 17, relativeTo: .body, weight: .bold, design: .rounded)
-                .foregroundStyle(Color.neumoText)
-            Capsule()
-                .fill(Color.claySky.opacity(0.28))
-                .frame(height: 3)
-            Image(systemName: "arrow.right")
-                .font(.caption2.weight(.bold))
-                .foregroundStyle(Color.claySkyDeep)
-            Text(bus.arrival)
-                .dynamicFont(size: 16, relativeTo: .body, weight: .semibold, design: .rounded)
-                .foregroundStyle(Color.neumoMuted)
-            BusNotificationActionButton(
-                isScheduled: isNotificationScheduled,
-                action: action
-            )
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 10)
     }
 }
 
