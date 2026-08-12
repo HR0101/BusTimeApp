@@ -562,6 +562,17 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
         performSearch()
     }
 
+    /// アプリ復帰時に、過去になった検索時刻と検索結果を現在時刻へ更新します。
+    /// ユーザーが未来の時刻を指定している場合は、その条件を維持します。
+    func refreshForAppActivation() {
+        let currentDate = now()
+        refreshRouteAvailability(at: currentDate)
+        if searchTime < currentDate {
+            searchTime = currentDate
+        }
+        performSearch()
+    }
+
     // 検索を実行するメインのメソッドです。
     func performSearch() {
         send(.searchStarted)

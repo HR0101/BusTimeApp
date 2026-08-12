@@ -338,4 +338,34 @@ struct BusTimeAppTests {
         #expect(!viewModel.availableDestinations.contains(.yokado))
     }
 
+    @Test @MainActor
+    func appActivationRefreshesPastSearchTimeAndResults() {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "Asia/Tokyo")!
+        var currentDate = calendar.date(
+            from: DateComponents(year: 2026, month: 8, day: 12, hour: 8)
+        )!
+        let viewModel = HomeViewModel(nowProvider: { currentDate })
+        viewModel.searchTime = currentDate
+        viewModel.performSearch()
+        let morningDepartures = viewModel.searchResults.map(\.departure)
+
+        currentDate = calendar.date(
+            from: DateComponents(year: 2026, month: 8, day: 12, hour: 18)
+        )!
+        viewModel.refreshForAppActivation()
+
+        #expect(viewModel.searchTime == currentDate)
+        #expect(viewModel.searchCriteriaDescription.contains("18:00以降に出発"))
+        #expect(viewModel.searchResults.map(\.departure) != morningDepartures)
+
+        let futureSearchTime = calendar.date(
+            from: DateComponents(year: 2026, month: 8, day: 12, hour: 20)
+        )!
+        viewModel.searchTime = futureSearchTime
+        viewModel.refreshForAppActivation()
+
+        #expect(viewModel.searchTime == futureSearchTime)
+    }
+
 }

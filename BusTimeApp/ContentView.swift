@@ -783,7 +783,7 @@ struct ContentView: View {
             }
             .onChange(of: scenePhase) { newPhase in
                 if newPhase == .active {
-                    viewModel.refreshRouteAvailability()
+                    viewModel.refreshForAppActivation()
                     viewModel.checkLocationAndSetOrigin()
                     settingsViewModel.refreshLiveActivityAvailability()
                 }
