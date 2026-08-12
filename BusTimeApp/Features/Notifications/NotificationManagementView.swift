@@ -35,7 +35,7 @@ struct NotificationManagementView: View {
     }
 
     private var permissionCard: some View {
-        HStack(alignment: .top, spacing: 12) {
+        DynamicTypeStack(verticalAlignment: .top, spacing: 12) {
             Image(systemName: viewModel.permissionStatus == .authorized ? "checkmark.circle.fill" : "bell.slash.fill")
                 .font(.title2)
                 .foregroundStyle(viewModel.permissionStatus == .authorized ? Color.neumoGreen : Color.neumoWarning)
@@ -106,7 +106,7 @@ struct NotificationManagementView: View {
                     .padding(.vertical, 12)
             } else {
                 ForEach(viewModel.scheduledNotifications) { item in
-                    HStack(alignment: .top, spacing: 12) {
+                    DynamicTypeStack(verticalAlignment: .top, spacing: 12) {
                         Image(systemName: "bell.badge.fill")
                             .foregroundStyle(Color.neumoAccent)
                             .frame(width: 24)
@@ -121,7 +121,7 @@ struct NotificationManagementView: View {
                                 .font(.caption2)
                                 .foregroundStyle(Color.neumoMuted)
                         }
-                        Spacer(minLength: 4)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                         Button {
                             viewModel.cancelNotification(for: item)
                         } label: {
@@ -130,6 +130,7 @@ struct NotificationManagementView: View {
                                 .padding(8)
                         }
                         .accessibilityLabel("この通知を解除")
+                        .frame(minWidth: 44, minHeight: 44)
                     }
                     .padding(14)
                     .background(Color.white.opacity(0.76))

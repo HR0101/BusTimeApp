@@ -15,7 +15,7 @@ struct BusTimeWidgetLiveActivity: Widget {
                     
                     HStack(alignment: .lastTextBaseline, spacing: 6) {
                         Text(context.attributes.busDepartureTime)
-                            .font(.system(size: 26, weight: .bold, design: .rounded))
+                            .font(.title2.bold())
                             .foregroundColor(Color(red: 0.20, green: 0.25, blue: 0.30)) // columbusText
                         
                         Image(systemName: "arrow.right")
@@ -23,7 +23,7 @@ struct BusTimeWidgetLiveActivity: Widget {
                             .foregroundColor(Color.gray)
                         
                         Text(context.attributes.busArrivalTime)
-                            .font(.system(size: 18, weight: .semibold, design: .rounded))
+                            .font(.headline.weight(.semibold))
                             .foregroundColor(Color.gray)
                     }
                 }
