@@ -771,23 +771,7 @@ private struct MainTabBar: View {
     @Binding var selection: MainTab
     @Environment(\.appDesignMode) private var designMode
 
-    @ViewBuilder
     var body: some View {
-        // Liquid Glass APIs are introduced with the Xcode 26 SDK. The compiler
-        // guard keeps the iOS 18 compatibility builds on Xcode 16 compilable.
-#if compiler(>=6.2)
-        if #available(iOS 26.0, *) {
-            liquidGlassBody
-        } else {
-            legacyBody
-        }
-#else
-        legacyBody
-#endif
-    }
-
-    @ViewBuilder
-    private var legacyBody: some View {
         HStack(spacing: 8) {
             legacyTabButton(.home)
             legacyTabButton(.timetable)
@@ -829,54 +813,6 @@ private struct MainTabBar: View {
         .accessibilityLabel(tab.accessibilityLabel)
         .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
-
-#if compiler(>=6.2)
-    @available(iOS 26.0, *)
-    private var liquidGlassBody: some View {
-        GlassEffectContainer(spacing: 10) {
-            HStack(spacing: 10) {
-                liquidGlassTabButton(.home)
-                liquidGlassTabButton(.timetable)
-            }
-            .padding(8)
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 8)
-    }
-
-    @available(iOS 26.0, *)
-    @ViewBuilder
-    private func liquidGlassTabButton(_ tab: MainTab) -> some View {
-        let isSelected = selection == tab
-        let label = Label(tab.title, systemImage: tab.systemName)
-            .dynamicFont(size: 14, relativeTo: .subheadline, weight: .bold)
-            .frame(maxWidth: .infinity, minHeight: 48)
-            .padding(.horizontal, 8)
-
-        if isSelected {
-            Button {
-                withAnimation(.easeInOut(duration: 0.2)) {
-                    selection = tab
-                }
-            } label: {
-                label
-            }
-            .buttonStyle(.glassProminent)
-            .accessibilityLabel(tab.accessibilityLabel)
-            .accessibilityAddTraits(.isSelected)
-        } else {
-            Button {
-                withAnimation(.easeInOut(duration: 0.2)) {
-                    selection = tab
-                }
-            } label: {
-                label
-            }
-            .buttonStyle(.glass)
-            .accessibilityLabel(tab.accessibilityLabel)
-        }
-    }
-#endif
 
     private var selectedForeground: Color {
         switch designMode {
@@ -930,23 +866,7 @@ struct ContentView: View {
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 0) {
-                TabView(selection: $selectedTab) {
-                    homeTab
-                        .tag(MainTab.home)
-
-                    TimetableTabView(
-                        viewModel: viewModel,
-                        scheduledBusIDs: scheduledBusIDs,
-                        onSelectBus: selectBus
-                    )
-                    .tag(MainTab.timetable)
-                }
-                .tabViewStyle(.page(indexDisplayMode: .never))
-                .animation(.easeInOut(duration: 0.2), value: selectedTab)
-
-                MainTabBar(selection: $selectedTab)
-            }
+            mainTabContent
             .background(NeumorphicBackground())
             .toolbar(.hidden, for: .navigationBar)
             .preferredColorScheme(currentDesignMode.prefersLightColorScheme ? .light : nil)
@@ -1067,6 +987,67 @@ struct ContentView: View {
         }
         .environment(\.appDesignMode, currentDesignMode)
     }
+
+    @ViewBuilder
+    private var mainTabContent: some View {
+#if compiler(>=6.2)
+        if #available(iOS 26.0, *) {
+            liquidGlassTabContent
+        } else {
+            legacyTabContent
+        }
+#else
+        legacyTabContent
+#endif
+    }
+
+    private var legacyTabContent: some View {
+        VStack(spacing: 0) {
+            TabView(selection: $selectedTab) {
+                homeTab
+                    .tag(MainTab.home)
+
+                TimetableTabView(
+                    viewModel: viewModel,
+                    scheduledBusIDs: scheduledBusIDs,
+                    onSelectBus: selectBus
+                )
+                .tag(MainTab.timetable)
+            }
+            .tabViewStyle(.page(indexDisplayMode: .never))
+            .animation(.easeInOut(duration: 0.2), value: selectedTab)
+
+            MainTabBar(selection: $selectedTab)
+        }
+    }
+
+#if compiler(>=6.2)
+    @available(iOS 26.0, *)
+    private var liquidGlassTabContent: some View {
+        TabView(selection: $selectedTab) {
+            homeTab
+                .tabItem {
+                    Label("ホーム", systemImage: MainTab.home.systemName)
+                        .accessibilityLabel(MainTab.home.accessibilityLabel)
+                }
+                .tag(MainTab.home)
+
+            TimetableTabView(
+                viewModel: viewModel,
+                scheduledBusIDs: scheduledBusIDs,
+                onSelectBus: selectBus
+            )
+            .tabItem {
+                Label("時刻表", systemImage: MainTab.timetable.systemName)
+                    .accessibilityLabel(MainTab.timetable.accessibilityLabel)
+            }
+            .tag(MainTab.timetable)
+        }
+        .tabViewStyle(.tabBarOnly)
+        .tint(Color.primary)
+        .animation(.easeInOut(duration: 0.2), value: selectedTab)
+    }
+#endif
 
     private var homeTab: some View {
         ScrollView(showsIndicators: false) {
