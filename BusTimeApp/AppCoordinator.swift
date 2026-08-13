@@ -11,7 +11,6 @@ enum AppEvent {
     case selectBus(Bus)
     case notificationScheduled(String)
     case liveActivityFailed(String)
-    case changeDesignMode(AppDesignMode)
     case dismiss
     case clearError
 }
@@ -38,15 +37,12 @@ final class AppCoordinator: ObservableObject {
     @Published private(set) var selectedBus: Bus?
     @Published private(set) var notificationMessage: String?
     @Published private(set) var liveActivityErrorMessage: String?
-    @Published private(set) var designMode: AppDesignMode
 
     private let defaults: UserDefaults
     private var hasStarted = false
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
-        let rawValue = defaults.string(forKey: "appDesignMode") ?? AppDesignMode.neumorphic.rawValue
-        self.designMode = AppDesignMode(rawValue: rawValue) ?? .neumorphic
     }
 
     func send(_ event: AppEvent) {
@@ -86,10 +82,6 @@ final class AppCoordinator: ObservableObject {
         case let .liveActivityFailed(message):
             liveActivityErrorMessage = message
             state = .liveActivityError
-
-        case let .changeDesignMode(mode):
-            designMode = mode
-            defaults.set(mode.rawValue, forKey: "appDesignMode")
 
         case .dismiss:
             selectedBus = nil
