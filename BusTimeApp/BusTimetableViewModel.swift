@@ -25,6 +25,7 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
     @Published var holidayMessage: String? = nil                // 土日・祝日の場合のエラーメッセージ
     
     @Published var countdownMessages: [String: String] = [:]    // カウントダウン表示用
+    @Published private(set) var remainingMinutes: [String: Int] = [:] // 残り時間の数値表現（大きな数字での表示用）
     @Published var trackedBusId: String? = nil                  // Live Activityで追跡中のバスID
     @Published var liveActivityError: String? = nil             // Live Activity関連のエラーメッセージ
     @Published private(set) var state: HomeState = .idle
@@ -686,16 +687,23 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
         }
     }
     
+    /// 残り時間の数値表現で「出発済み」を表す値です。
+    static let departedMinutesValue = -1
+    /// 残り時間の数値表現で「まもなく出発」を表す値です。
+    static let imminentMinutesValue = 0
+
     private func updateCountdown(at currentDate: Date? = nil) {
         // 検索結果がなければ何もしません。
         guard !searchResults.isEmpty else {
             countdownMessages = [:] // メッセージを空にする
+            remainingMinutes = [:]
             return
         }
-        
+
         var newMessages: [String: String] = [:]
+        var newRemainingMinutes: [String: Int] = [:]
         let now = currentDate ?? self.now()
-        
+
         for bus in searchResults {
             guard let departureDate = BusNotificationTimeCalculator.departureDateForCurrentServiceDay(
                 for: bus.departure,
@@ -708,14 +716,16 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
             
             if remainingSeconds <= 0 {
                 newMessages[bus.id] = "出発済み"
+                newRemainingMinutes[bus.id] = Self.departedMinutesValue
                 isDeparted = true
             } else if remainingSeconds < 60 {
                 newMessages[bus.id] = "まもなく出発"
+                newRemainingMinutes[bus.id] = Self.imminentMinutesValue
                 currentRemainingMinutes = 1
             } else {
-                let remainingMinutes = Int(ceil(remainingSeconds / 60))
-                let h = remainingMinutes / 60
-                let m = remainingMinutes % 60
+                let minutesUntilDeparture = Int(ceil(remainingSeconds / 60))
+                let h = minutesUntilDeparture / 60
+                let m = minutesUntilDeparture % 60
                 if h > 0 {
                     newMessages[bus.id] = m == 0
                         ? String(format: "あと%d時間", h)
@@ -723,7 +733,8 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
                 } else {
                     newMessages[bus.id] = String(format: "あと%d分", m)
                 }
-                currentRemainingMinutes = remainingMinutes
+                newRemainingMinutes[bus.id] = minutesUntilDeparture
+                currentRemainingMinutes = minutesUntilDeparture
             }
             
             // もしこのバスがLive Activityで追跡されている場合、更新を行う
@@ -736,6 +747,7 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
         
         // 計算が終わった後、UIに反映させる
         self.countdownMessages = newMessages
+        self.remainingMinutes = newRemainingMinutes
     }
     
     // MARK: - Live Activity 関連のメソッド
