@@ -1,102 +1,113 @@
 import SwiftUI
 
 struct TutorialView: View {
-    @Environment(\.dismiss) private var dismiss
-    @Environment(\.appDesignMode) private var designMode
-    @StateObject private var viewModel = TutorialViewModel()
+  @Environment(\.dismiss) private var dismiss
+  @Environment(\.sky) private var sky
+  @StateObject private var viewModel = TutorialViewModel()
 
-    var body: some View {
-        VStack(spacing: 0) {
-            HStack {
-                Text("WELCOME")
-                    .dynamicFont(size: 11, relativeTo: .caption, weight: .bold, design: .rounded)
-                    .tracking(2)
-                    .foregroundStyle(Color.neumoAccent)
-                Spacer()
-                Button { dismiss() } label: {
-                    IconBubble(systemName: "xmark", tint: .neumoMuted, size: 38)
-                }
-                .buttonStyle(SoftPressButtonStyle())
-            }
-            .padding(.horizontal, 22)
-            .padding(.top, 18)
+  var body: some View {
+    VStack(spacing: 0) {
+      header
 
-            TabView(selection: $viewModel.currentPage) {
-                ForEach(viewModel.pages) { page in
-                    TutorialPage(title: page.title, description: page.description, systemName: page.systemName)
-                        .tag(page.id)
-                }
-            }
-            .tabViewStyle(.page(indexDisplayMode: .always))
-
-            Button {
-                if viewModel.isLastPage {
-                    dismiss()
-                } else {
-                    viewModel.nextPage()
-                }
-            } label: {
-                HStack {
-                    Text(viewModel.isLastPage ? "はじめる" : "次へ")
-                    Spacer()
-                    Image(systemName: viewModel.isLastPage ? "checkmark" : "arrow.right")
-                }
-                .font(.subheadline.weight(.bold))
-                .foregroundStyle(.white)
-                .padding(.horizontal, 20)
-                .padding(.vertical, 16)
-                .background(
-                    RoundedRectangle(cornerRadius: 18, style: .continuous)
-                        .fill(LinearGradient(colors: [.neumoAccent, .neumoAccentDeep], startPoint: .topLeading, endPoint: .bottomTrailing))
-                )
-                .shadow(color: Color.neumoAccent.opacity(0.23), radius: 12, x: 5, y: 7)
-            }
-            .buttonStyle(SoftPressButtonStyle())
-            .padding(.horizontal, 22)
-            .padding(.bottom, 22)
+      TabView(selection: $viewModel.currentPage) {
+        ForEach(viewModel.pages) { page in
+          TutorialPage(
+            title: page.title,
+            description: page.description,
+            systemName: page.systemName
+          )
+          .tag(page.id)
         }
-        .background(NeumorphicBackground())
-        .preferredColorScheme(designMode.prefersLightColorScheme ? .light : nil)
+      }
+      .tabViewStyle(.page(indexDisplayMode: .always))
+
+      advanceButton
     }
+    .background(SkyBackground())
+    .preferredColorScheme(sky.isNight ? .dark : .light)
+  }
+
+  private var header: some View {
+    HStack {
+      SkySectionLabel(text: "はじめに")
+      Spacer()
+      SkyIconButton(
+        systemImage: "xmark",
+        accessibilityLabel: "使い方を閉じる"
+      ) {
+        dismiss()
+      }
+    }
+    .padding(.horizontal, SkyMetrics.screenPadding)
+    .padding(.top, 18)
+  }
+
+  private var advanceButton: some View {
+    Button {
+      if viewModel.isLastPage {
+        dismiss()
+      } else {
+        viewModel.nextPage()
+      }
+    } label: {
+      HStack {
+        Text(viewModel.isLastPage ? "はじめる" : "次へ")
+        Spacer()
+        Image(systemName: viewModel.isLastPage ? "checkmark" : "arrow.right")
+      }
+      .dynamicFont(size: 15, relativeTo: .subheadline, weight: .bold, design: .rounded)
+      .foregroundStyle(Color.white)
+      .padding(.horizontal, 20)
+      .frame(maxWidth: .infinity, minHeight: 52)
+      .background(
+        RoundedRectangle(cornerRadius: 16, style: .continuous)
+          .fill(sky.accent)
+      )
+    }
+    .buttonStyle(SkyPressStyle())
+    .padding(.horizontal, SkyMetrics.screenPadding)
+    .padding(.bottom, 22)
+  }
 }
 
 struct TutorialPage: View {
-    let title: String
-    let description: String
-    let systemName: String
-    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+  @Environment(\.sky) private var sky
+  @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
-    var body: some View {
-        ScrollView(showsIndicators: false) {
-            VStack(spacing: dynamicTypeSize.isAccessibilitySize ? 18 : 24) {
-                Spacer(minLength: dynamicTypeSize.isAccessibilitySize ? 12 : 52)
-                ZStack {
-                    Circle()
-                        .fill(Color.neumoAccent.opacity(0.11))
-                        .frame(
-                            width: dynamicTypeSize.isAccessibilitySize ? 120 : 170,
-                            height: dynamicTypeSize.isAccessibilitySize ? 120 : 170
-                        )
-                    IconBubble(
-                        systemName: systemName,
-                        tint: .neumoAccent,
-                        size: dynamicTypeSize.isAccessibilitySize ? 68 : 88
-                    )
-                }
-                Text(title)
-                    .dynamicFont(size: 28, relativeTo: .title, weight: .bold, design: .rounded)
-                    .foregroundStyle(Color.neumoText)
-                    .multilineTextAlignment(.center)
-                    .fixedSize(horizontal: false, vertical: true)
-                Text(description)
-                    .font(.subheadline)
-                    .foregroundStyle(Color.neumoMuted)
-                    .multilineTextAlignment(.center)
-                    .fixedSize(horizontal: false, vertical: true)
-                Spacer(minLength: 24)
-            }
-            .padding(.horizontal, dynamicTypeSize.isAccessibilitySize ? 20 : 34)
-            .frame(maxWidth: .infinity)
-        }
+  let title: String
+  let description: String
+  let systemName: String
+
+  /// アイコンの基準サイズです。
+  private var iconSize: CGFloat {
+    dynamicTypeSize.isAccessibilitySize ? 48 : 64
+  }
+
+  var body: some View {
+    ScrollView(showsIndicators: false) {
+      VStack(spacing: dynamicTypeSize.isAccessibilitySize ? 18 : 24) {
+        Spacer(minLength: dynamicTypeSize.isAccessibilitySize ? 12 : 48)
+
+        Image(systemName: systemName)
+          .font(.system(size: iconSize, weight: .light))
+          .foregroundStyle(sky.accent)
+
+        Text(title)
+          .dynamicFont(size: 26, relativeTo: .title, weight: .bold, design: .rounded)
+          .foregroundStyle(sky.ink)
+          .multilineTextAlignment(.center)
+          .fixedSize(horizontal: false, vertical: true)
+
+        Text(description)
+          .dynamicFont(size: 14, relativeTo: .subheadline, weight: .medium)
+          .foregroundStyle(sky.inkSecondary)
+          .multilineTextAlignment(.center)
+          .fixedSize(horizontal: false, vertical: true)
+
+        Spacer(minLength: 24)
+      }
+      .padding(.horizontal, dynamicTypeSize.isAccessibilitySize ? 20 : 32)
+      .frame(maxWidth: .infinity)
     }
+  }
 }

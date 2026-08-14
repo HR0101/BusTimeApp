@@ -45,12 +45,11 @@ struct BusTimeAppTests {
         coordinator.send(.showTutorial)
         #expect(coordinator.state == .tutorial)
         coordinator.send(.dismiss)
-        coordinator.send(.changeDesignMode(.minimalCute))
-        #expect(coordinator.designMode == .minimalCute)
-        #expect(defaults.string(forKey: "appDesignMode") == AppDesignMode.minimalCute.rawValue)
-        coordinator.send(.changeDesignMode(.maximalism))
-        #expect(coordinator.designMode == .maximalism)
-        #expect(defaults.string(forKey: "appDesignMode") == AppDesignMode.maximalism.rawValue)
+        #expect(coordinator.state == .dashboard)
+        coordinator.send(.showNotifications)
+        #expect(coordinator.state == .notifications)
+        coordinator.send(.dismiss)
+        #expect(coordinator.state == .dashboard)
     }
 
     @Test
@@ -231,16 +230,43 @@ struct BusTimeAppTests {
     }
 
     @Test
-    func designModesUseFamiliarNames() {
-        #expect(AppDesignMode.neumorphic.title == "シンプル")
-        #expect(AppDesignMode.claymorphic.title == "カラフル")
-        #expect(AppDesignMode.minimalCute.title == "やさしいモノクロ")
-        #expect(AppDesignMode.maximalism.title == "ネオンポップ")
-        #expect(AppDesignMode.neumorphic.description.contains("落ち着いた"))
-        #expect(AppDesignMode.claymorphic.description.contains("明るく"))
-        #expect(AppDesignMode.minimalCute.description.contains("白黒"))
-        #expect(AppDesignMode.maximalism.description.contains("鮮やかな緑"))
-        #expect(AppDesignMode.allCases.count == 4)
+    func skyPaletteSwitchesBetweenDayAndNight() {
+        // 昼は明るい空なので暗い文字、夜は暗い空なので明るい文字になります。
+        #expect(SkyPalette.at(hour: 12).isNight == false)
+        #expect(SkyPalette.at(hour: 23).isNight == true)
+        #expect(SkyPalette.at(hour: 3).isNight == true)
+        #expect(SkyPalette.at(hour: 8).isNight == false)
+    }
+
+    @Test
+    func skyPaletteIsContinuousAcrossMidnight() {
+        // 0時と24時は同じキーフレームなので、日付をまたいでも色が飛びません。
+        #expect(SkyPalette.at(hour: 0) == SkyPalette.at(hour: 24))
+        // 範囲外の時刻は24時間周期に丸められます。
+        #expect(SkyPalette.at(hour: 25) == SkyPalette.at(hour: 1))
+        #expect(SkyPalette.at(hour: -1) == SkyPalette.at(hour: 23))
+    }
+
+    @Test
+    func celestialPositionStaysWithinScreen() {
+        // 太陽・月の位置は画面内に収まる0〜1の範囲で表されます。
+        for tick in 0...96 {
+            let hour = Double(tick) / 4
+            let palette = SkyPalette.at(hour: hour)
+            #expect(palette.celestialProgress >= 0)
+            #expect(palette.celestialProgress <= 1)
+            #expect(palette.celestialAltitude >= 0)
+            #expect(palette.celestialAltitude <= 1)
+        }
+    }
+
+    @Test
+    func celestialBodyRisesAtDawnAndPeaksAtNoon() {
+        // 日の出直後は地平線近く、正午前後で最も高くなります。
+        let dawn = SkyPalette.at(hour: 5.5)
+        let noon = SkyPalette.at(hour: 12)
+        #expect(dawn.celestialAltitude < 0.1)
+        #expect(noon.celestialAltitude > 0.9)
     }
 
     @Test

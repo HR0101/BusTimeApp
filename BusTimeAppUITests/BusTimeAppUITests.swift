@@ -50,11 +50,14 @@ final class BusTimeAppUITests: XCTestCase {
         XCTAssertTrue(timetableTab.waitForExistence(timeout: 5))
         timetableTab.tap()
 
-        XCTAssertTrue(app.staticTexts["TIMETABLE"].waitForExistence(timeout: 5))
+        // 時刻表タブだけに表示される案内文で、画面が切り替わったことを確かめます。
+        let timetableGuidance = app.staticTexts["経路を変えるときは、ホームタブで出発地と目的地を選んでください"]
+        XCTAssertTrue(timetableGuidance.waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["ホームタブ"].exists)
 
         app.buttons["ホームタブ"].tap()
-        XCTAssertTrue(app.staticTexts["現在の検索条件"].waitForExistence(timeout: 5))
+        // ホームタブだけに表示される検索パネルの見出しを確かめます。
+        XCTAssertTrue(app.staticTexts["どこからどこへ"].waitForExistence(timeout: 5))
     }
 
     @MainActor
