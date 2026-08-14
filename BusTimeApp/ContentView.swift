@@ -80,6 +80,7 @@ struct ContentView: View {
   @StateObject private var settingsViewModel = SettingsViewModel()
   @StateObject private var notificationViewModel = NotificationViewModel()
   @StateObject private var skyClock = SkyClock()
+  @StateObject private var weatherViewModel = WeatherViewModel()
   @State private var selectedTab: MainTab = .home
   @Environment(\.scenePhase) private var scenePhase
   @Environment(\.dynamicTypeSize) private var dynamicTypeSize
@@ -112,12 +113,16 @@ struct ContentView: View {
           viewModel.checkLocationAndSetOrigin()
           notificationViewModel.refresh()
         }
+        .task {
+          await weatherViewModel.refresh()
+        }
         .onChange(of: scenePhase) { newPhase in
           if newPhase == .active {
             skyClock.refresh()
             viewModel.refreshForAppActivation()
             viewModel.checkLocationAndSetOrigin()
             settingsViewModel.refreshLiveActivityAvailability()
+            Task { await weatherViewModel.refreshIfNeeded() }
           }
         }
         .onChange(of: viewModel.selectedRoute) { _ in
@@ -137,6 +142,7 @@ struct ContentView: View {
         )) {
           SettingsView(viewModel: settingsViewModel)
             .environment(\.sky, palette)
+            .environment(\.skyWeather, weatherViewModel.weather)
             .presentationDragIndicator(.visible)
         }
         .sheet(isPresented: Binding(
@@ -220,6 +226,7 @@ struct ContentView: View {
         }
     }
     .environment(\.sky, palette)
+    .environment(\.skyWeather, weatherViewModel.weather)
     .animation(.easeInOut(duration: paletteAnimationDuration), value: palette)
     .preferredColorScheme(palette.isNight ? .dark : .light)
   }
