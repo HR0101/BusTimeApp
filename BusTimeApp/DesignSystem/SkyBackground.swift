@@ -19,6 +19,7 @@ struct SkyBackground: View {
 /// この型を直接埋め込みます。
 struct SkyCanvas: View {
   @Environment(\.sky) private var sky
+  @Environment(\.skyWeather) private var weather
 
   // MARK: - 描画の基準値
 
@@ -39,9 +40,21 @@ struct SkyCanvas: View {
   private static let animationEpoch = Date(timeIntervalSinceReferenceDate: 0)
   /// 星の瞬きが変わる周期です。描き直し何回ぶんかで指定します。
   private static let twinkleTicks = 4
-  /// 湖面の光の粒のうち、位置が変わらない割合です。
+  /// 海面の光の粒のうち、位置が変わらない割合です。
   /// 残りが入れ替わることで、水面全体ではなく一部だけがゆらめきます。
   private static let reflectionStableRatio: Double = 0.62
+
+  /// 雨粒を描き直す間隔です。落下が速いので海面より短くします。
+  private static let rainInterval: TimeInterval = 0.05
+  /// 雨粒が1秒間に落ちるマス数です。
+  /// 描き直しの間隔を変えても見た目の速さが変わらないよう、秒あたりで持ちます。
+  private static let rainSpeedPerSecond: Double = 110
+  /// 雨粒1つの長さです。マス数で指定します。長すぎると紐のように見えます。
+  private static let rainDropLength = 2
+  /// 雨粒の色です。
+  private static let rainColor = Color(red: 0.847, green: 0.906, blue: 0.976)
+  /// 雨粒の濃さです。
+  private static let rainOpacity: Double = 0.34
   /// 星を描く空の暗さの下限です。これより明るいと星は見えません。
   /// 夕焼けの残る空に星が出ないよう、暗さがある程度進んでから現れるようにします。
   private static let starVisibilityThreshold: Double = 0.22
@@ -51,6 +64,23 @@ struct SkyCanvas: View {
   private static let starFieldRatio: Double = 0.45
   /// 星を散らす範囲の上限です。ステータスバーの真上に星が固まらないよう余白を空けます。
   private static let starFieldTopInset: Double = 0.03
+
+  /// 流れ星が現れる周期です。この間隔ごとに一度だけ流れます。
+  private static let shootingStarPeriod: Double = 52
+  /// 流れ星が流れきるまでの時間です。
+  private static let shootingStarDuration: Double = 1.3
+  /// 流れ星を描き直す間隔です。動きが速いので短めにします。
+  private static let shootingStarInterval: TimeInterval = 0.08
+  /// 流れ星の尾の長さです。マス数で指定します。
+  private static let shootingStarTail = 16
+  /// 流れ星が横切る距離です。画面幅に対する割合で指定します。
+  private static let shootingStarTravel: Double = 0.42
+  /// 流れ星の色です。
+  private static let shootingStarColor = Color(red: 1.0, green: 0.984, blue: 0.925)
+  /// 流れ星の先端の濃さです。
+  private static let shootingStarHeadOpacity: Double = 0.92
+  /// 流れ星の尾の濃さです。
+  private static let shootingStarTailOpacity: Double = 0.34
 
   /// 昼の太陽の半径です。セル数で指定します。
   private static let sunRadiusCells = 12
@@ -70,42 +100,53 @@ struct SkyCanvas: View {
   /// 最も明るい、十字に描く星の色です。
   private static let warmStarColor = Color(red: 1.0, green: 0.847, blue: 0.494)
 
-  /// 水平線の位置です。これより下は湖面で、太陽・月もこの高さに沈みます。
+  /// 水平線の位置です。これより下は海面で、太陽・月もこの高さに沈みます。
   private static let horizonRatio: Double = 0.55
-  /// 湖面の横波の細かさです。値が小さいほど大きなうねりになります。
+  /// 海面の横波の細かさです。値が小さいほど大きなうねりになります。
   private static let waveFrequency: Double = 0.19
   /// 波の山と谷で色を何段ずらすかです。映り込みの位置だけでは分かりにくい明暗を補います。
   private static let waveBrightness: Double = 1.45
-  /// 湖面の横波の振幅です。空を映す位置をこの分だけ揺らします。
+  /// 海面の横波の振幅です。空を映す位置をこの分だけ揺らします。
   private static let waveAmplitude: Double = 0.016
+  /// 水平線の直下を暗くする範囲です。画面高さに対する割合で指定します。
+  private static let horizonShadeBand: Double = 0.05
+  /// 水平線の直下を暗くする強さです。色を何段ずらすかで指定します。
+  private static let horizonShadeDepth: Double = 1.6
   /// 波が進む速さです。描き直し1回あたりに位相がどれだけ進むかを表します。
   private static let waveSpeed: Double = 0.22
-  /// 空と湖面が混ざり合う帯の広さです。水平線の上下それぞれにこの割合だけ広がります。
-  private static let horizonBlendBand: Double = 0.022
-  /// 水際にかかる霞の広さです。
-  private static let hazeBand: Double = 0.034
-  /// 水際の霞の密度です。
-  private static let hazeDensity: Double = 0.55
-  /// 水際の霞の濃さです。
-  private static let hazeOpacity: Double = 0.16
-  /// 湖面に落ちる光の道の濃さです。文字の読みやすさを保つため控えめにします。
+  /// 海面に落ちる光の道の濃さです。文字の読みやすさを保つため控えめにします。
   private static let reflectionOpacity: Double = 0.26
   /// 光の道が水平線から手前に向かって広がる倍率です。
   private static let reflectionSpread: Double = 1.8
   /// 水際での光の粒の密度です。手前に向かって減っていきます。
   private static let reflectionDensity: Double = 0.5
-  /// さざ波を置く行の間隔です。
-  private static let rippleRowInterval = 3
-  /// 各マスからさざ波が始まる確率です。
-  private static let rippleChance: Double = 0.035
-  /// さざ波の濃さです。
-  private static let rippleOpacity: Double = 0.07
-  /// さざ波が流れる速さです。描き直し1回あたりに進むマス数を表します。
-  private static let rippleSpeed: Double = 0.9
-  /// 水平線近くのさざ波が流れる速さの割合です。遠いほどゆっくり動いて見えます。
-  private static let rippleDistantSpeedRatio: Double = 0.35
+  /// 波が沖から岸へ進む速さです。描き直し1回あたりに位相がどれだけ進むかを表します。
+  private static let swellSpeed: Double = 0.045
+  /// 画面内に並ぶ波の数です。
+  private static let swellFrequency: Double = 7.0
+  /// 波の筋を描く高さのしきい値です。値が大きいほど筋が細くなります。
+  private static let swellThreshold: Double = 0.55
+  /// 白波が立つ高さのしきい値です。波の頂点付近だけが白くなります。
+  private static let whitecapThreshold: Double = 0.88
+  /// 波の筋にマスが現れる割合です。
+  private static let swellChance: Double = 0.55
+  /// 波の筋が横方向にうねる細かさです。
+  private static let swellWaviness: Double = 0.06
+  /// 波の筋が横方向にうねる深さです。位相のずれ量で指定します。
+  private static let swellWaveDepth: Double = 0.10
+  /// 波の筋の濃さです。
+  private static let rippleOpacity: Double = 0.045
+  /// 白波の濃さです。
+  private static let whitecapOpacity: Double = 0.15
 
-  /// 岸辺が始まる位置です。ここで湖が終わります。
+  /// 波打ち際の泡が伸びる高さです。マス数で指定します。
+  private static let surfHeight = 4
+  /// 波が寄せて返す周期です。描き直し何回ぶんで一往復するかを表します。
+  private static let surfPeriod: Double = 26
+  /// 波打ち際の泡の濃さです。
+  private static let surfOpacity: Double = 0.42
+
+  /// 岸辺が始まる位置です。ここで海が終わります。
   private static let shoreRatio: Double = 0.76
   /// 面の境目を市松で馴染ませる行数です。
   private static let groundEdgeRows = 5
@@ -153,6 +194,8 @@ struct SkyCanvas: View {
     ZStack {
       staticLayer
       animatedLayer
+      shootingStarLayer
+      rainLayer
     }
   }
 
@@ -168,19 +211,162 @@ struct SkyCanvas: View {
   }
 
   /// 一定間隔で描き直す層です。
-  /// 湖面と、その上に重なる岸辺の水打ち際・バス停までをまとめて描きます。
+  /// 海面と、その上に重なる岸辺の水打ち際・バス停までをまとめて描きます。
   private var animatedLayer: some View {
     TimelineView(.periodic(from: Self.animationEpoch, by: Self.animationInterval)) { timeline in
       let tick = Int(timeline.date.timeIntervalSinceReferenceDate / Self.animationInterval)
 
       Canvas { context, size in
         drawWater(in: &context, size: size, tick: tick)
-        drawWaterSurface(in: &context, size: size, tick: tick)
+        drawSwell(in: &context, size: size, tick: tick)
         drawReflectionPath(in: &context, size: size, tick: tick)
         drawStars(in: &context, size: size, tick: tick / Self.twinkleTicks)
         drawShoreEdge(in: &context, size: size)
+        drawSurf(in: &context, size: size, tick: tick)
         drawBusStop(in: &context, size: size)
       }
+    }
+  }
+
+  /// 流れ星だけを描く層です。星が見える時間帯にだけ動かします。
+  @ViewBuilder
+  private var shootingStarLayer: some View {
+    if sky.nightness > Self.starVisibilityThreshold {
+      TimelineView(.periodic(from: Self.animationEpoch, by: Self.shootingStarInterval)) { timeline in
+        let elapsed = timeline.date.timeIntervalSinceReferenceDate
+
+        Canvas { context, size in
+          drawShootingStar(in: &context, size: size, elapsed: elapsed)
+        }
+      }
+    }
+  }
+
+  // MARK: - 流れ星
+
+  /// 一定の周期で流れ星を1つ走らせます。
+  /// 周期のうちごく短いあいだだけ現れ、残りの時間は何も描きません。
+  private func drawShootingStar(
+    in context: inout GraphicsContext,
+    size: CGSize,
+    elapsed: TimeInterval
+  ) {
+    let cycle = (elapsed / Self.shootingStarPeriod).rounded(.down)
+    let timeInCycle = elapsed - cycle * Self.shootingStarPeriod
+
+    guard timeInCycle < Self.shootingStarDuration else { return }
+
+    let progress = timeInCycle / Self.shootingStarDuration
+    let seed = Int(cycle)
+
+    // 出現位置と向きは周期ごとに変わります。
+    let startX = 0.08 + pseudoRandom(seed &* 13 &+ 1) * 0.84
+    let startY = 0.04 + pseudoRandom(seed &* 13 &+ 2) * 0.22
+    // 左下へ流れるか右下へ流れるかを決めます。
+    let direction: Double = pseudoRandom(seed &* 13 &+ 3) < 0.5 ? -1 : 1
+    // 斜めの傾きです。水平に近すぎない範囲で変えます。
+    let slope = 0.45 + pseudoRandom(seed &* 13 &+ 4) * 0.35
+
+    let travel = progress * Self.shootingStarTravel * Double(size.width)
+    let headX = Double(size.width) * startX + travel * direction
+    let headY = Double(size.height) * startY + travel * slope
+
+    // 現れる瞬間と消える間際は淡くします。
+    let fade = min(progress / 0.2, min((1 - progress) / 0.35, 1))
+
+    var headPath = Path()
+    var tailPath = Path()
+
+    for segment in 0..<Self.shootingStarTail {
+      let distance = Double(segment) * Double(Self.cellSize)
+      let x = snapped(CGFloat(headX - distance * direction))
+      let y = snapped(CGFloat(headY - distance * slope))
+
+      let rect = CGRect(x: x, y: y, width: Self.cellSize, height: Self.cellSize)
+
+      // 先端の数マスだけを明るく、残りを尾として薄く描きます。
+      if segment < 3 {
+        headPath.addRect(rect)
+      } else {
+        tailPath.addRect(rect)
+      }
+    }
+
+    context.fill(
+      tailPath,
+      with: .color(Self.shootingStarColor.opacity(Self.shootingStarTailOpacity * fade))
+    )
+    context.fill(
+      headPath,
+      with: .color(Self.shootingStarColor.opacity(Self.shootingStarHeadOpacity * fade))
+    )
+  }
+
+  /// 雨粒だけを描く層です。落下は速いので、海面より短い間隔で描き直します。
+  @ViewBuilder
+  private var rainLayer: some View {
+    if weather.isRaining {
+      TimelineView(.periodic(from: Self.animationEpoch, by: Self.rainInterval)) { timeline in
+        let frame = Int(timeline.date.timeIntervalSinceReferenceDate / Self.rainInterval)
+
+        Canvas { context, size in
+          drawRain(in: &context, size: size, frame: frame)
+        }
+      }
+    }
+  }
+
+  // MARK: - 雨
+
+  /// 雨粒を真下へ降らせます。粒はそれぞれ決まった速さで落ち、画面の下端まで来ると上へ戻ります。
+  private func drawRain(in context: inout GraphicsContext, size: CGSize, frame: Int) {
+    guard let intensity = weather.rainIntensity else { return }
+
+    let columnCount = max(Int(ceil(size.width / Self.cellSize)), 1)
+    let rowCount = max(Int(ceil(size.height / Self.cellSize)), 1)
+    let cycleRows = rowCount + Self.rainDropLength
+    let dropCount = Self.dropCount(for: intensity)
+
+    var path = Path()
+
+    for index in 0..<dropCount {
+      // 粒ごとに速さを変え、同じ間隔で落ちているように見えないようにします。
+      let speed = Self.rainSpeedPerSecond
+        * Self.rainInterval
+        * (0.75 + pseudoRandom(index &* 7 &+ 2) * 0.5)
+      let phase = pseudoRandom(index &* 7 &+ 3) * Double(cycleRows)
+      let travelled = (Double(frame) * speed + phase)
+        .truncatingRemainder(dividingBy: Double(cycleRows))
+      let headRow = Int(travelled) - Self.rainDropLength
+      let baseColumn = Int(pseudoRandom(index &* 7 &+ 1) * Double(columnCount))
+
+      for segment in 0..<Self.rainDropLength {
+        let row = headRow + segment
+        guard row >= 0, row < rowCount else { continue }
+
+        path.addRect(
+          CGRect(
+            x: CGFloat(baseColumn) * Self.cellSize,
+            y: CGFloat(row) * Self.cellSize,
+            width: Self.cellSize,
+            height: Self.cellSize
+          )
+        )
+      }
+    }
+
+    context.fill(path, with: .color(Self.rainColor.opacity(Self.rainOpacity)))
+  }
+
+  /// 雨の強さごとの粒の数です。
+  private static func dropCount(for intensity: RainIntensity) -> Int {
+    switch intensity {
+    case .light:
+      return 45
+    case .moderate:
+      return 90
+    case .heavy:
+      return 150
     }
   }
 
@@ -188,7 +374,7 @@ struct SkyCanvas: View {
 
   /// 空を数色だけで塗ります。
   /// 色の境目はベイヤーディザの市松模様でつなぎ、限られた色数のまま階調を表現します。
-  /// 画面全体を空の色で埋め、湖面は動く層があとから重ねます。
+  /// 画面全体を空の色で埋め、海面は動く層があとから重ねます。
   private func drawSkyBase(in context: inout GraphicsContext, size: CGSize) {
     let colors = sky.quantizedSkyColors(steps: Self.skyColorSteps)
     let columnCount = max(Int(ceil(size.width / Self.cellSize)), 1)
@@ -228,19 +414,20 @@ struct SkyCanvas: View {
     }
   }
 
-  /// 湖面を描きます。水平線を鏡として空を映し、映る位置は時間とともに波打ちます。
+  /// 海面を描きます。水平線を鏡として空を映し、映る位置は時間とともに波打ちます。
   private func drawWater(in context: inout GraphicsContext, size: CGSize, tick: Int) {
     let colors = sky.quantizedWaterColors(steps: Self.skyColorSteps)
     let columnCount = max(Int(ceil(size.width / Self.cellSize)), 1)
     let rowCount = max(Int(ceil(size.height / Self.cellSize)), 1)
-    let band = Self.horizonBlendBand
-    let startRow = max(Int((Self.horizonRatio - band) * Double(rowCount)), 0)
+    let startRow = max(Int(Self.horizonRatio * Double(rowCount)), 0)
     let endRow = min(Int(Self.shoreRatio * Double(rowCount)), rowCount)
 
     guard startRow < endRow else { return }
 
     // 波の位相です。時間とともに進み、映り込み全体が上下に揺れます。
     let phase = Double(tick) * Self.waveSpeed
+    // 水平線の直下を暗くする範囲の行数です。
+    let shadeRows = max(Int(Self.horizonShadeBand * Double(rowCount)), 1)
     var paths = [Path](repeating: Path(), count: colors.count)
 
     for row in startRow..<endRow {
@@ -248,16 +435,20 @@ struct SkyCanvas: View {
       let depth = rawRatio - Self.horizonRatio
       let waveOffset = sin(Double(row) * Self.waveFrequency + phase)
       let mirroredRatio = max(Self.horizonRatio - depth + waveOffset * Self.waveAmplitude, 0)
-      let blendRatio = (rawRatio - (Self.horizonRatio - band)) / (2 * band)
-      // 波の山では明るく、谷では暗く見えるよう、選ぶ色を1段ずらします。
+
+      // 水平線に近いほど沈ませ、遠くの海が暗く見えるようにします。
+      let horizonDistance = Double(row - startRow) / Double(shadeRows)
+      let shade = horizonDistance < 1 ? 1 - horizonDistance : 0
+
+      // 波の山では明るく、谷では暗く見えるよう、選ぶ色をずらします。
       let brightnessShift = Int((waveOffset * Self.waveBrightness).rounded())
+        - Int((shade * Self.horizonShadeDepth).rounded())
 
       var runStartColumn = 0
       var runColorIndex = waterColorIndex(
         row: row,
         column: 0,
         mirroredRatio: mirroredRatio,
-        blendRatio: blendRatio,
         brightnessShift: brightnessShift
       )
 
@@ -268,24 +459,20 @@ struct SkyCanvas: View {
               row: row,
               column: column,
               mirroredRatio: mirroredRatio,
-              blendRatio: blendRatio,
               brightnessShift: brightnessShift
             )
-          : -2
+          : -1
 
         guard colorIndex != runColorIndex else { continue }
 
-        // -1のマスは空のまま残すため、塗りません。
-        if runColorIndex >= 0 {
-          paths[runColorIndex].addRect(
-            CGRect(
-              x: CGFloat(runStartColumn) * Self.cellSize,
-              y: CGFloat(row) * Self.cellSize,
-              width: CGFloat(column - runStartColumn) * Self.cellSize,
-              height: Self.cellSize
-            )
+        paths[runColorIndex].addRect(
+          CGRect(
+            x: CGFloat(runStartColumn) * Self.cellSize,
+            y: CGFloat(row) * Self.cellSize,
+            width: CGFloat(column - runStartColumn) * Self.cellSize,
+            height: Self.cellSize
           )
-        }
+        )
 
         runStartColumn = column
         runColorIndex = colorIndex
@@ -297,29 +484,19 @@ struct SkyCanvas: View {
     }
   }
 
-  /// 岸辺の水打ち際です。湖面の上に重ねる必要があるため、動く層で描きます。
+  /// 岸辺の水打ち際です。海面の上に重ねる必要があるため、動く層で描きます。
   private func drawShoreEdge(in context: inout GraphicsContext, size: CGSize) {
     let shoreTop = snapped(CGFloat(Self.shoreRatio) * size.height)
     drawDitheredEdge(in: &context, size: size, top: shoreTop, color: sky.shore)
   }
 
-  /// そのマスに塗る湖面の色番号を返します。
-  /// 水際の帯では一部のマスを空のまま残すため、その場合は-1を返します。
+  /// そのマスに塗る海面の色番号を返します。
   private func waterColorIndex(
     row: Int,
     column: Int,
     mirroredRatio: Double,
-    blendRatio: Double,
     brightnessShift: Int
   ) -> Int {
-    if blendRatio < 1 {
-      // 帯の中では、下へ進むほど湖面が選ばれやすくなります。
-      // 色の選択とは別のマス目を参照し、2つのディザが重ならないようにします。
-      let blendThreshold =
-        (Double(Self.ditherMatrix[(row + 2) % 4][(column + 1) % 4]) + 0.5) / 16
-      guard blendThreshold < blendRatio else { return -1 }
-    }
-
     let baseIndex = quantizedIndex(ratio: mirroredRatio, row: row, column: column)
     return min(max(baseIndex + brightnessShift, 0), Self.skyColorSteps - 1)
   }
@@ -335,106 +512,72 @@ struct SkyCanvas: View {
     return fraction > threshold ? min(lowerIndex + 1, Self.skyColorSteps - 1) : lowerIndex
   }
 
-  // MARK: - 湖面
+  // MARK: - 海面
 
-  /// 水際の霞と、湖面を流れるさざ波を描きます。
-  private func drawWaterSurface(in context: inout GraphicsContext, size: CGSize, tick: Int) {
+  /// 沖から岸へ寄せる波を描きます。
+  ///
+  /// 横へ流すと川に見えてしまうため、波は縦方向に進めます。
+  /// 深さから位相を作り、その山にあたる行だけへ横筋を置くことで、
+  /// 波の帯が水平線から手前へ移動していきます。
+  private func drawSwell(in context: inout GraphicsContext, size: CGSize, tick: Int) {
     let columnCount = max(Int(ceil(size.width / Self.cellSize)), 1)
-    let rowCount = max(Int(ceil(size.height / Self.cellSize)), 1)
-    let horizonRow = Int(Self.horizonRatio * Double(rowCount))
+    let allRowCount = max(Int(ceil(size.height / Self.cellSize)), 1)
+    let horizonRow = Int(Self.horizonRatio * Double(allRowCount))
     // 岸辺から下は道路になるため、水面はそこまでを描きます。
-    let waterEndRow = min(Int(Self.shoreRatio * Double(rowCount)), rowCount)
+    let rowCount = min(Int(Self.shoreRatio * Double(allRowCount)), allRowCount)
 
-    guard horizonRow < waterEndRow else { return }
+    guard horizonRow + 1 < rowCount else { return }
 
-    drawHorizonHaze(
-      in: &context,
-      columnCount: columnCount,
-      rowCount: rowCount,
-      horizonRow: horizonRow
-    )
+    var ripplePath = Path()
+    var crestPath = Path()
 
-    drawRipples(
-      in: &context,
-      columnCount: columnCount,
-      rowCount: waterEndRow,
-      horizonRow: horizonRow,
-      tick: tick
-    )
-  }
-
-  /// 水際に霞んだ光を散らし、空と湖面の境目を曖昧にします。
-  /// 水平線に近いほど密で、離れるにつれて消えていきます。
-  private func drawHorizonHaze(
-    in context: inout GraphicsContext,
-    columnCount: Int,
-    rowCount: Int,
-    horizonRow: Int
-  ) {
-    let bandRows = Int(Self.hazeBand * Double(rowCount))
-    guard bandRows > 0 else { return }
-
-    var path = Path()
-
-    for row in (horizonRow - bandRows)...(horizonRow + bandRows) {
-      guard row >= 0, row < rowCount else { continue }
-
-      let distance = Double(abs(row - horizonRow)) / Double(bandRows)
-      let density = pow(1 - distance, 2.0) * Self.hazeDensity
-
-      for column in 0..<columnCount {
-        guard pseudoRandom(row &* 15_485_863 &+ column) < density else { continue }
-
-        path.addRect(
-          CGRect(
-            x: CGFloat(column) * Self.cellSize,
-            y: CGFloat(row) * Self.cellSize,
-            width: Self.cellSize,
-            height: Self.cellSize
-          )
-        )
-      }
-    }
-
-    context.fill(path, with: .color(sky.celestialTint.opacity(Self.hazeOpacity)))
-  }
-
-  /// 湖面全体に短い横筋を散らし、さざ波を表します。
-  /// 筋は形を保ったまま横へ流れ、手前の行ほど速く動きます。
-  private func drawRipples(
-    in context: inout GraphicsContext,
-    columnCount: Int,
-    rowCount: Int,
-    horizonRow: Int,
-    tick: Int
-  ) {
-    var path = Path()
-
-    for row in stride(from: horizonRow + 2, to: rowCount, by: Self.rippleRowInterval) {
-      // 遠い行はゆっくり、手前の行ほど速く流れます。
+    for row in (horizonRow + 1)..<rowCount {
       let depth = Double(row - horizonRow) / Double(max(rowCount - horizonRow, 1))
-      let speed = Self.rippleSpeed * (Self.rippleDistantSpeedRatio + depth)
-      let shift = Int(Double(tick) * speed)
+      // 手前ほど波の間隔が広がるよう、深さを非線形に扱います。
+      let progress = pow(depth, 0.7)
+      let phase = progress * Self.swellFrequency - Double(tick) * Self.swellSpeed
+      let crestHeight = sin(phase * 2 * .pi)
+
+      // 列ごとのずれを足しても波が届かない行は、まとめて飛ばします。
+      guard crestHeight > Self.swellThreshold - Self.swellWaveDepth * 2 * .pi else { continue }
+
+      // 遠くの波ほど細かく、手前ほど筋がはっきり見えます。
+      let chance = Self.swellChance * (0.35 + depth)
+      // 波ごとに模様が変わるよう、何番目の波かを種に混ぜます。
+      let waveIndex = Int(phase.rounded(.down))
 
       for column in 0..<columnCount {
-        // 参照する位置をずらすことで、模様そのものが横へ移動します。
-        let sourceColumn = (column + shift) % columnCount
-        guard pseudoRandom(row &* 104_729 &+ sourceColumn) < Self.rippleChance else { continue }
+        // 列ごとに位相をずらし、波の筋が一直線に揃わないようにします。
+        let columnPhase = sin(Double(column) * Self.swellWaviness) * Self.swellWaveDepth
+        let localHeight = sin((phase + columnPhase) * 2 * .pi)
 
-        // 2〜4マスの短い横線にして、水面のきらめきに見せます。
-        let length = 2 + Int(pseudoRandom(row &* 31 &+ sourceColumn &* 17) * 3)
-        path.addRect(
-          CGRect(
-            x: CGFloat(column) * Self.cellSize,
-            y: CGFloat(row) * Self.cellSize,
-            width: CGFloat(length) * Self.cellSize,
-            height: Self.cellSize
-          )
+        guard localHeight > Self.swellThreshold else { continue }
+
+        // 頂点付近だけが白波になります。
+        let isWhitecap = localHeight > Self.whitecapThreshold
+
+        guard pseudoRandom(row &* 104_729 &+ column &+ waveIndex &* 7_919) < chance else {
+          continue
+        }
+
+        let length = 2 + Int(pseudoRandom(row &* 53 &+ column &* 29) * 4)
+        let rect = CGRect(
+          x: CGFloat(column) * Self.cellSize,
+          y: CGFloat(row) * Self.cellSize,
+          width: CGFloat(length) * Self.cellSize,
+          height: Self.cellSize
         )
+
+        if isWhitecap {
+          crestPath.addRect(rect)
+        } else {
+          ripplePath.addRect(rect)
+        }
       }
     }
 
-    context.fill(path, with: .color(sky.celestialTint.opacity(Self.rippleOpacity)))
+    context.fill(ripplePath, with: .color(sky.celestialTint.opacity(Self.rippleOpacity)))
+    context.fill(crestPath, with: .color(Color.white.opacity(Self.whitecapOpacity)))
   }
 
   /// 太陽・月の真下に、手前ほど広がってまばらになる光の道を描きます。
@@ -445,9 +588,9 @@ struct SkyCanvas: View {
     tick: Int
   ) {
     let columnCount = max(Int(ceil(size.width / Self.cellSize)), 1)
-    let rowCount = max(Int(ceil(size.height / Self.cellSize)), 1)
-    let horizonRow = Int(Self.horizonRatio * Double(rowCount))
-    let waterEndRow = min(Int(Self.shoreRatio * Double(rowCount)), rowCount)
+    let allRowCount = max(Int(ceil(size.height / Self.cellSize)), 1)
+    let horizonRow = Int(Self.horizonRatio * Double(allRowCount))
+    let waterEndRow = min(Int(Self.shoreRatio * Double(allRowCount)), allRowCount)
 
     guard horizonRow < waterEndRow else { return }
 
@@ -470,9 +613,9 @@ struct SkyCanvas: View {
         let chance = density * edgeFade
 
         // 一部の粒は留まり、残りが入れ替わることで、水面の一部だけが揺れます。
-        let isStable = pseudoRandom(row &* 7919 &+ column)
+        let isStable = pseudoRandom(row &* 7_919 &+ column)
           < chance * Self.reflectionStableRatio
-        let isFlickering = pseudoRandom(row &* 7919 &+ column &+ tick &* 104_729)
+        let isFlickering = pseudoRandom(row &* 7_919 &+ column &+ tick &* 104_729)
           < chance * (1 - Self.reflectionStableRatio)
 
         guard isStable || isFlickering else { continue }
@@ -491,9 +634,45 @@ struct SkyCanvas: View {
     context.fill(path, with: .color(sky.celestialTint.opacity(Self.reflectionOpacity)))
   }
 
+  /// 波打ち際に白い泡を寄せます。周期的に前後して、寄せては返す動きになります。
+  private func drawSurf(in context: inout GraphicsContext, size: CGSize, tick: Int) {
+    let columnCount = max(Int(ceil(size.width / Self.cellSize)), 1)
+    let rowCount = max(Int(ceil(size.height / Self.cellSize)), 1)
+    let shoreRow = Int(Self.shoreRatio * Double(rowCount))
+
+    // 寄せ引きの位相です。1のときが最も沖へ引き、0のときが最も岸へ寄せた状態です。
+    let phase = (sin(Double(tick) / Self.surfPeriod * 2 * .pi) + 1) / 2
+    var path = Path()
+
+    for offset in 0..<Self.surfHeight {
+      let row = shoreRow - offset - 1
+      guard row >= 0, row < rowCount else { continue }
+
+      // 岸に近い行ほど泡が残りやすく、沖へ行くほど波が引くと消えます。
+      let coverage = phase * (1 - Double(offset) / Double(Self.surfHeight))
+
+      for column in 0..<columnCount {
+        guard pseudoRandom(row &* 8_191 &+ column &+ Int(phase * 7) &* 131) < coverage else {
+          continue
+        }
+
+        path.addRect(
+          CGRect(
+            x: CGFloat(column) * Self.cellSize,
+            y: CGFloat(row) * Self.cellSize,
+            width: Self.cellSize,
+            height: Self.cellSize
+          )
+        )
+      }
+    }
+
+    context.fill(path, with: .color(Color.white.opacity(Self.surfOpacity)))
+  }
+
   // MARK: - 地上
 
-  /// 湖の手前に岸辺と道路を敷きます。
+  /// 海の手前に岸辺と道路を敷きます。
   private func drawGround(in context: inout GraphicsContext, size: CGSize) {
     let shoreTop = snapped(CGFloat(Self.shoreRatio) * size.height)
     let roadTop = snapped(CGFloat(Self.roadRatio) * size.height)
@@ -637,51 +816,74 @@ struct SkyCanvas: View {
         )
       )
     }
-    context.fill(polePath, with: .color(sky.roadLine.opacity(0.5)))
+    context.fill(polePath, with: .color(sky.signboardInk.opacity(0.55)))
 
-    // 標識の板です。
-    let signRect = CGRect(
-      x: signLeft,
-      y: poleTop - signWidth,
-      width: signWidth,
-      height: signWidth
-    )
-    context.fill(Path(signRect), with: .color(sky.signboard))
-    context.stroke(
-      Path(signRect),
-      with: .color(sky.road.opacity(0.55)),
-      lineWidth: cell
+    // 標識の板です。ドットで組んだ丸い板にします。
+    let signRadius = Self.signSize / 2
+    let signOrigin = CGPoint(x: signLeft, y: poleTop - signWidth)
+    let signCenter = CGPoint(
+      x: signOrigin.x + CGFloat(signRadius) * cell,
+      y: signOrigin.y + CGFloat(signRadius) * cell
     )
 
-    // 標識の中に、バスの窓とタイヤを表す印を置きます。
+    drawPixelDisc(
+      in: &context,
+      centerX: signCenter.x,
+      centerY: signCenter.y,
+      radiusInCells: signRadius,
+      color: sky.signboard,
+      opacity: 1
+    )
+
+    // 板のふちです。外周1マスだけを暗く縁取ります。
+    drawPixelDisc(
+      in: &context,
+      centerX: signCenter.x,
+      centerY: signCenter.y,
+      radiusInCells: signRadius,
+      innerRadiusInCells: signRadius - 1,
+      color: sky.signboardInk,
+      opacity: 0.85
+    )
+
+    drawSignWeathering(in: &context, origin: signOrigin, radiusInCells: signRadius)
+
+    // 板の中身は具体的な絵にせず、案内が書かれていることを示す横線2本だけにします。
     var mark = Path()
     mark.addRect(
-      CGRect(x: signRect.minX + 2 * cell, y: signRect.minY + 3 * cell, width: 7 * cell, height: 2 * cell)
+      CGRect(x: signOrigin.x + 3 * cell, y: signOrigin.y + 4 * cell, width: 5 * cell, height: cell)
     )
     mark.addRect(
-      CGRect(x: signRect.minX + 3 * cell, y: signRect.minY + 7 * cell, width: 2 * cell, height: cell)
+      CGRect(x: signOrigin.x + 3 * cell, y: signOrigin.y + 6 * cell, width: 5 * cell, height: cell)
     )
-    mark.addRect(
-      CGRect(x: signRect.minX + 6 * cell, y: signRect.minY + 7 * cell, width: 2 * cell, height: cell)
-    )
-    context.fill(mark, with: .color(sky.road.opacity(0.72)))
-
-    drawSignWeathering(in: &context, signRect: signRect)
+    context.fill(mark, with: .color(sky.signboardInk.opacity(0.78)))
   }
 
   /// 標識の板に色あせの粒を散らし、長く風雨にさらされた面にします。
-  private func drawSignWeathering(in context: inout GraphicsContext, signRect: CGRect) {
+  /// 丸い板からはみ出さないよう、円の内側だけを対象にします。
+  private func drawSignWeathering(
+    in context: inout GraphicsContext,
+    origin: CGPoint,
+    radiusInCells: Int
+  ) {
     let cell = Self.cellSize
+    let squaredLimit = radiusInCells * radiusInCells
     var path = Path()
 
     for row in 0..<Self.signSize {
       for column in 0..<Self.signSize {
+        let verticalDistance = row - radiusInCells
+        let horizontalDistance = column - radiusInCells
+        let squaredDistance = verticalDistance * verticalDistance
+          + horizontalDistance * horizontalDistance
+
+        guard squaredDistance <= squaredLimit else { continue }
         guard pseudoRandom(row &* 1301 &+ column &* 71) < 0.12 else { continue }
 
         path.addRect(
           CGRect(
-            x: signRect.minX + CGFloat(column) * cell,
-            y: signRect.minY + CGFloat(row) * cell,
+            x: origin.x + CGFloat(column) * cell,
+            y: origin.y + CGFloat(row) * cell,
             width: cell,
             height: cell
           )
@@ -804,7 +1006,7 @@ struct SkyCanvas: View {
   }
 
   /// いまの時刻に対応する太陽・月の半径をセル数で返します。
-  /// 湖面に落ちる光の幅も、この半径を基準にします。
+  /// 海面に落ちる光の幅も、この半径を基準にします。
   private func celestialRadiusInCells() -> Int {
     Int(
       (Double(Self.sunRadiusCells)
@@ -813,22 +1015,32 @@ struct SkyCanvas: View {
   }
 
   /// セルを敷き詰めて円を描きます。
+  /// `innerRadiusInCells` を指定すると、その内側を抜いた輪になります。
   private func drawPixelDisc(
     in context: inout GraphicsContext,
     centerX: CGFloat,
     centerY: CGFloat,
     radiusInCells: Int,
+    innerRadiusInCells: Int = 0,
     color: Color,
     opacity: Double
   ) {
     guard radiusInCells > 0 else { return }
 
     var path = Path()
-    let squaredLimit = radiusInCells * radiusInCells
+    // 半径の半分を足して判定を緩めます。
+    // ちょうど半径の二乗で切ると、上下左右に1マスだけ角が飛び出た形になります。
+    let squaredLimit = Self.squaredDiscLimit(forRadius: radiusInCells)
+    // 内側の半径が0のときは中心のマスまで塗ります。
+    let squaredInnerLimit = innerRadiusInCells > 0
+      ? Self.squaredDiscLimit(forRadius: innerRadiusInCells)
+      : -1
 
     for row in -radiusInCells...radiusInCells {
       for column in -radiusInCells...radiusInCells {
-        guard row * row + column * column <= squaredLimit else { continue }
+        let squaredDistance = Double(row * row + column * column)
+        guard squaredDistance <= squaredLimit,
+              squaredDistance > squaredInnerLimit else { continue }
         path.addRect(
           CGRect(
             x: centerX + CGFloat(column) * Self.cellSize,
@@ -844,6 +1056,12 @@ struct SkyCanvas: View {
   }
 
   // MARK: - 補助
+
+  /// ドットで円を描くときの、中心からの距離の二乗のしきい値です。
+  /// 半径の二乗そのままでは角が飛び出るため、半径の半分だけ緩めます。
+  private static func squaredDiscLimit(forRadius radius: Int) -> Double {
+    Double(radius * radius) + Double(radius) / 2
+  }
 
   /// 座標をセルの境界に合わせます。これによりすべての要素が同じ格子に乗ります。
   private func snapped(_ value: CGFloat) -> CGFloat {
