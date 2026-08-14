@@ -261,6 +261,75 @@ struct BusTimeAppTests {
     }
 
     @Test
+    func weatherCodeIdentifiesRainOnly() {
+        // 晴れや曇りは雨として扱いません。
+        #expect(WeatherCodeInterpreter.isRaining(code: 0) == false)
+        #expect(WeatherCodeInterpreter.isRaining(code: 3) == false)
+        #expect(WeatherCodeInterpreter.isRaining(code: 45) == false)
+        // 雪とあられも対象外です。
+        #expect(WeatherCodeInterpreter.isRaining(code: 71) == false)
+        #expect(WeatherCodeInterpreter.isRaining(code: 85) == false)
+        // 霧雨・雨・にわか雨・雷雨は雨として扱います。
+        #expect(WeatherCodeInterpreter.isRaining(code: 51) == true)
+        #expect(WeatherCodeInterpreter.isRaining(code: 63) == true)
+        #expect(WeatherCodeInterpreter.isRaining(code: 80) == true)
+        #expect(WeatherCodeInterpreter.isRaining(code: 95) == true)
+    }
+
+    @Test
+    func rainIntensityFollowsPrecipitation() {
+        #expect(WeatherCodeInterpreter.weather(code: 61, precipitation: 0.2) == .rain(.light))
+        #expect(WeatherCodeInterpreter.weather(code: 63, precipitation: 2.0) == .rain(.moderate))
+        #expect(WeatherCodeInterpreter.weather(code: 65, precipitation: 8.0) == .rain(.heavy))
+        // 雷雨は降水量が少なくても強い雨として扱います。
+        #expect(WeatherCodeInterpreter.weather(code: 95, precipitation: 0.1) == .rain(.heavy))
+        #expect(WeatherCodeInterpreter.weather(code: 0, precipitation: 0.0) == .clear)
+    }
+
+    @Test @MainActor
+    func weatherRefreshesOnlyAfterTheInterval() async {
+        var now = Date(timeIntervalSince1970: 0)
+        let stub = StubWeatherService()
+        let viewModel = WeatherViewModel(
+            service: stub,
+            nowProvider: { now },
+            startsAutomaticRefresh: false
+        )
+
+        stub.result = .success(.rain(.light))
+        await viewModel.refreshIfNeeded()
+        #expect(viewModel.weather == .rain(.light))
+
+        // 取得間隔の内側では問い合わせません。
+        stub.result = .success(.rain(.heavy))
+        now = now.addingTimeInterval(60)
+        await viewModel.refreshIfNeeded()
+        #expect(viewModel.weather == .rain(.light))
+
+        // 間隔を過ぎたら取り直します。画面を開いたままでもここに到達します。
+        now = now.addingTimeInterval(15 * 60)
+        await viewModel.refreshIfNeeded()
+        #expect(viewModel.weather == .rain(.heavy))
+    }
+
+    @Test @MainActor
+    func weatherKeepsLastValueWhenFetchFails() async {
+        let stub = StubWeatherService()
+        let viewModel = WeatherViewModel(service: stub, startsAutomaticRefresh: false)
+
+        stub.result = .success(.rain(.moderate))
+        await viewModel.refresh()
+        #expect(viewModel.weather == .rain(.moderate))
+        #expect(viewModel.hasFailedRecently == false)
+
+        // 取得に失敗しても、直前に取れていた空模様を保ちます。
+        stub.result = .failure(WeatherServiceError.requestFailed)
+        await viewModel.refresh()
+        #expect(viewModel.weather == .rain(.moderate))
+        #expect(viewModel.hasFailedRecently == true)
+    }
+
+    @Test
     func celestialBodyRisesAtDawnAndPeaksAtNoon() {
         // 日の出直後は地平線近く、正午前後で最も高くなります。
         let dawn = SkyPalette.at(hour: 5.5)
@@ -394,4 +463,13 @@ struct BusTimeAppTests {
         #expect(viewModel.searchTime == futureSearchTime)
     }
 
+}
+
+/// 天気の取得結果を差し替えるためのテスト用スタブです。
+private final class StubWeatherService: WeatherFetching, @unchecked Sendable {
+    var result: Result<SkyWeather, Error> = .success(.clear)
+
+    func fetchCurrentWeather() async throws -> SkyWeather {
+        try result.get()
+    }
 }
