@@ -49,6 +49,11 @@ struct SettingsView: View {
         .fixedSize(horizontal: false, vertical: true)
 
       skyPreviewStrip
+
+      SkyNoticeRow(
+        message: "海浜幕張駅の周辺で雨が降っているときは、背景にも雨が降ります。天気の情報は Open-Meteo から取得しています。",
+        systemImage: "cloud.rain"
+      )
     }
     .frame(maxWidth: .infinity, alignment: .leading)
     .skyCard()
