@@ -58,7 +58,7 @@
 		7934EB092DFBF98200C306D1 /* BusTimeAppTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = BusTimeAppTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		7934EB132DFBF98200C306D1 /* BusTimeAppUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = BusTimeAppUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		7AB11326BFE4A44A45B93CE8 /* BusTimeWidgetLiveActivity.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = BusTimeWidgetLiveActivity.swift; sourceTree = "<group>"; };
-		F98EB8B4AC49FE191699CDD7 /* BusTimeWidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; name = BusTimeWidgetExtension.appex; path = .appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		F98EB8B4AC49FE191699CDD7 /* BusTimeWidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = BusTimeWidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -82,15 +82,11 @@
 		};
 		7934EB0C2DFBF98200C306D1 /* BusTimeAppTests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-			);
 			path = BusTimeAppTests;
 			sourceTree = "<group>";
 		};
 		7934EB162DFBF98200C306D1 /* BusTimeAppUITests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-			);
 			path = BusTimeAppUITests;
 			sourceTree = "<group>";
 		};
