@@ -73,7 +73,7 @@ struct SkyPalette: Equatable {
   let positive: Color
   /// 太陽または月の色です。
   let celestialTint: Color
-  /// 湖と道路のあいだの岸辺の色です。
+  /// 海と道路のあいだの岸辺の色です。
   let shore: Color
   /// 道路の色です。
   let road: Color
@@ -81,6 +81,8 @@ struct SkyPalette: Equatable {
   let roadLine: Color
   /// バス停の標識の色です。
   let signboard: Color
+  /// バス停の標識の縁と、板に引く線の色です。
+  let signboardInk: Color
   /// 太陽・月の水平位置です。0が画面左端、1が画面右端に対応します。
   let celestialProgress: Double
   /// 太陽・月の軌道の高さです。0が地平線、1が天頂に対応します。
@@ -174,25 +176,29 @@ struct SkyPalette: Equatable {
   private static let nightPositive = RGBComponents(red: 0.376, green: 0.804, blue: 0.647)
   /// 太陽の色です。
   private static let sunTint = RGBComponents(red: 1.0, green: 0.973, blue: 0.867)
-  /// 月の色です。湖面に落ちる光を温かく見せるため、わずかに黄みを含ませます。
+  /// 月の色です。海面に落ちる光を温かく見せるため、わずかに黄みを含ませます。
   private static let moonTint = RGBComponents(red: 0.988, green: 0.961, blue: 0.867)
-  /// 水そのものの色です。湖面の色をこの色へ少し寄せます。
-  private static let waterTint = RGBComponents(red: 0.055, green: 0.157, blue: 0.239)
+  /// 水そのものの色です。海面の色をこの色へ少し寄せます。
+  /// 湖より緑を含ませ、外洋の深い青緑に近づけます。
+  private static let waterTint = RGBComponents(red: 0.039, green: 0.169, blue: 0.204)
   /// 昼の岸辺の色です。
   private static let dayShore = RGBComponents(red: 0.616, green: 0.561, blue: 0.463)
   /// 昼の道路の色です。
   private static let dayRoad = RGBComponents(red: 0.353, green: 0.361, blue: 0.376)
   /// 昼の道路の白線の色です。色あせを見込んで、白より灰色に寄せます。
   private static let dayRoadLine = RGBComponents(red: 0.804, green: 0.796, blue: 0.749)
-  /// 昼のバス停の標識の色です。日に焼けて白茶けた板にします。
-  private static let daySignboard = RGBComponents(red: 0.784, green: 0.765, blue: 0.702)
+  /// 昼のバス停の標識の色です。空と海に馴染む水色にします。
+  /// 背にする海より明るく保つことで、青のなかでも板として見分けられます。
+  private static let daySignboard = RGBComponents(red: 0.612, green: 0.745, blue: 0.855)
+  /// 昼のバス停の標識の縁と線の色です。深い海の青にそろえます。
+  private static let daySignboardInk = RGBComponents(red: 0.145, green: 0.290, blue: 0.435)
   /// 夜に地上が沈む度合いです。街灯のない暗さまでは落とさず、月明かりが残る程度にします。
   private static let groundNightDarkening: Double = 0.52
   /// 地上が周囲の光を受ける度合いです。空の色を混ぜて、風景から浮かないようにします。
   private static let groundAmbientBlend: Double = 0.30
-  /// 湖面を空より沈ませる度合いです。
+  /// 海面を空より沈ませる度合いです。
   private static let waterDarkening: Double = 0.22
-  /// 湖面に水の色を混ぜる強さです。
+  /// 海面に水の色を混ぜる強さです。
   private static let waterTintStrength: Double = 0.24
 
   /// 昼のカード地の不透明度です。明るい空の上では白を濃いめに乗せます。
@@ -270,6 +276,10 @@ struct SkyPalette: Equatable {
         .darkened(by: nightness * groundNightDarkening * 0.55)
         .mixed(with: skyBottom, ratio: groundAmbientBlend * 0.4)
         .color(),
+      signboardInk: daySignboardInk
+        .darkened(by: nightness * groundNightDarkening * 0.4)
+        .mixed(with: skyBottom, ratio: groundAmbientBlend * 0.3)
+        .color(),
       celestialProgress: celestialProgress(at: normalizedHour),
       celestialAltitude: celestialAltitude(at: normalizedHour),
       nightness: nightness,
@@ -303,7 +313,7 @@ struct SkyPalette: Equatable {
     }
   }
 
-  /// 湖面に使う色を返します。
+  /// 海面に使う色を返します。
   /// 空を映しつつ、水そのものの深さを表すために暗く沈ませ、青へ寄せます。
   /// これにより、空と水面の色が近い昼や夕方でも水際が見分けられます。
   func quantizedWaterColors(steps: Int) -> [Color] {
@@ -415,10 +425,21 @@ private struct SkyPaletteKey: EnvironmentKey {
   static let defaultValue = SkyPalette.at(hour: 11)
 }
 
+private struct SkyWeatherKey: EnvironmentKey {
+  /// 天気を取得できていないあいだは、雨のない状態として扱います。
+  static let defaultValue: SkyWeather = .clear
+}
+
 extension EnvironmentValues {
   /// 画面全体で共有される時刻連動の配色です。
   var sky: SkyPalette {
     get { self[SkyPaletteKey.self] }
     set { self[SkyPaletteKey.self] = newValue }
+  }
+
+  /// 背景に反映する空模様です。
+  var skyWeather: SkyWeather {
+    get { self[SkyWeatherKey.self] }
+    set { self[SkyWeatherKey.self] = newValue }
   }
 }

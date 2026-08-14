@@ -1,0 +1,84 @@
+import Foundation
+import Combine
+
+/// 背景に反映する天気を保持し、一定間隔で更新します。
+///
+/// 天気の取得に失敗しても画面は通常どおり動きます。
+/// 直前に取得できた空模様をそのまま保ち、次の更新を待ちます。
+@MainActor
+final class WeatherViewModel: ObservableObject {
+  /// 背景に描く空模様です。取得できていないあいだは晴れとして扱います。
+  @Published private(set) var weather: SkyWeather = .clear
+  /// 直近の取得に失敗したかどうかです。設定画面での案内に使います。
+  @Published private(set) var hasFailedRecently = false
+
+  /// 天気を取り直す間隔です。短時間に何度も問い合わせないようにします。
+  private static let refreshInterval: TimeInterval = 15 * 60
+  /// 取り直しが必要かを見に行く間隔です。
+  /// 画面を開いたままでも天気が古くならないよう、この間隔で確認します。
+  private static let checkInterval: TimeInterval = 60
+
+  private let service: WeatherFetching
+  private let nowProvider: () -> Date
+  private var lastUpdatedAt: Date?
+  private var timer: AnyCancellable?
+
+  init(
+    service: WeatherFetching? = nil,
+    nowProvider: @escaping () -> Date = Date.init,
+    startsAutomaticRefresh: Bool = true
+  ) {
+    self.service = service ?? Self.defaultService()
+    self.nowProvider = nowProvider
+
+    if startsAutomaticRefresh {
+      startTimer()
+    }
+  }
+
+  /// 画面を開いたままでも取り直しが止まらないよう、一定間隔で確認を続けます。
+  /// 実際に通信するのは前回の取得から`refreshInterval`が過ぎたときだけです。
+  private func startTimer() {
+    timer = Timer.publish(every: Self.checkInterval, on: .main, in: .common)
+      .autoconnect()
+      .sink { [weak self] _ in
+        Task { @MainActor [weak self] in
+          await self?.refreshIfNeeded()
+        }
+      }
+  }
+
+  /// 通常はOpen-Meteoから取得しますが、
+  /// 開発ビルドで起動引数の指定があればそちらを優先します。
+  private static func defaultService() -> WeatherFetching {
+#if DEBUG
+    if let debugService = DebugWeatherService.makeFromLaunchArguments() {
+      return debugService
+    }
+#endif
+    return OpenMeteoWeatherService()
+  }
+
+  /// 前回の取得から十分に時間が経っていれば、天気を取り直します。
+  func refreshIfNeeded() async {
+    guard shouldRefresh else { return }
+    await refresh()
+  }
+
+  /// 間隔を無視して天気を取り直します。
+  func refresh() async {
+    do {
+      weather = try await service.fetchCurrentWeather()
+      hasFailedRecently = false
+      lastUpdatedAt = nowProvider()
+    } catch {
+      // 取得できなかった場合は直前の空模様を保ち、次の機会に再試行します。
+      hasFailedRecently = true
+    }
+  }
+
+  private var shouldRefresh: Bool {
+    guard let lastUpdatedAt else { return true }
+    return nowProvider().timeIntervalSince(lastUpdatedAt) >= Self.refreshInterval
+  }
+}
