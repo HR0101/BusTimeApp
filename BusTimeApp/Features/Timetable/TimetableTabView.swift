@@ -1,23 +1,25 @@
 import SwiftUI
 
-/// 時刻表の列幅です。見出しと各行で数字の位置を揃えるために共有します。
-private enum TimetableColumn {
-  /// 検索条件に合う便を示す縦棒の幅です。
-  static let marker: CGFloat = 3
-  /// 出発時刻の列幅です。
-  static let departure: CGFloat = 62
-  /// 到着時刻の列幅です。
-  static let arrival: CGFloat = 54
-  /// 列同士の間隔です。
-  static let spacing: CGFloat = 10
-  /// 行の左右の余白です。
-  static let horizontalPadding: CGFloat = 16
+/// 同じ時台の便をまとめた単位です。
+private struct TimetableHour: Identifiable {
+  /// 0〜23の時です。深夜便もそのままの値で持ちます。
+  let hour: Int
+  /// その時台の便を、分の早い順に並べたものです。
+  let buses: [Bus]
+
+  var id: Int { hour }
+
+  /// 運行日の並び順です。
+  /// 午前4時より前の便は前日の続きなので、一覧では最後に置きます。
+  var serviceOrder: Int {
+    hour < BusNotificationTimeCalculator.serviceDayBoundaryHour ? hour + 24 : hour
+  }
 }
 
-/// 選択中の経路の全便を一覧するタブです。
+/// 選択中の経路の全便を時刻表として一覧するタブです。
 ///
-/// 駅の発車標のように、出発時刻を等幅の数字で縦に並べ、
-/// 検索結果に含まれる便だけを縦棒で示します。
+/// 駅の時刻表と同じく、時を行、分をその中のマスとして並べます。
+/// マスをタップすると、その便の通知を設定できます。
 struct TimetableTabView: View {
   @Environment(\.sky) private var sky
   @Environment(\.dynamicTypeSize) private var dynamicTypeSize
@@ -26,10 +28,29 @@ struct TimetableTabView: View {
   let scheduledBusIDs: Set<String>
   let onSelectBus: (Bus) -> Void
 
+  /// 分のマス1つの高さです。指で押せる大きさを確保します。
+  /// 横幅は画面いっぱいに広げるため、列数から割り出します。
+  private let cellSize: CGFloat = 44
+  /// 時のラベルの幅です。2桁の時が折り返さない幅を確保します。
+  private let hourLabelWidth: CGFloat = 24
+  /// 時のラベルと分のマスのあいだの間隔です。
+  private let hourLabelSpacing: CGFloat = 6
+  /// マス同士の間隔です。
+  private let cellSpacing: CGFloat = 2
+  /// 行の左右の余白です。
+  private let rowPadding: CGFloat = 6
+  /// マスの角丸半径です。
+  private let cellRadius: CGFloat = 10
+
+  /// 画面左右の余白です。マスの幅を稼ぐため、他の画面より狭くしています。
   private var horizontalPadding: CGFloat {
-    dynamicTypeSize.isAccessibilitySize
-      ? SkyMetrics.compactScreenPadding
-      : SkyMetrics.screenPadding
+    dynamicTypeSize.isAccessibilitySize ? SkyMetrics.compactScreenPadding : 14
+  }
+
+  /// 1行に並べる分のマスの数です。
+  /// 最も便の多い時台が6便なので、折り返しが起きないよう6列に固定します。
+  private var columnCount: Int {
+    dynamicTypeSize.isAccessibilitySize ? 4 : 6
   }
 
   var body: some View {
@@ -37,6 +58,7 @@ struct TimetableTabView: View {
       VStack(alignment: .leading, spacing: SkyMetrics.sectionSpacing) {
         header
 
+        // 運休日でも時刻表そのものは見たい情報なので、案内を出したうえで表示します。
         if let holidayMessage = viewModel.holidayMessage {
           NoticeCard(
             title: "本日の運行",
@@ -44,7 +66,9 @@ struct TimetableTabView: View {
             systemImage: "calendar.badge.exclamationmark",
             isWarning: true
           )
-        } else if viewModel.currentFullTimetable.isEmpty {
+        }
+
+        if viewModel.currentFullTimetable.isEmpty {
           NoticeCard(
             title: "時刻表がありません",
             message: "ホームタブで出発地と目的地を選び直してください",
@@ -52,7 +76,13 @@ struct TimetableTabView: View {
             isWarning: false
           )
         } else {
-          timetableList
+          // 通知をまだ使っていない間だけ、操作の仕方を大きく案内します。
+          if scheduledBusIDs.isEmpty {
+            notificationHint
+          }
+
+          timetableGrid
+          legend
         }
       }
       .padding(.horizontal, horizontalPadding)
@@ -60,6 +90,8 @@ struct TimetableTabView: View {
       .padding(.bottom, 28)
     }
   }
+
+  // MARK: - 見出し
 
   private var header: some View {
     VStack(alignment: .leading, spacing: 10) {
@@ -87,174 +119,203 @@ struct TimetableTabView: View {
     .skyCard()
   }
 
-  private var timetableList: some View {
-    VStack(spacing: 0) {
-      // 文字を大きくすると行が縦積みになるため、そのときは列見出しを出しません。
-      if !dynamicTypeSize.isAccessibilitySize {
-        columnHeader
-        SkyDivider()
+  /// 通知を一度も設定していない人へ、操作の仕方を伝える案内です。
+  /// 1件でも設定されていれば表示しません。
+  private var notificationHint: some View {
+    DynamicTypeStack(verticalAlignment: .top, spacing: 12) {
+      Image(systemName: "bell.badge")
+        .font(.system(size: 20, weight: .semibold))
+        .foregroundStyle(sky.accent)
+
+      VStack(alignment: .leading, spacing: 5) {
+        Text("時刻をタップすると通知できます")
+          .dynamicFont(size: 15, relativeTo: .subheadline, weight: .bold, design: .rounded)
+          .foregroundStyle(sky.ink)
+          .fixedSize(horizontal: false, vertical: true)
+
+        Text("選んだ便が出発する前にお知らせします。設定した時刻は色が変わります。")
+          .dynamicFont(size: 12, relativeTo: .caption, weight: .medium)
+          .foregroundStyle(sky.inkSecondary)
+          .fixedSize(horizontal: false, vertical: true)
       }
+      .frame(maxWidth: .infinity, alignment: .leading)
+    }
+    .frame(maxWidth: .infinity, alignment: .leading)
+    .skyCard()
+    .accessibilityElement(children: .combine)
+  }
 
-      ForEach(Array(viewModel.currentFullTimetable.enumerated()), id: \.element.id) { index, bus in
-        TimetableRow(
-          bus: bus,
-          isRecommended: viewModel.searchResults.contains { $0.id == bus.id },
-          isNotificationScheduled: scheduledBusIDs.contains(bus.id),
-          action: { onSelectBus(bus) }
-        )
+  // MARK: - 時刻表
 
-        if index < viewModel.currentFullTimetable.count - 1 {
+  private var timetableGrid: some View {
+    VStack(spacing: 0) {
+      ForEach(Array(hourGroups.enumerated()), id: \.element.id) { index, group in
+        hourRow(group)
+
+        if index < hourGroups.count - 1 {
           SkyDivider()
         }
       }
     }
-    .skyCard(padding: 0)
+    .skyCard(padding: 0, isOpaque: true)
   }
 
-  /// 各行と同じ列幅で見出しを並べ、時刻の桁が縦に揃って見えるようにします。
-  private var columnHeader: some View {
-    HStack(spacing: TimetableColumn.spacing) {
-      Color.clear
-        .frame(width: TimetableColumn.marker, height: 1)
-      Text("出発")
-        .frame(width: TimetableColumn.departure, alignment: .leading)
-      Text("到着")
-        .frame(width: TimetableColumn.arrival, alignment: .leading)
-      Spacer(minLength: 0)
-      Text("通知")
-        .frame(width: SkyMetrics.minimumTapSize)
-    }
-    .dynamicFont(size: 11, relativeTo: .caption2, weight: .bold)
-    .foregroundStyle(sky.inkSecondary)
-    .padding(.horizontal, TimetableColumn.horizontalPadding)
-    .padding(.vertical, 12)
-    .accessibilityHidden(true)
-  }
-}
+  /// 1つの時台を、時のラベルと分のマスで表します。
+  private func hourRow(_ group: TimetableHour) -> some View {
+    let isCurrentHour = group.hour == currentHour
 
-/// 時刻表の1便を表す行です。
-struct TimetableRow: View {
-  @Environment(\.sky) private var sky
-  @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    return HStack(alignment: .top, spacing: hourLabelSpacing) {
+      Text("\(group.hour)")
+        .dynamicFont(size: 17, relativeTo: .body, weight: .bold, design: .rounded)
+        .monospacedDigit()
+        .foregroundStyle(isCurrentHour ? sky.accent : sky.inkSecondary)
+        .lineLimit(1)
+        .minimumScaleFactor(0.7)
+        .frame(width: hourLabelWidth, alignment: .trailing)
+        .frame(minHeight: cellSize)
 
-  let bus: Bus
-  /// 現在の検索条件に合致している便かどうかです。
-  let isRecommended: Bool
-  let isNotificationScheduled: Bool
-  let action: () -> Void
-
-  /// 縦棒の高さです。
-  private let markerHeight: CGFloat = 22
-
-  var body: some View {
-    Button(action: action) {
-      Group {
-        if dynamicTypeSize.isAccessibilitySize {
-          stackedLayout
-        } else {
-          rowLayout
+      LazyVGrid(
+        columns: Array(
+          repeating: GridItem(.flexible(), spacing: cellSpacing),
+          count: columnCount
+        ),
+        alignment: .leading,
+        spacing: cellSpacing
+      ) {
+        ForEach(group.buses) { bus in
+          minuteCell(bus)
         }
       }
-      .padding(.horizontal, TimetableColumn.horizontalPadding)
-      .padding(.vertical, 11)
-      .background(isRecommended ? sky.accentSoft : Color.clear)
+      // 残りの幅をすべて使い、マスを画面いっぱいに広げます。
+      .frame(maxWidth: .infinity, alignment: .leading)
+    }
+    .padding(.horizontal, rowPadding)
+    .padding(.vertical, 5)
+    .frame(maxWidth: .infinity, alignment: .leading)
+    .background(isCurrentHour ? sky.accentSoft : Color.clear)
+    .accessibilityElement(children: .contain)
+    .accessibilityLabel("\(group.hour)時台")
+  }
+
+  /// 1便を表す分のマスです。押すとその便の通知を設定できます。
+  private func minuteCell(_ bus: Bus) -> some View {
+    let isScheduled = scheduledBusIDs.contains(bus.id)
+    let isRecommended = viewModel.searchResults.contains { $0.id == bus.id }
+    let hasDeparted = hasDeparted(bus)
+
+    return Button {
+      onSelectBus(bus)
+    } label: {
+      VStack(spacing: 0) {
+        Text(minuteText(for: bus))
+          .dynamicFont(size: 16, relativeTo: .body, weight: .bold, design: .rounded)
+          .monospacedDigit()
+          .foregroundStyle(isScheduled ? Color.white : sky.ink)
+
+        // 備考のある便には印だけを添え、内容はタップ後に見せます。
+        Circle()
+          .fill(isScheduled ? Color.white : sky.inkSecondary)
+          .frame(width: 3, height: 3)
+          .opacity(bus.note == nil ? 0 : 1)
+          .padding(.top, 2)
+      }
+      .frame(maxWidth: .infinity)
+      .frame(minHeight: cellSize)
+      .background(
+        RoundedRectangle(cornerRadius: cellRadius, style: .continuous)
+          .fill(isScheduled ? sky.accent : Color.clear)
+      )
+      .overlay(
+        RoundedRectangle(cornerRadius: cellRadius, style: .continuous)
+          .stroke(
+            isRecommended && !isScheduled ? sky.accent : sky.ink.opacity(0.26),
+            lineWidth: isRecommended && !isScheduled ? 2 : SkyMetrics.borderWidth
+          )
+      )
+      // 出発済みの便は淡くしますが、翌日の同じ便に通知できるので押せるままにします。
+      .opacity(hasDeparted ? 0.45 : 1)
     }
     .buttonStyle(SkyPressStyle())
-    .accessibilityLabel(accessibilityText)
+    .accessibilityLabel(accessibilityLabel(for: bus, isScheduled: isScheduled))
     .accessibilityHint("出発前に通知する方法を選びます")
   }
 
-  private var rowLayout: some View {
-    HStack(spacing: TimetableColumn.spacing) {
-      marker
-
-      Text(bus.departure)
-        .dynamicFont(size: 18, relativeTo: .body, weight: .bold, design: .rounded)
-        .monospacedDigit()
-        .foregroundStyle(sky.ink)
-        .frame(width: TimetableColumn.departure, alignment: .leading)
-
-      Text(bus.arrival)
-        .dynamicFont(size: 15, relativeTo: .subheadline, weight: .medium, design: .rounded)
-        .monospacedDigit()
-        .foregroundStyle(sky.inkSecondary)
-        .frame(width: TimetableColumn.arrival, alignment: .leading)
-
-      if let note = bus.note {
-        Text(note)
-          .dynamicFont(size: 10, relativeTo: .caption2, weight: .medium)
-          .foregroundStyle(sky.inkSecondary)
-          .lineLimit(1)
-          .minimumScaleFactor(0.8)
-      }
-
-      Spacer(minLength: 0)
-
-      notificationIcon
+  private var legend: some View {
+    VStack(alignment: .leading, spacing: 6) {
+      SkyNoticeRow(
+        message: "色のついた時刻は通知を設定済みです",
+        systemImage: "bell.fill"
+      )
+      SkyNoticeRow(
+        message: "点の付いた便はお買い物便や経由便です",
+        systemImage: "smallcircle.filled.circle"
+      )
     }
   }
 
-  private var stackedLayout: some View {
-    VStack(alignment: .leading, spacing: 8) {
-      HStack(alignment: .lastTextBaseline, spacing: 8) {
-        marker
-        Text(bus.departure)
-          .font(.headline.weight(.bold))
-          .monospacedDigit()
-          .foregroundStyle(sky.ink)
-        Image(systemName: "arrow.right")
-          .font(.caption2.weight(.bold))
-          .foregroundStyle(sky.inkFaint)
-        Text(bus.arrival)
-          .font(.subheadline.weight(.semibold))
-          .monospacedDigit()
-          .foregroundStyle(sky.inkSecondary)
-      }
+  // MARK: - 時刻の組み立て
 
-      if let note = bus.note {
-        Text(note)
-          .font(.caption2)
-          .foregroundStyle(sky.inkSecondary)
-          .fixedSize(horizontal: false, vertical: true)
-      }
-
-      notificationIcon
-        .frame(maxWidth: .infinity, alignment: .trailing)
+  /// 時台ごとにまとめ、運行日の順に並べます。
+  private var hourGroups: [TimetableHour] {
+    let grouped = Dictionary(grouping: viewModel.currentFullTimetable) { bus in
+      Self.timeComponents(from: bus.departure)?.hour ?? 0
     }
+
+    return grouped
+      .map { hour, buses in
+        TimetableHour(
+          hour: hour,
+          buses: buses.sorted { lhs, rhs in
+            (Self.timeComponents(from: lhs.departure)?.minute ?? 0)
+              < (Self.timeComponents(from: rhs.departure)?.minute ?? 0)
+          }
+        )
+      }
+      .sorted { $0.serviceOrder < $1.serviceOrder }
   }
 
-  @ViewBuilder
-  private var marker: some View {
-    if isRecommended {
-      Capsule()
-        .fill(sky.accent)
-        .frame(width: TimetableColumn.marker, height: markerHeight)
-        .accessibilityHidden(true)
-    } else {
-      Color.clear
-        .frame(width: TimetableColumn.marker, height: markerHeight)
-        .accessibilityHidden(true)
+  /// いま何時台かです。該当する行を強調するために使います。
+  private var currentHour: Int {
+    Calendar.current.component(.hour, from: viewModel.availabilityReferenceDate)
+  }
+
+  /// その便がすでに出発したかどうかです。
+  private func hasDeparted(_ bus: Bus) -> Bool {
+    guard let departure = BusNotificationTimeCalculator.departureDateForCurrentServiceDay(
+      for: bus.departure,
+      from: viewModel.availabilityReferenceDate
+    ) else {
+      return false
     }
+    return departure <= viewModel.availabilityReferenceDate
   }
 
-  private var notificationIcon: some View {
-    Image(systemName: isNotificationScheduled ? "bell.fill" : "bell")
-      .font(.system(size: 13, weight: .semibold))
-      .foregroundStyle(isNotificationScheduled ? sky.accent : sky.inkSecondary)
-      .frame(width: SkyMetrics.minimumTapSize, height: SkyMetrics.minimumTapSize)
+  private func minuteText(for bus: Bus) -> String {
+    guard let minute = Self.timeComponents(from: bus.departure)?.minute else {
+      return bus.departure
+    }
+    return String(format: "%02d", minute)
   }
 
-  private var accessibilityText: String {
+  private func accessibilityLabel(for bus: Bus, isScheduled: Bool) -> String {
     var text = "\(bus.departure)発、\(bus.arrival)着"
+
     if let note = bus.note {
       text += "、\(note)"
     }
-    if isRecommended {
-      text += "、検索条件に合う便"
-    }
-    if isNotificationScheduled {
+    if isScheduled {
       text += "、通知設定済み"
     }
+    if hasDeparted(bus) {
+      text += "、出発済み"
+    }
     return text
+  }
+
+  /// "7:10" のような表記から時と分を取り出します。
+  private static func timeComponents(from value: String) -> (hour: Int, minute: Int)? {
+    let parts = value.split(separator: ":").compactMap { Int($0) }
+    guard parts.count == 2 else { return nil }
+    return (parts[0], parts[1])
   }
 }
