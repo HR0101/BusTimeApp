@@ -26,13 +26,23 @@ private struct SkyCardModifier: ViewModifier {
 
   let radius: CGFloat
   let padding: CGFloat
+  /// 地の色を二重に塗るかどうかです。
+  /// 文字や数字が詰まった面では、背景が透けると読みにくくなるため濃くします。
+  let isOpaque: Bool
 
   func body(content: Content) -> some View {
     content
       .padding(padding)
       .background(
-        RoundedRectangle(cornerRadius: radius, style: .continuous)
-          .fill(sky.surface)
+        ZStack {
+          RoundedRectangle(cornerRadius: radius, style: .continuous)
+            .fill(sky.surface)
+
+          if isOpaque {
+            RoundedRectangle(cornerRadius: radius, style: .continuous)
+              .fill(sky.surface)
+          }
+        }
       )
       .overlay(
         RoundedRectangle(cornerRadius: radius, style: .continuous)
@@ -43,11 +53,13 @@ private struct SkyCardModifier: ViewModifier {
 
 extension View {
   /// 時刻連動の配色でカードの見た目を与えます。
+  /// - Parameter isOpaque: 情報量の多い面で背景の透けを抑えたいときに指定します。
   func skyCard(
     radius: CGFloat = SkyMetrics.cardRadius,
-    padding: CGFloat = SkyMetrics.cardPadding
+    padding: CGFloat = SkyMetrics.cardPadding,
+    isOpaque: Bool = false
   ) -> some View {
-    modifier(SkyCardModifier(radius: radius, padding: padding))
+    modifier(SkyCardModifier(radius: radius, padding: padding, isOpaque: isOpaque))
   }
 }
 
