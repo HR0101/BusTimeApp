@@ -183,6 +183,50 @@ struct BusTimeAppTests {
     }
 
     @Test @MainActor
+    func cardOpacityDefaultsToStandardAndPersistsChanges() {
+        let suiteName = "BusTimeAppTests.CardOpacity"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defaults.removePersistentDomain(forName: suiteName)
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        let viewModel = SettingsViewModel(
+            defaults: defaults,
+            liveActivityAvailability: { true }
+        )
+        #expect(viewModel.cardOpacity == SkyCardOpacity.standard)
+
+        viewModel.setCardOpacity(0.8)
+        #expect(viewModel.cardOpacity == 0.8)
+
+        // 範囲の外を渡しても、上限と下限に収まります。
+        viewModel.setCardOpacity(1.6)
+        #expect(viewModel.cardOpacity == SkyCardOpacity.maximum)
+        viewModel.setCardOpacity(-0.4)
+        #expect(viewModel.cardOpacity == SkyCardOpacity.minimum)
+
+        // 次に起動したときも選んだ濃さが復元されます。
+        viewModel.setCardOpacity(0.75)
+        let restored = SettingsViewModel(
+            defaults: defaults,
+            liveActivityAvailability: { true }
+        )
+        #expect(restored.cardOpacity == 0.75)
+    }
+
+    @Test
+    func cardCoverageFollowsOpacityAndDensity() {
+        // 濃さを上げるほど、背景を隠す地が強く効きます。
+        #expect(SkyCardOpacity.coverage(for: 0, isDense: false) == 0)
+        #expect(SkyCardOpacity.coverage(for: 0.5, isDense: false) == 0.5)
+        #expect(SkyCardOpacity.coverage(for: 1, isDense: false) == 1)
+
+        // 文字が詰まった面は一段濃くなります。
+        #expect(SkyCardOpacity.coverage(for: 0.5, isDense: true) == 0.75)
+        // 上限を超えては濃くなりません。
+        #expect(SkyCardOpacity.coverage(for: 1, isDense: true) == 1)
+    }
+
+    @Test @MainActor
     func liveActivityDefaultsOnWhenAvailableAndPersistsChanges() {
         let suiteName = "BusTimeAppTests.LiveActivityPreference"
         let defaults = UserDefaults(suiteName: suiteName)!
@@ -368,8 +412,13 @@ struct BusTimeAppTests {
         var currentDate = calendar.date(
             from: DateComponents(year: 2026, month: 8, day: 12, hour: 16, minute: 29)
         )!
-        let viewModel = HomeViewModel(nowProvider: { currentDate })
+        let viewModel = HomeViewModel(
+            nowProvider: { currentDate },
+            defaults: makeIsolatedDefaults()
+        )
 
+        // 初期経路は時間帯によって変わるため、確かめたい出発地を明示します。
+        viewModel.selectOrigin(.mansion)
         #expect(viewModel.availableDestinations.contains(.yokado))
         viewModel.selectDestination(.yokado)
         #expect(viewModel.selectedRoute == .mansionToYokado)
@@ -463,6 +512,254 @@ struct BusTimeAppTests {
         #expect(viewModel.searchTime == futureSearchTime)
     }
 
+    // MARK: - 時間帯からの初期経路
+
+    @Test @MainActor
+    func morningStartsWithARouteLeavingHome() {
+        let viewModel = HomeViewModel(
+            nowProvider: { makeTestDate(hour: 8) },
+            defaults: makeIsolatedDefaults()
+        )
+
+        #expect(viewModel.selectedOrigin == .mansion)
+        #expect(viewModel.routeDecision == .timeOfDay)
+    }
+
+    @Test @MainActor
+    func afternoonStartsWithARouteHeadingHome() {
+        let viewModel = HomeViewModel(
+            nowProvider: { makeTestDate(hour: 16) },
+            defaults: makeIsolatedDefaults()
+        )
+
+        #expect(viewModel.selectedDestination == .mansion)
+        #expect(viewModel.routeDecision == .timeOfDay)
+    }
+
+    @Test @MainActor
+    func theChosenDestinationIsRememberedButTheDirectionFollowsTheClock() {
+        let defaults = makeIsolatedDefaults()
+
+        let morning = HomeViewModel(
+            nowProvider: { makeTestDate(hour: 8) },
+            defaults: defaults
+        )
+        morning.selectDestination(.yokado)
+        #expect(morning.selectedRoute == .mansionToYokado)
+
+        // 同じ保存領域で開き直すと、行き先の好みだけが引き継がれ、
+        // 向きは時間帯に合わせて逆になります。
+        let afternoon = HomeViewModel(
+            nowProvider: { makeTestDate(hour: 16) },
+            defaults: defaults
+        )
+        #expect(afternoon.selectedOrigin == .yokado)
+        #expect(afternoon.selectedDestination == .mansion)
+    }
+
+    @Test @MainActor
+    func aManuallyChosenRouteIsNotOverwrittenByLocation() {
+        let referenceDate = makeTestDate(hour: 8)
+        let viewModel = HomeViewModel(
+            nowProvider: { referenceDate },
+            defaults: makeIsolatedDefaults()
+        )
+
+        viewModel.selectDestination(.yokado)
+        let chosenRoute = viewModel.selectedRoute
+        #expect(viewModel.routeDecision == .manual)
+
+        // 自分で選んだあとは、現在地が届いても書き換えません。
+        let stationLocation = CLLocation(latitude: 35.6485608, longitude: 140.0416924)
+        viewModel.updateOriginForCurrentLocation(stationLocation, at: referenceDate)
+
+        #expect(viewModel.selectedRoute == chosenRoute)
+        #expect(viewModel.routeDecision == .manual)
+    }
+
+    @Test @MainActor
+    func askingForTheCurrentLocationClearsTheManualChoice() {
+        let referenceDate = makeTestDate(hour: 8)
+        let viewModel = HomeViewModel(
+            nowProvider: { referenceDate },
+            defaults: makeIsolatedDefaults()
+        )
+
+        viewModel.selectDestination(.yokado)
+        viewModel.useCurrentLocationForRoute()
+
+        // 位置情報の許可状態はテストでは決められないため、
+        // 手動指定が解除され、現在地の反映を受け付ける状態に戻ることを確かめます。
+        let stationLocation = CLLocation(latitude: 35.6485608, longitude: 140.0416924)
+        viewModel.updateOriginForCurrentLocation(stationLocation, at: referenceDate)
+
+        #expect(viewModel.selectedOrigin == .station)
+        #expect(viewModel.routeDecision == .automatic)
+    }
+
+    // MARK: - 配色
+
+    @Test
+    func inkSwitchesAtOnceInsteadOfFadingThroughGrey() {
+        // 文字色に中間の値を持たせると、夕方にカードの地と同じ明るさに近づき、
+        // どちらも灰色になって読めなくなります。昼と夜の2色だけを使います。
+        #expect(SkyPalette.at(hour: 18).ink == SkyPalette.at(hour: 12).ink)
+        #expect(SkyPalette.at(hour: 21).ink == SkyPalette.at(hour: 2).ink)
+        #expect(SkyPalette.at(hour: 12).ink != SkyPalette.at(hour: 2).ink)
+    }
+
+    @Test
+    func cardSurfaceSwitchesTogetherWithTheInk() {
+        // 地と文字は同じ境界で入れ替わる必要があります。
+        // 片方だけ先に変わると、その間だけ読みにくくなります。
+        #expect(SkyPalette.at(hour: 18).isNight == false)
+        #expect(SkyPalette.at(hour: 21).isNight == true)
+        #expect(SkyPalette.at(hour: 18).surface == SkyPalette.at(hour: 12).surface)
+        #expect(SkyPalette.at(hour: 21).surface == SkyPalette.at(hour: 2).surface)
+    }
+
+    // MARK: - 運行日の選択
+
+    @Test @MainActor
+    func otherWeekdaySkipsTheWeekend() {
+        // 2026年8月15日は土曜日です。次の運行日は17日の月曜になります。
+        let saturday = makeTestDate(day: 15, hour: 10)
+        let viewModel = HomeViewModel(
+            nowProvider: { saturday },
+            defaults: makeIsolatedDefaults()
+        )
+
+        viewModel.serviceDay = .otherWeekday
+
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "Asia/Tokyo")!
+        #expect(calendar.component(.day, from: viewModel.selectedServiceDate) == 17)
+        #expect(viewModel.selectedDayHasService)
+        #expect(viewModel.serviceDayNotice == nil)
+        // 先の日なので、残り時間や通知は出しません。
+        #expect(!viewModel.isRealtimeContext)
+    }
+
+    @Test @MainActor
+    func otherWeekdayIsAlwaysAServiceDay() {
+        // 2026年8月14日は金曜日です。翌日は土曜ですが、
+        // 「他の平日」は運行日だけを指すため運休にはなりません。
+        let friday = makeTestDate(day: 14, hour: 18)
+        let viewModel = HomeViewModel(
+            nowProvider: { friday },
+            defaults: makeIsolatedDefaults()
+        )
+
+        viewModel.serviceDay = .otherWeekday
+
+        #expect(viewModel.selectedDayHasService)
+        #expect(viewModel.serviceDayNotice == nil)
+    }
+
+    @Test @MainActor
+    func lookingAtAnotherWeekdayHidesRealtimeInformation() {
+        let wednesday = makeTestDate(hour: 8)
+        let viewModel = HomeViewModel(
+            nowProvider: { wednesday },
+            defaults: makeIsolatedDefaults()
+        )
+
+        #expect(viewModel.isRealtimeContext)
+        #expect(viewModel.resultSectionTitle == "つぎのバス")
+        #expect(viewModel.notificationUnavailableReason == nil)
+
+        viewModel.serviceDay = .otherWeekday
+
+        #expect(!viewModel.isRealtimeContext)
+        #expect(viewModel.resultSectionTitle == "平日ダイヤの便")
+        #expect(viewModel.notificationUnavailableReason?.contains("運行当日") == true)
+    }
+
+    // MARK: - 運休日の扱い
+
+    @Test @MainActor
+    func weekendKeepsTheNoticeAndStillShowsWeekdayTimes() {
+        let saturday = makeTestDate(day: 15, hour: 8)
+        let viewModel = HomeViewModel(
+            nowProvider: { saturday },
+            defaults: makeIsolatedDefaults()
+        )
+        viewModel.searchTime = saturday
+        viewModel.performSearch()
+
+        // 運休の案内は残したまま、平日ダイヤの検索結果は返します。
+        #expect(viewModel.isServiceSuspended)
+        #expect(viewModel.holidayMessage?.contains("土日") == true)
+        #expect(!viewModel.searchResults.isEmpty)
+        #expect(viewModel.searchResultDescription.contains("平日ダイヤ"))
+    }
+
+    @Test @MainActor
+    func allStopsStaySelectableOnAWeekend() {
+        let saturdayEvening = makeTestDate(day: 15, hour: 16, minute: 52)
+        let viewModel = HomeViewModel(
+            nowProvider: { saturdayEvening },
+            defaults: makeIsolatedDefaults()
+        )
+
+        // 運休日は「本日の残り便」で候補を絞らないため、
+        // 平日ダイヤを調べたい行き先をいつでも選べます。
+        viewModel.selectOrigin(.mansion)
+        #expect(viewModel.availableDestinations.contains(.yokado))
+
+        viewModel.selectDestination(.yokado)
+        #expect(viewModel.selectedRoute == .mansionToYokado)
+        #expect(viewModel.routeAvailabilityMessage == nil)
+    }
+
+    @Test @MainActor
+    func stopsStaySelectableAfterTheLastBusOfTheDay() {
+        // 平日でも本日の運行がすべて終わったあとは、候補を絞りません。
+        // 運行日は午前4時区切りのため、深夜便も終わった午前2時を使います。
+        let afterLastBus = makeTestDate(hour: 2)
+        let viewModel = HomeViewModel(
+            nowProvider: { afterLastBus },
+            defaults: makeIsolatedDefaults()
+        )
+
+        #expect(!viewModel.availableOrigins.isEmpty)
+        viewModel.selectOrigin(.mansion)
+        #expect(viewModel.availableDestinations.contains(.yokado))
+    }
+
+    @Test @MainActor
+    func weekdaySearchIsNotMarkedAsSuspended() {
+        let wednesday = makeTestDate(hour: 8)
+        let viewModel = HomeViewModel(
+            nowProvider: { wednesday },
+            defaults: makeIsolatedDefaults()
+        )
+        viewModel.searchTime = wednesday
+        viewModel.performSearch()
+
+        #expect(!viewModel.isServiceSuspended)
+        #expect(viewModel.holidayMessage == nil)
+        #expect(!viewModel.searchResults.isEmpty)
+    }
+
+}
+
+/// テストごとに独立した保存領域を用意します。
+/// 経路の好みを保存する処理があるため、テスト同士が干渉しないようにします。
+private func makeIsolatedDefaults() -> UserDefaults {
+    let suiteName = "BusTimeAppTests.\(UUID().uuidString)"
+    let defaults = UserDefaults(suiteName: suiteName)!
+    defaults.removePersistentDomain(forName: suiteName)
+    return defaults
+}
+
+/// テストで使う日時を作ります。既定の2026年8月12日は水曜日、15日は土曜日です。
+private func makeTestDate(day: Int = 12, hour: Int, minute: Int = 0) -> Date {
+    var calendar = Calendar(identifier: .gregorian)
+    calendar.timeZone = TimeZone(identifier: "Asia/Tokyo")!
+    return calendar.date(
+        from: DateComponents(year: 2026, month: 8, day: day, hour: hour, minute: minute)
+    )!
 }
 
 /// 天気の取得結果を差し替えるためのテスト用スタブです。
