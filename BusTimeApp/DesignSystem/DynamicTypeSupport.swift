@@ -41,6 +41,25 @@ extension View {
     }
 }
 
+/// タップ領域の一辺を、文字サイズ設定に合わせて広げます。
+private struct ScaledTapTargetModifier: ViewModifier {
+    @ScaledMetric(relativeTo: .body) private var side: CGFloat = SkyMetrics.minimumTapSize
+
+    func body(content: Content) -> some View {
+        content.frame(minWidth: side, minHeight: side)
+    }
+}
+
+extension View {
+    /// 指で押せる最小の大きさを確保しつつ、文字サイズに合わせて広がるようにします。
+    ///
+    /// 固定の44ptで囲むと、文字を大きくする設定にしたときに
+    /// 中のアイコンだけが枠からはみ出してしまいます。
+    func scaledTapTarget() -> some View {
+        modifier(ScaledTapTargetModifier())
+    }
+}
+
 /// 通常の文字サイズでは横並び、アクセシビリティ文字サイズでは縦並びになる共通レイアウトです。
 struct DynamicTypeStack<Content: View>: View {
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize

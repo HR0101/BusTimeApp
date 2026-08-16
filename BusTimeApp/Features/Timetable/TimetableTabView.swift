@@ -128,7 +128,7 @@ struct TimetableTabView: View {
   private var notificationHint: some View {
     DynamicTypeStack(verticalAlignment: .top, spacing: 12) {
       Image(systemName: "bell.badge")
-        .font(.system(size: 20, weight: .semibold))
+        .dynamicFont(size: 20, relativeTo: .title3, weight: .semibold)
         .foregroundStyle(sky.accent)
 
       VStack(alignment: .leading, spacing: 5) {

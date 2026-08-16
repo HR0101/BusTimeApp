@@ -181,9 +181,9 @@ struct SkyIconButton: View {
   var body: some View {
     Button(action: action) {
       Image(systemName: systemImage)
-        .font(.system(size: 16, weight: .semibold))
+        .dynamicFont(size: 16, relativeTo: .body, weight: .semibold)
         .foregroundStyle(isHighlighted ? Color.white : sky.ink)
-        .frame(width: SkyMetrics.minimumTapSize, height: SkyMetrics.minimumTapSize)
+        .scaledTapTarget()
         .background(
           Circle().fill(isHighlighted ? sky.accent : Color.clear)
         )

@@ -30,7 +30,7 @@ struct HomeHeaderBar: View {
   private var brand: some View {
     DynamicTypeStack(spacing: 10) {
       Image(systemName: "bus.fill")
-        .font(.system(size: 17, weight: .bold))
+        .dynamicFont(size: 17, relativeTo: .headline, weight: .bold)
         .foregroundStyle(sky.accent)
 
       Text(L10n.Home.brandName)
@@ -335,9 +335,9 @@ struct UpcomingDepartureRow: View {
 
         if canSchedule {
           Image(systemName: isNotificationScheduled ? "bell.fill" : "bell")
-            .font(.system(size: 14, weight: .semibold))
+            .dynamicFont(size: 14, relativeTo: .body, weight: .semibold)
             .foregroundStyle(isNotificationScheduled ? sky.accent : sky.inkSecondary)
-            .frame(width: SkyMetrics.minimumTapSize, height: SkyMetrics.minimumTapSize)
+            .scaledTapTarget()
         }
       }
       .padding(.vertical, 2)
@@ -370,7 +370,7 @@ struct NoticeCard: View {
   var body: some View {
     DynamicTypeStack(verticalAlignment: .top, spacing: 14) {
       Image(systemName: systemImage)
-        .font(.system(size: 24, weight: .semibold))
+        .dynamicFont(size: 24, relativeTo: .title3, weight: .semibold)
         .foregroundStyle(isWarning ? sky.warning : sky.inkSecondary)
 
       VStack(alignment: .leading, spacing: 6) {
