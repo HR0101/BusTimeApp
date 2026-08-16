@@ -3,6 +3,8 @@ import SwiftUI
 /// デザイン上の基準サイズを保ちながら、iPhoneの文字サイズ設定に追従させます。
 private struct ScaledSystemFontModifier: ViewModifier {
     @ScaledMetric private var size: CGFloat
+    /// iPhoneの「文字を太くする」設定です。
+    @Environment(\.legibilityWeight) private var legibilityWeight
     private let weight: Font.Weight
     private let design: Font.Design
 
@@ -18,7 +20,33 @@ private struct ScaledSystemFontModifier: ViewModifier {
     }
 
     func body(content: Content) -> some View {
-        content.font(.system(size: size, weight: weight, design: design))
+        content.font(.system(size: size, weight: resolvedWeight, design: design))
+    }
+
+    /// 実際に使う太さです。
+    ///
+    /// 「文字を太くする」設定は、太さを明示したフォントには自動では効きません。
+    /// このアプリは見出しやボタンで太さを指定しているため、
+    /// 設定がオンのときは自分で1段階上げて追従させます。
+    private var resolvedWeight: Font.Weight {
+        guard legibilityWeight == .bold else { return weight }
+
+        switch weight {
+        case .ultraLight:
+            return .light
+        case .thin:
+            return .regular
+        case .light:
+            return .medium
+        case .regular:
+            return .semibold
+        case .medium, .semibold:
+            return .bold
+        case .bold:
+            return .heavy
+        default:
+            return .black
+        }
     }
 }
 
