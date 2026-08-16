@@ -226,6 +226,35 @@ struct SkyCanvas: View {
   /// 光だまりが手前へ伸びる深さです。セル数で指定します。
   private static let streetLightGlowDepth = 9
   /// 街灯が点く時刻です。これ以降は夕方から夜として扱います。
+  /// 風が最も強いとみなす速さです。これ以上は同じ扱いにします。
+  private static let strongWindSpeed: Double = 15
+  /// 風が最も強いときに、雨や雪が横へ流れる量です。落ちた距離に対する割合です。
+  private static let precipitationSlant: Double = 0.7
+  /// 風が最も強いときに、白波が立ちやすくなる度合いです。
+  private static let windWhitecapBoost: Double = 0.18
+  /// 雲を空の色で染める強さです。
+  private static let cloudTintStrength: Double = 0.42
+  /// 波紋の粒の細かさです。風景の何分の1の大きさで描くかを指定します。
+  /// 風景と同じ粗さでは輪が点に潰れてしまうため、ここだけ細かくして
+  /// 広がっていく輪として見えるようにします。
+  private static let rippleSubdivision = 2
+  /// 波紋の輪が広がりきる半径です。細かい粒の数で指定します。
+  private static let rippleMaxRadius = 4
+  /// 手前の海面での、輪の縦の潰れ具合です。横の半径に対する割合で指定します。
+  /// 水面を斜めから見ているので、輪は真円ではなく横長の楕円に見えます。
+  private static let rippleFlattenNear: Double = 0.55
+  /// 水平線近くでの、輪の縦の潰れ具合です。遠いほど水面を浅い角度で見るため、より潰れます。
+  private static let rippleFlattenFar: Double = 0.22
+  /// 同時に見えている波紋の数です。雨の強さに応じて増えます。
+  private static let rippleCountPerIntensity = 26
+  /// 波紋が現れてから消えるまでのコマ数です。
+  private static let rippleLifeTicks = 3
+  /// 波紋の濃さです。
+  private static let rippleOpacityValue: Double = 0.30
+  /// 積もった雪の濃さです。降り続けても路面が完全には埋まらない濃さにします。
+  private static let snowCoverOpacity: Double = 0.34
+  /// 濡れた路面で、街灯の光がどれだけ強く映るかです。
+  private static let wetRoadGlowBoost: Double = 1.9
   private static let streetLightOnHour: Double = 16
   /// 街灯が消える時刻です。これ以降は朝として扱います。
   private static let streetLightOffHour: Double = 4.5
@@ -366,6 +395,10 @@ struct SkyCanvas: View {
     // 支柱の上半分が海に覆われて見えなくなります。
     drawStreetLights(in: &context, size: size)
     drawBusStop(in: &context, size: size)
+    // 雨が海面を叩く跳ねです。海の描画のあとに重ねます。
+    drawRainRipples(in: &context, size: size, tick: tick)
+    // 積もった雪は地面の上、霧の下に重ねます。
+    drawSnowCover(in: &context, size: size)
     // 霧はいちばん最後に重ね、遠くのものほど霞ませます。
     drawFog(in: &context, size: size)
   }
@@ -473,6 +506,17 @@ struct SkyCanvas: View {
     context.fill(path, with: .color(Color.black.opacity(Self.distantShoreDarkening)))
   }
 
+  /// 濡れた路面で光がどれだけ強く映るかです。
+  /// 雨の夜は路面が鏡のようになり、街灯の光が伸びて明るく映ります。
+  private var wetRoadFactor: Double {
+    weather.isRaining ? Self.wetRoadGlowBoost : 1
+  }
+
+  /// 風の強さを0から1で表した値です。各要素の揺れ方をここに合わせます。
+  private var windStrength: Double {
+    min(weather.windSpeed / Self.strongWindSpeed, 1)
+  }
+
   /// 街灯が点いているかどうかです。
   ///
   /// 実際の街灯は暗ければ点きますが、夜明け前から朝にかけて点いていると
@@ -544,6 +588,96 @@ struct SkyCanvas: View {
         )
       )
     }
+  }
+
+  /// 雨が海面に落ちた跳ねです。
+  ///
+  /// 実際の波紋は同心円ですが、この粗さでは輪を描いても点にしかなりません。
+  /// そこで粒をあえて大きくし、短い横棒として水面のきらめきだけを表します。
+  private func drawRainRipples(in context: inout GraphicsContext, size: CGSize, tick: Int) {
+    guard let intensity = weather.rainIntensity else { return }
+
+    let cell = Self.cellSize / CGFloat(Self.rippleSubdivision)
+    let columnCount = max(Int(size.width / cell), 1)
+    let allRowCount = max(Int(ceil(size.height / Self.cellSize)), 1)
+    let horizonRow = Int(Self.horizonRatio * Double(allRowCount))
+    let waterEndRow = tidalShoreRow(rowCount: allRowCount)
+    guard waterEndRow > horizonRow else { return }
+
+    let topY = CGFloat(horizonRow) * Self.cellSize
+    let bandHeight = CGFloat(waterEndRow - horizonRow) * Self.cellSize
+    let rowCount = max(Int(bandHeight / cell), 1)
+    let count = Int(Double(Self.rippleCountPerIntensity) * Self.snowDensity(for: intensity))
+
+    var path = Path()
+    for index in 0..<count {
+      // 波紋ごとに現れる時期をずらし、ばらばらに跳ねているように見せます。
+      let phase = (tick + Int(pseudoRandom(index &* 31 &+ 5) * 40)) % 40
+      guard phase < Self.rippleLifeTicks else { continue }
+
+      // 現れるたびに位置を変えます。
+      let seed = index &* 97 &+ (tick / 40) &* 13
+      let column = Int(pseudoRandom(seed &+ 1) * Double(columnCount))
+      let row = Int(pseudoRandom(seed &+ 2) * Double(rowCount))
+      // 輪は落ちた瞬間が最も小さく、消えるまでに広がります。
+      let radiusX = 1 + phase * (Self.rippleMaxRadius - 1) / max(Self.rippleLifeTicks - 1, 1)
+
+      // 水平線に近いほど水面を浅い角度で見るため、縦により潰れます。
+      let depth = Double(row) / Double(max(rowCount - 1, 1))
+      let flatten = Self.rippleFlattenFar
+        + (Self.rippleFlattenNear - Self.rippleFlattenFar) * depth
+      let radiusY = max(Int((Double(radiusX) * flatten).rounded()), 1)
+
+      for dy in -radiusY...radiusY {
+        for dx in -radiusX...radiusX {
+          // 楕円の縁に乗る粒だけを置きます。
+          let normalizedX = Double(dx) / Double(radiusX)
+          let normalizedY = Double(dy) / Double(radiusY)
+          let distance = (normalizedX * normalizedX + normalizedY * normalizedY).squareRoot()
+          guard abs(distance - 1) < 0.34 else { continue }
+
+          path.addRect(
+            CGRect(
+              x: CGFloat(column + dx) * cell,
+              y: topY + CGFloat(row + dy) * cell,
+              width: cell,
+              height: cell
+            )
+          )
+        }
+      }
+    }
+
+    context.fill(path, with: .color(Self.rainColor.opacity(Self.rippleOpacityValue)))
+  }
+
+  /// 砂浜と道路に積もった雪です。
+  ///
+  /// 降っているだけでは地面が変わらず、雪の日らしくなりません。
+  /// 一面を白く塗ると平坦になるので、まだらに置いて路面を透けさせます。
+  private func drawSnowCover(in context: inout GraphicsContext, size: CGSize) {
+    guard let intensity = weather.snowIntensity else { return }
+
+    let cell = Self.cellSize
+    let columnCount = max(Int(ceil(size.width / cell)), 1)
+    let rowCount = max(Int(ceil(size.height / cell)), 1)
+    let startRow = tidalShoreRow(rowCount: rowCount)
+    guard startRow < rowCount else { return }
+
+    // 強い雪ほど濃く積もります。
+    let coverage = Self.snowDensity(for: intensity) / 1.4
+
+    var path = Path()
+    for row in startRow..<rowCount {
+      for column in 0..<columnCount {
+        guard pseudoRandom(row &* 4_099 &+ column &* 17 &+ 53) < coverage else { continue }
+        path.addRect(
+          CGRect(x: CGFloat(column) * cell, y: CGFloat(row) * cell, width: cell, height: cell)
+        )
+      }
+    }
+
+    context.fill(path, with: .color(Self.snowColor.opacity(Self.snowCoverOpacity)))
   }
 
   /// 水平線のあたりにかかる霧です。遠くの景色を白く霞ませます。
@@ -732,9 +866,12 @@ struct SkyCanvas: View {
       let speed = 0.6 + pseudoRandom(index * 5 + 2) * 0.8
       let travel = elapsed * Self.snowSpeedPerSecond * speed
       let row = Int(travel + pseudoRandom(index * 7 + 3) * Double(rowCount)) % rowCount
+      // 風に流されて斜めに降ります。落ちた距離に比例して横へずれます。
+      let slant = Double(row) * windStrength * Self.precipitationSlant
       // 横揺れは粒ごとに位相をずらし、同じ動きに見えないようにします。
       let sway = sin(elapsed * 1.6 + pseudoRandom(index * 11 + 5) * 6.28) * Self.snowSwayCells
-      let x = (Double(column) + sway).truncatingRemainder(dividingBy: Double(columnCount))
+      let x = (Double(column) + sway + slant)
+        .truncatingRemainder(dividingBy: Double(columnCount))
 
       path.addRect(
         CGRect(x: CGFloat(x) * cell, y: CGFloat(row) * cell, width: cell, height: cell)
@@ -770,9 +907,11 @@ struct SkyCanvas: View {
         let row = headRow + segment
         guard row >= 0, row < rowCount else { continue }
 
+        // 風に流されて斜めに降ります。落ちた距離に比例して横へずれます。
+        let slant = Double(row) * windStrength * Self.precipitationSlant
         path.addRect(
           CGRect(
-            x: CGFloat(baseColumn) * Self.cellSize,
+            x: CGFloat(Double(baseColumn) + slant) * Self.cellSize,
             y: CGFloat(row) * Self.cellSize,
             width: Self.cellSize,
             height: Self.cellSize
@@ -980,7 +1119,9 @@ struct SkyCanvas: View {
         guard localHeight > Self.swellThreshold else { continue }
 
         // 頂点付近だけが白波になります。
-        let isWhitecap = localHeight > Self.whitecapThreshold
+        // 風が強いほどしきい値を下げ、白波が立ちやすくします。
+        let isWhitecap = localHeight
+          > Self.whitecapThreshold - windStrength * Self.windWhitecapBoost
 
         guard pseudoRandom(row &* 104_729 &+ column &+ waveIndex &* 7_919) < chance else {
           continue
@@ -1429,6 +1570,12 @@ struct SkyCanvas: View {
     // 雲が多いほど厚く見せます。
     let thickness = 0.38 + weather.cloudCover * 0.34
     context.fill(path, with: .color(Color.white.opacity(visibility * thickness)))
+    // 白のままでは夕焼けの空から浮くので、水平線の色で染めます。
+    // 昼は淡い青なので白のまま、夕方は橙に寄ります。
+    context.fill(
+      path,
+      with: .color(sky.skyBottom.opacity(visibility * thickness * Self.cloudTintStrength))
+    )
   }
 
   // MARK: - 遠景と近景
@@ -1599,7 +1746,9 @@ struct SkyCanvas: View {
       context.fill(
         rowPath,
         with: .color(
-          Self.streetLightColor.opacity(sky.nightness * Self.streetLightGlowOpacity * rowStrength)
+          Self.streetLightColor.opacity(
+            sky.nightness * Self.streetLightGlowOpacity * rowStrength * wetRoadFactor
+          )
         )
       )
     }
