@@ -41,6 +41,17 @@
                ReferencedContainer = "container:BusTimeApp.xcodeproj">
             </BuildableReference>
          </TestableReference>
+         <TestableReference
+            skipped = "NO"
+            parallelizable = "YES">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "7934EB122DFBF98200C306D1"
+               BuildableName = "BusTimeAppUITests.xctest"
+               BlueprintName = "BusTimeAppUITests"
+               ReferencedContainer = "container:BusTimeApp.xcodeproj">
+            </BuildableReference>
+         </TestableReference>
       </Testables>
    </TestAction>
    <LaunchAction

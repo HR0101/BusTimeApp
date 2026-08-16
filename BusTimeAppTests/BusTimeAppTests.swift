@@ -597,6 +597,79 @@ struct BusTimeAppTests {
         #expect(viewModel.routeDecision == .automatic)
     }
 
+    // MARK: - 運行日をまたぐ通知
+
+    @Test
+    func nextDepartureSkipsTheWeekend() {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "Asia/Tokyo")!
+
+        // 2026年8月14日は金曜日です。夕方の時点で朝8時の便は出発済みなので、
+        // 単純に翌日へ送ると土曜になってしまいます。次の運行日は17日の月曜です。
+        let fridayEvening = calendar.date(
+            from: DateComponents(year: 2026, month: 8, day: 14, hour: 18)
+        )!
+        let next = BusNotificationTimeCalculator.nextDepartureDate(
+            for: "8:00",
+            from: fridayEvening,
+            calendar: calendar
+        )!
+
+        #expect(calendar.component(.day, from: next) == 17)
+        #expect(calendar.component(.hour, from: next) == 8)
+    }
+
+    @Test
+    func nextDepartureSkipsAPublicHoliday() {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "Asia/Tokyo")!
+
+        // 2025年11月3日は月曜の祝日です。前日の日曜から見ると、
+        // 次に走るのは4日の火曜になります。
+        let sundayEvening = calendar.date(
+            from: DateComponents(year: 2025, month: 11, day: 2, hour: 20)
+        )!
+        let next = BusNotificationTimeCalculator.nextDepartureDate(
+            for: "8:00",
+            from: sundayEvening,
+            calendar: calendar
+        )!
+
+        #expect(calendar.component(.day, from: next) == 4)
+    }
+
+    @Test
+    func lateNightBusBelongsToThePreviousServiceDay() {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "Asia/Tokyo")!
+
+        // 金曜の運行日に属する0時13分の便は、暦の上では土曜ですが運行します。
+        let fridayNight = calendar.date(
+            from: DateComponents(year: 2026, month: 8, day: 14, hour: 23)
+        )!
+        let next = BusNotificationTimeCalculator.nextDepartureDate(
+            for: "0:13",
+            from: fridayNight,
+            calendar: calendar
+        )!
+
+        #expect(calendar.component(.day, from: next) == 15)
+        #expect(calendar.component(.hour, from: next) == 0)
+    }
+
+    @Test
+    func serviceCalendarKnowsWeekendsAndHolidays() {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "Asia/Tokyo")!
+        let weekday = calendar.date(from: DateComponents(year: 2026, month: 8, day: 12))!
+        let saturday = calendar.date(from: DateComponents(year: 2026, month: 8, day: 15))!
+        let holiday = calendar.date(from: DateComponents(year: 2025, month: 11, day: 3))!
+
+        #expect(BusServiceCalendar.isServiceDay(weekday, calendar: calendar))
+        #expect(!BusServiceCalendar.isServiceDay(saturday, calendar: calendar))
+        #expect(!BusServiceCalendar.isServiceDay(holiday, calendar: calendar))
+    }
+
     // MARK: - 配色
 
     @Test
