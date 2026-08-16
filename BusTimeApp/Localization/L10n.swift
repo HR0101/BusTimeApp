@@ -8,6 +8,8 @@ import Foundation
 ///
 /// このファイルはウィジェット拡張とも共有します。
 /// String(localized:) は各バンドルのカタログを見るため、両方の成果物にカタログを含めています。
+///
+/// このファイルは Scripts/generate_l10n.py が作ります。直接編集しないでください。
 public enum L10n {
   public enum Common {
     /// 閉じる
