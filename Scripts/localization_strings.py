@@ -282,3 +282,7 @@ ENTRIES += [
     ("timetable.legendScheduledMark", "ベルの印が付いた時刻は通知を設定済みです", "Times marked with a bell have an alert set", "带铃铛标记的时刻已设置提醒", []),
     ("timetable.legendRecommendedMark", "破線で囲まれた便は検索条件に合う便です", "Services with a dashed outline match your search", "虚线框内的班次符合搜索条件", []),
 ]
+
+ENTRIES += [
+    ("result.earlierTitle", "ひとつ前の便", "Earlier service", "更早的班次", []),
+]

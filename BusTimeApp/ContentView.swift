@@ -395,7 +395,7 @@ struct ContentView: View {
       SkyDivider()
 
       VStack(alignment: .leading, spacing: 10) {
-        SkySectionLabel(text: L10n.Result.followingTitle)
+        SkySectionLabel(text: viewModel.followingSectionTitle)
 
         ForEach(followingBuses) { bus in
           UpcomingDepartureRow(

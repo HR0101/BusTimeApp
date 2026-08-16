@@ -34,6 +34,9 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
     @Published private(set) var availabilityReferenceDate: Date
     /// 経路がどうやって決まったかです。画面に理由を出すために持ちます。
     @Published private(set) var routeDecision: RouteDecision = .timeOfDay
+    /// 検索結果が次の運行日の便かどうかです。
+    /// 深夜など、その運行日の便が終わったあとに翌朝の便を出している状態を表します。
+    @Published private(set) var showsNextServiceDay = false
 
     // MARK: - 内部でだけ使うプロパティ
     
@@ -817,9 +820,14 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
         if searchType == .arrival {
             let results = findNextBusesByArrival(timetable: currentTimetable, arrivalTargetTime: searchTime)
             self.searchResults = results
+            self.showsNextServiceDay = false
         } else {
-            let results = findNextBusesByDeparture(timetable: currentTimetable, departureRefTime: searchTime)
-            self.searchResults = results
+            let found = findNextBusesByDeparture(
+                timetable: currentTimetable,
+                departureRefTime: departureSearchReference
+            )
+            self.searchResults = found.buses
+            self.showsNextServiceDay = found.isNextServiceDay || shouldSkipToTodaysService
         }
         updateSearchCriteriaDescription() // 検索条件の表示を更新します。
         if searchResults.isEmpty {
@@ -838,21 +846,35 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
     }
 
     // 「出発時刻」でバスを探すロジックです。
-    private func findNextBusesByDeparture(timetable: [Bus], departureRefTime: Date) -> [Bus] {
+    /// 「出発時刻」でバスを探すロジックです。
+    ///
+    /// 指定時刻より後の便がその運行日に残っていない場合は、次の運行日の始発から並べます。
+    /// 運行日は午前4時区切りのため、たとえば深夜3時は前日の運行日に属します。
+    /// そのまま打ち切ると「便がありません」となりますが、
+    /// 利用者にとっての次のバスは同じ朝の始発なので、折り返して案内します。
+    private func findNextBusesByDeparture(
+        timetable: [Bus],
+        departureRefTime: Date
+    ) -> (buses: [Bus], isNextServiceDay: Bool) {
         let departureRefMinutes = shiftTime(timeToMinutes(departureRefTime))
-        let upcomingBuses = timetable.compactMap { bus -> (bus: Bus, sortKey: Int)? in
+        let sortedBuses = timetable.compactMap { bus -> (bus: Bus, sortKey: Int)? in
             guard let busDepartureDate = timeStringToDate(bus.departure) else { return nil }
-            let busDepartureMinutes = shiftTime(timeToMinutes(busDepartureDate))
-            
-            // 指定された出発時刻以降のバスのみを候補とします。
-            if busDepartureMinutes >= departureRefMinutes {
-                return (bus, busDepartureMinutes)
-            }
-            return nil
+            return (bus, shiftTime(timeToMinutes(busDepartureDate)))
         }
-        // 候補のバスを、出発が早い順に並び替え、最初の2件を取得します。
-        return upcomingBuses.sorted { $0.sortKey < $1.sortKey }.map { $0.bus }.prefix(2).map{$0}
+        .sorted { $0.sortKey < $1.sortKey }
+
+        let upcomingBuses = sortedBuses.filter { $0.sortKey >= departureRefMinutes }
+        let isNextServiceDay = upcomingBuses.isEmpty && !sortedBuses.isEmpty
+        let candidates = isNextServiceDay ? sortedBuses : upcomingBuses
+
+        return (
+            candidates.map { $0.bus }.prefix(Self.maximumSearchResults).map { $0 },
+            isNextServiceDay
+        )
     }
+
+    /// 画面に並べる検索結果の最大件数です。
+    private static let maximumSearchResults = 2
 
     // 「到着希望時刻」でバスを探すロジックです。
     private func findNextBusesByArrival(timetable: [Bus], arrivalTargetTime: Date) -> [Bus] {
@@ -918,13 +940,51 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
         return nil
     }
 
-    // 今日が土日・祝日かどうかをチェックし、メッセージを設定します。
+    /// 深夜0〜3時台に、暦の上での今日の始発から探し直すべきかどうかです。
+    ///
+    /// 運行日は午前4時区切りなので、月曜の0時台は日曜の運行日に属します。
+    /// 日曜は運休なので、その運行日の便を出すと「走らない便」を案内してしまいます。
+    /// 暦の上での今日に運行があるなら、その日の始発から探すのが利用者の期待に合います。
+    private var shouldSkipToTodaysService: Bool {
+        let currentDate = now()
+        guard let serviceDay = BusNotificationTimeCalculator.serviceDayStart(for: currentDate) else {
+            return false
+        }
+        return !BusServiceCalendar.isServiceDay(serviceDay)
+            && BusServiceCalendar.isServiceDay(currentDate)
+    }
+
+    // 運休かどうかをチェックし、メッセージを設定します。
     private func checkHoliday() {
-        if let reason = suspensionReason(for: now()) {
+        // 前の運行日が運休でも、今日の始発から案内できる場合は運休扱いにしません。
+        guard !shouldSkipToTodaysService else {
+            holidayMessage = nil
+            return
+        }
+
+        // 暦の日付ではなく運行日で判定します。
+        // 土曜の0時台はまだ金曜の運行日なので、深夜便は走ります。
+        let referenceDate = BusNotificationTimeCalculator.serviceDayStart(for: now()) ?? now()
+        if let reason = suspensionReason(for: referenceDate) {
             holidayMessage = L10n.Holiday.message(reason)
         } else {
             holidayMessage = nil
         }
+    }
+
+    /// 検索の基準にする時刻です。
+    /// 深夜に前の運行日が運休だった場合は、今日の始発（午前4時）から探します。
+    private var departureSearchReference: Date {
+        guard shouldSkipToTodaysService,
+              let todaysServiceStart = Calendar.current.date(
+                bySettingHour: BusNotificationTimeCalculator.serviceDayBoundaryHour,
+                minute: 0,
+                second: 0,
+                of: now()
+              ) else {
+            return searchTime
+        }
+        return todaysServiceStart
     }
 
     // MARK: - 運行日
@@ -983,6 +1043,15 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
         return L10n.Holiday.serviceDayNotice(reason)
     }
 
+    /// 結果カードに続けて並べる便の見出しです。
+    ///
+    /// 出発時間で探すと2件目は後の便になりますが、
+    /// 到着時間で探すと「間に合う中で最も遅い便」から並ぶため、2件目は前の便になります。
+    /// 並び順が逆になるので、見出しも合わせて変えます。
+    var followingSectionTitle: String {
+        searchType == .arrival ? L10n.Result.earlierTitle : L10n.Result.followingTitle
+    }
+
     /// 結果カードの見出しです。
     var resultSectionTitle: String {
         isRealtimeContext ? L10n.Result.nextBus : L10n.Result.weekdayService
@@ -999,6 +1068,21 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
         return nil
     }
     
+    /// 残り時間を数えるときの出発日時です。
+    ///
+    /// 通常はその運行日の出発時刻を使います。出発済みの便を翌日へ繰り越さず、
+    /// 「出発済み」と示すためです。
+    /// 翌朝の便を出しているときだけ、実際に次に走る日時を使います。
+    private func departureDateForCountdown(of bus: Bus, from now: Date) -> Date? {
+        if showsNextServiceDay {
+            return BusNotificationTimeCalculator.nextDepartureDate(for: bus.departure, from: now)
+        }
+        return BusNotificationTimeCalculator.departureDateForCurrentServiceDay(
+            for: bus.departure,
+            from: now
+        )
+    }
+
     /// 残り時間の数値表現で「出発済み」を表す値です。
     static let departedMinutesValue = -1
     /// 残り時間の数値表現で「まもなく出発」を表す値です。
@@ -1025,10 +1109,7 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
         let now = currentDate ?? self.now()
 
         for bus in searchResults {
-            guard let departureDate = BusNotificationTimeCalculator.departureDateForCurrentServiceDay(
-                for: bus.departure,
-                from: now
-            ) else { continue }
+            guard let departureDate = departureDateForCountdown(of: bus, from: now) else { continue }
             let remainingSeconds = departureDate.timeIntervalSince(now)
             
             var currentRemainingMinutes = 0

@@ -185,6 +185,8 @@ public enum L10n {
     public static var serviceNoticeTitle: String { String(localized: "result.serviceNoticeTitle") }
     /// 平日のみ運行・時刻表は現地の案内を優先してください
     public static var footer: String { String(localized: "result.footer") }
+    /// ひとつ前の便
+    public static var earlierTitle: String { String(localized: "result.earlierTitle") }
   }
 
   public enum Search {

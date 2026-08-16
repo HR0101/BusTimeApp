@@ -2117,6 +2117,29 @@
         }
       }
     },
+    "result.earlierTitle": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Earlier service"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ひとつ前の便"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "更早的班次"
+          }
+        }
+      }
+    },
     "result.emptyMessage": {
       "extractionState": "manual",
       "localizations": {
