@@ -20,6 +20,9 @@ struct SkyBackground: View {
 struct SkyCanvas: View {
   @Environment(\.sky) private var sky
   @Environment(\.skyWeather) private var weather
+  /// iPhoneの「視差効果を減らす」設定です。
+  /// オンのときは背景を動かさず、静止した一枚として描きます。
+  @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
   // MARK: - 描画の基準値
 
@@ -36,6 +39,9 @@ struct SkyCanvas: View {
   ]
   /// 動く層を描き直す間隔です。滑らかに動かすより、ドット絵らしいコマ送りにします。
   private static let animationInterval: TimeInterval = 0.4
+  /// 動きを止めるときに使う、時間の代わりの値です。
+  /// どの値でも絵は成り立ちますが、毎回同じ見た目になるよう固定します。
+  private static let stillTick = 0
   /// 動く層の基準時刻です。画面の再描画で周期がずれないよう、固定の起点を使います。
   private static let animationEpoch = Date(timeIntervalSinceReferenceDate: 0)
   /// 星の瞬きが変わる周期です。描き直し何回ぶんかで指定します。
@@ -212,26 +218,44 @@ struct SkyCanvas: View {
 
   /// 一定間隔で描き直す層です。
   /// 海面と、その上に重なる岸辺の水打ち際・バス停までをまとめて描きます。
+  ///
+  /// 「視差効果を減らす」設定がオンのときは描き直しをやめ、静止した一枚にします。
+  /// 風景そのものは残したまま、絶え間なく動くことによる負担だけを取り除きます。
+  @ViewBuilder
   private var animatedLayer: some View {
-    TimelineView(.periodic(from: Self.animationEpoch, by: Self.animationInterval)) { timeline in
-      let tick = Int(timeline.date.timeIntervalSinceReferenceDate / Self.animationInterval)
-
+    if reduceMotion {
       Canvas { context, size in
-        drawWater(in: &context, size: size, tick: tick)
-        drawSwell(in: &context, size: size, tick: tick)
-        drawReflectionPath(in: &context, size: size, tick: tick)
-        drawStars(in: &context, size: size, tick: tick / Self.twinkleTicks)
-        drawShoreEdge(in: &context, size: size)
-        drawSurf(in: &context, size: size, tick: tick)
-        drawBusStop(in: &context, size: size)
+        drawSeaScene(in: &context, size: size, tick: Self.stillTick)
+      }
+    } else {
+      TimelineView(.periodic(from: Self.animationEpoch, by: Self.animationInterval)) { timeline in
+        let tick = Int(timeline.date.timeIntervalSinceReferenceDate / Self.animationInterval)
+
+        Canvas { context, size in
+          drawSeaScene(in: &context, size: size, tick: tick)
+        }
       }
     }
   }
 
+  /// 海と岸辺の一場面を描きます。動かす場合も止める場合も、同じ絵を使います。
+  private func drawSeaScene(in context: inout GraphicsContext, size: CGSize, tick: Int) {
+    drawWater(in: &context, size: size, tick: tick)
+    drawSwell(in: &context, size: size, tick: tick)
+    drawReflectionPath(in: &context, size: size, tick: tick)
+    drawStars(in: &context, size: size, tick: tick / Self.twinkleTicks)
+    drawShoreEdge(in: &context, size: size)
+    drawSurf(in: &context, size: size, tick: tick)
+    drawBusStop(in: &context, size: size)
+  }
+
   /// 流れ星だけを描く層です。星が見える時間帯にだけ動かします。
+  ///
+  /// 流れ星は動きそのものが中身なので、
+  /// 「視差効果を減らす」設定がオンのときは出しません。
   @ViewBuilder
   private var shootingStarLayer: some View {
-    if sky.nightness > Self.starVisibilityThreshold {
+    if !reduceMotion, sky.nightness > Self.starVisibilityThreshold {
       TimelineView(.periodic(from: Self.animationEpoch, by: Self.shootingStarInterval)) { timeline in
         let elapsed = timeline.date.timeIntervalSinceReferenceDate
 
@@ -303,14 +327,23 @@ struct SkyCanvas: View {
   }
 
   /// 雨粒だけを描く層です。落下は速いので、海面より短い間隔で描き直します。
+  ///
+  /// 「視差効果を減らす」設定がオンでも雨は消しません。
+  /// 雨が降っていること自体が伝えたい情報なので、落とさずに静止させます。
   @ViewBuilder
   private var rainLayer: some View {
     if weather.isRaining {
-      TimelineView(.periodic(from: Self.animationEpoch, by: Self.rainInterval)) { timeline in
-        let frame = Int(timeline.date.timeIntervalSinceReferenceDate / Self.rainInterval)
-
+      if reduceMotion {
         Canvas { context, size in
-          drawRain(in: &context, size: size, frame: frame)
+          drawRain(in: &context, size: size, frame: Self.stillTick)
+        }
+      } else {
+        TimelineView(.periodic(from: Self.animationEpoch, by: Self.rainInterval)) { timeline in
+          let frame = Int(timeline.date.timeIntervalSinceReferenceDate / Self.rainInterval)
+
+          Canvas { context, size in
+            drawRain(in: &context, size: size, frame: frame)
+          }
         }
       }
     }

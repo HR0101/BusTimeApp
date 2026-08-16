@@ -80,7 +80,7 @@ struct RouteHeaderCard: View {
 
   private var arrowIcon: some View {
     Image(systemName: "arrow.right")
-      .font(.system(size: 13, weight: .bold))
+      .dynamicFont(size: 13, relativeTo: .headline, weight: .bold)
       .foregroundStyle(sky.inkSecondary)
       .accessibilityHidden(true)
   }
@@ -165,9 +165,9 @@ struct RouteHeaderCard: View {
   private var swapButton: some View {
     Button(action: viewModel.swapEndpoints) {
       Image(systemName: "arrow.left.arrow.right")
-        .font(.system(size: 14, weight: .bold))
+        .dynamicFont(size: 14, relativeTo: .body, weight: .bold)
         .foregroundStyle(viewModel.canSwapEndpoints ? sky.accent : sky.inkFaint)
-        .frame(width: SkyMetrics.minimumTapSize, height: SkyMetrics.minimumTapSize)
+        .scaledTapTarget()
     }
     .buttonStyle(SkyPressStyle())
     .disabled(!viewModel.canSwapEndpoints)

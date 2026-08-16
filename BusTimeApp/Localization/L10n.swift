@@ -8,6 +8,8 @@ import Foundation
 ///
 /// このファイルはウィジェット拡張とも共有します。
 /// String(localized:) は各バンドルのカタログを見るため、両方の成果物にカタログを含めています。
+///
+/// このファイルは Scripts/generate_l10n.py が作ります。直接編集しないでください。
 public enum L10n {
   public enum Common {
     /// 閉じる
@@ -451,6 +453,10 @@ public enum L10n {
     public static var cellDeparted: String { String(localized: "timetable.cellDeparted") }
     /// 運休日のため通知は設定できません
     public static var cannotNotifyHint: String { String(localized: "timetable.cannotNotifyHint") }
+    /// ベルの印が付いた時刻は通知を設定済みです
+    public static var legendScheduledMark: String { String(localized: "timetable.legendScheduledMark") }
+    /// 破線で囲まれた便は検索条件に合う便です
+    public static var legendRecommendedMark: String { String(localized: "timetable.legendRecommendedMark") }
   }
 
   public enum Settings {

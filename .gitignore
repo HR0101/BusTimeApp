@@ -27,3 +27,5 @@ fastlane/test_output
 *.gem
 .bundle/
 vendor/bundle
+__pycache__/
+*.pyc

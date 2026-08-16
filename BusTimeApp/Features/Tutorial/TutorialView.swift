@@ -89,7 +89,7 @@ struct TutorialPage: View {
         Spacer(minLength: dynamicTypeSize.isAccessibilitySize ? 12 : 48)
 
         Image(systemName: systemName)
-          .font(.system(size: iconSize, weight: .light))
+          .dynamicFont(size: iconSize, relativeTo: .largeTitle, weight: .light)
           .foregroundStyle(sky.accent)
 
         Text(title)

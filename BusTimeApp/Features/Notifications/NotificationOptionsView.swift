@@ -137,9 +137,8 @@ struct NotificationOptionsView: View {
     } label: {
       DynamicTypeStack(spacing: 12) {
         Image(systemName: "bell.badge.fill")
-          .font(.system(size: 16, weight: .semibold))
+          .dynamicFont(size: 16, relativeTo: .body, weight: .semibold)
           .foregroundStyle(sky.accent)
-          .frame(width: 26)
 
         VStack(alignment: .leading, spacing: 3) {
           Text(L10n.Options.minutesBefore(minutes))

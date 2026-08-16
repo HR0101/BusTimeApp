@@ -41,7 +41,7 @@ struct NotificationManagementView: View {
   private var permissionCard: some View {
     DynamicTypeStack(verticalAlignment: .top, spacing: 12) {
       Image(systemName: isAuthorized ? "checkmark.circle.fill" : "bell.slash.fill")
-        .font(.system(size: 20, weight: .semibold))
+        .dynamicFont(size: 20, relativeTo: .title3, weight: .semibold)
         .foregroundStyle(isAuthorized ? sky.positive : sky.warning)
 
       VStack(alignment: .leading, spacing: 6) {
@@ -123,9 +123,8 @@ struct NotificationManagementView: View {
   private func notificationRow(for item: ScheduledBusNotification) -> some View {
     DynamicTypeStack(verticalAlignment: .top, spacing: 12) {
       Image(systemName: "bell.badge.fill")
-        .font(.system(size: 14, weight: .semibold))
+        .dynamicFont(size: 14, relativeTo: .body, weight: .semibold)
         .foregroundStyle(sky.accent)
-        .frame(width: 22)
 
       VStack(alignment: .leading, spacing: 4) {
         Text(item.busDescription)
@@ -147,9 +146,9 @@ struct NotificationManagementView: View {
         viewModel.cancelNotification(for: item)
       } label: {
         Image(systemName: "trash")
-          .font(.system(size: 14, weight: .semibold))
+          .dynamicFont(size: 14, relativeTo: .body, weight: .semibold)
           .foregroundStyle(sky.warning)
-          .frame(width: SkyMetrics.minimumTapSize, height: SkyMetrics.minimumTapSize)
+          .scaledTapTarget()
       }
       .buttonStyle(SkyPressStyle())
       .accessibilityLabel(L10n.Manage.cancelOne)

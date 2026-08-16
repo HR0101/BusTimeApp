@@ -3980,6 +3980,29 @@
         }
       }
     },
+    "timetable.legendRecommendedMark": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Services with a dashed outline match your search"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "破線で囲まれた便は検索条件に合う便です"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "虚线框内的班次符合搜索条件"
+          }
+        }
+      }
+    },
     "timetable.legendScheduled": {
       "extractionState": "manual",
       "localizations": {
@@ -3999,6 +4022,29 @@
           "stringUnit": {
             "state": "translated",
             "value": "带颜色的时刻已设置提醒"
+          }
+        }
+      }
+    },
+    "timetable.legendScheduledMark": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Times marked with a bell have an alert set"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ベルの印が付いた時刻は通知を設定済みです"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "带铃铛标记的时刻已设置提醒"
           }
         }
       }
