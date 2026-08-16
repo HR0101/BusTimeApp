@@ -23,6 +23,9 @@ private struct TimetableHour: Identifiable {
 struct TimetableTabView: View {
   @Environment(\.sky) private var sky
   @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+  /// iPhoneの「色を使わず区別」設定です。
+  /// オンのときは、色だけで示していた状態に形の手がかりを足します。
+  @Environment(\.accessibilityDifferentiateWithoutColor) private var differentiateWithoutColor
 
   @ObservedObject var viewModel: HomeViewModel
   let scheduledBusIDs: Set<String>
@@ -234,9 +237,18 @@ struct TimetableTabView: View {
         RoundedRectangle(cornerRadius: cellRadius, style: .continuous)
           .stroke(
             isRecommended && !isScheduled ? sky.accent : sky.ink.opacity(0.26),
-            lineWidth: isRecommended && !isScheduled ? 2 : SkyMetrics.borderWidth
+            style: cellStrokeStyle(isRecommended: isRecommended && !isScheduled)
           )
       )
+      // 色を使わず区別する設定では、通知済みであることをベルの形でも示します。
+      .overlay(alignment: .topTrailing) {
+        if differentiateWithoutColor, isScheduled {
+          Image(systemName: "bell.fill")
+            .dynamicFont(size: 9, relativeTo: .caption2, weight: .bold)
+            .foregroundStyle(Color.white)
+            .padding(4)
+        }
+      }
       // 出発済みの便は淡くしますが、翌日の同じ便に通知できるので押せるままにします。
       .opacity(hasDeparted ? 0.45 : 1)
     }
@@ -253,15 +265,36 @@ struct TimetableTabView: View {
 
   private var legend: some View {
     VStack(alignment: .leading, spacing: 6) {
+      // 色を使わず区別する設定では、色ではなく形の説明に切り替えます。
       SkyNoticeRow(
-        message: L10n.Timetable.legendScheduled,
+        message: differentiateWithoutColor
+          ? L10n.Timetable.legendScheduledMark
+          : L10n.Timetable.legendScheduled,
         systemImage: "bell.fill"
       )
+
+      if differentiateWithoutColor {
+        SkyNoticeRow(
+          message: L10n.Timetable.legendRecommendedMark,
+          systemImage: "rectangle.dashed"
+        )
+      }
+
       SkyNoticeRow(
         message: L10n.Timetable.legendNote,
         systemImage: "smallcircle.filled.circle"
       )
     }
+  }
+
+  /// マスの枠線です。
+  /// 色を使わず区別する設定では、検索条件に合う便を破線で示します。
+  private func cellStrokeStyle(isRecommended: Bool) -> StrokeStyle {
+    let width: CGFloat = isRecommended ? 2 : SkyMetrics.borderWidth
+    guard differentiateWithoutColor, isRecommended else {
+      return StrokeStyle(lineWidth: width)
+    }
+    return StrokeStyle(lineWidth: width, dash: [4, 3])
   }
 
   // MARK: - 時刻の組み立て

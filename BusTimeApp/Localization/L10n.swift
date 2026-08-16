@@ -453,6 +453,10 @@ public enum L10n {
     public static var cellDeparted: String { String(localized: "timetable.cellDeparted") }
     /// 運休日のため通知は設定できません
     public static var cannotNotifyHint: String { String(localized: "timetable.cannotNotifyHint") }
+    /// ベルの印が付いた時刻は通知を設定済みです
+    public static var legendScheduledMark: String { String(localized: "timetable.legendScheduledMark") }
+    /// 破線で囲まれた便は検索条件に合う便です
+    public static var legendRecommendedMark: String { String(localized: "timetable.legendRecommendedMark") }
   }
 
   public enum Settings {
