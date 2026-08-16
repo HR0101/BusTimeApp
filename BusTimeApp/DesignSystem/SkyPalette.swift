@@ -59,8 +59,11 @@ struct SkyPalette: Equatable {
   let inkSecondary: Color
   /// 区切り線や無効状態など、最も控えめな要素の色です。
   let inkFaint: Color
-  /// カードやパネルの地の色です。
+  /// カードやパネルの地の色です。背景がうっすら透ける半透明です。
   let surface: Color
+  /// 背景を完全に隠すときの地の色です。
+  /// 白を重ねる方式では文字の色に近づいてしまうため、空の色から作った不透明色を使います。
+  let surfaceOpaque: Color
   /// カードの輪郭線の色です。
   let surfaceBorder: Color
   /// 選択状態や強調に使う色です。この色の上には常に白文字を置きます。
@@ -205,6 +208,11 @@ struct SkyPalette: Equatable {
   private static let daySurfaceOpacity: Double = 0.70
   /// 夜のカード地の不透明度です。背後の星がうっすら透ける濃さに保ちます。
   private static let nightSurfaceOpacity: Double = 0.14
+  /// 背景を隠す地を作るとき、昼に空の色へ混ぜる白の割合です。
+  private static let dayOpaqueWhiteMix: Double = 0.62
+  /// 背景を隠す地を作るとき、夜に空の色を沈ませる度合いです。
+  /// 白い文字とのコントラストを確保するため、しっかり暗くします。
+  private static let nightOpaqueDarkening: Double = 0.42
   /// 昼のカード輪郭の不透明度です。
   private static let daySurfaceBorderOpacity: Double = 0.85
   /// 夜のカード輪郭の不透明度です。
@@ -222,8 +230,13 @@ struct SkyPalette: Equatable {
   private static let sunriseHour: Double = 5.5
   /// 日の入りの時刻です。太陽の軌道の終点になります。
   private static let sunsetHour: Double = 18.5
-  /// 夜が明るさに切り替わる境界です。この値を超えると夜とみなします。
-  private static let nightThreshold: Double = 0.5
+  /// 昼の配色から夜の配色へ切り替える境界です。
+  ///
+  /// カードの地と文字色は、この一点で同時に入れ替えます。
+  /// 空の暗さに合わせて少しずつ混ぜていくと、夕方に地も文字も中間の明るさになり、
+  /// 互いに近づいて読めなくなるためです。境界を0.78に置くと、
+  /// 標準の濃さで最も条件の悪い時刻でもコントラスト比4.9を保てます。
+  private static let nightThreshold: Double = 0.78
 
   /// 指定した時刻の配色を作ります。
   /// - Parameter hour: 0以上24未満の時刻です。範囲外の値は24時間周期に丸めます。
@@ -235,9 +248,11 @@ struct SkyPalette: Equatable {
     let skyBottom = previous.skyBottom.mixed(with: next.skyBottom, ratio: ratio)
     let nightness = previous.nightness + (next.nightness - previous.nightness) * ratio
 
-    let ink = dayInk.mixed(with: nightInk, ratio: nightness)
     let accent = dayAccent.mixed(with: nightAccent, ratio: nightness)
     let isNight = nightness > nightThreshold
+    // 文字とカードの地は中間の値を持たせず、この境界で一度に入れ替えます。
+    let ink = isNight ? nightInk : dayInk
+    let surfaceTone: Double = isNight ? 1 : 0
 
     return SkyPalette(
       skyTop: skyTop.color(),
@@ -248,10 +263,17 @@ struct SkyPalette: Equatable {
       inkSecondary: ink.color(opacity: secondaryInkOpacity),
       inkFaint: ink.color(opacity: faintInkOpacity),
       surface: Color.white.opacity(
-        interpolate(from: daySurfaceOpacity, to: nightSurfaceOpacity, ratio: nightness)
+        interpolate(from: daySurfaceOpacity, to: nightSurfaceOpacity, ratio: surfaceTone)
       ),
+      surfaceOpaque: skyBottom
+        .mixed(with: RGBComponents(red: 1, green: 1, blue: 1), ratio: dayOpaqueWhiteMix)
+        .mixed(
+          with: skyBottom.darkened(by: nightOpaqueDarkening),
+          ratio: surfaceTone
+        )
+        .color(),
       surfaceBorder: Color.white.opacity(
-        interpolate(from: daySurfaceBorderOpacity, to: nightSurfaceBorderOpacity, ratio: nightness)
+        interpolate(from: daySurfaceBorderOpacity, to: nightSurfaceBorderOpacity, ratio: surfaceTone)
       ),
       accent: accent.color(),
       accentSoft: accent.color(
