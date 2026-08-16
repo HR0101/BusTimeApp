@@ -1,0 +1,30 @@
+{
+  "sourceLanguage" : "ja",
+  "strings" : {
+    "NSLocationWhenInUseUsageDescription" : {
+      "comment" : "位置情報の許可を求めるときにiOSが出すダイアログの説明文です。",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your location is used to pick the nearest stop as your starting point."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "現在地から最も近い出発地を自動で選択するために位置情報を使用します。"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "使用位置信息，以便自动选择离您最近的出发站点。"
+          }
+        }
+      }
+    }
+  },
+  "version" : "1.0"
+}
