@@ -21,11 +21,11 @@ struct NotificationManagementView: View {
         .padding(.bottom, 30)
       }
       .background(SkyBackground())
-      .navigationTitle("設定した通知")
+      .navigationTitle(L10n.Manage.title)
       .navigationBarTitleDisplayMode(.inline)
       .toolbar {
         ToolbarItem(placement: .navigationBarTrailing) {
-          Button("閉じる") { dismiss() }
+          Button(L10n.Common.close) { dismiss() }
             .fontWeight(.bold)
             .foregroundStyle(sky.accent)
         }
@@ -50,13 +50,13 @@ struct NotificationManagementView: View {
           .foregroundStyle(sky.ink)
           .fixedSize(horizontal: false, vertical: true)
 
-        Text("通常の通知を受け取るには、iPhoneの通知許可が必要です。")
+        Text(L10n.Manage.permissionMessage)
           .dynamicFont(size: 12, relativeTo: .caption, weight: .medium)
           .foregroundStyle(sky.inkSecondary)
           .fixedSize(horizontal: false, vertical: true)
 
         if viewModel.permissionStatus == .denied {
-          Button("通知の設定を開く", action: viewModel.openNotificationSettings)
+          Button(L10n.Manage.openNotificationSettings, action: viewModel.openNotificationSettings)
             .dynamicFont(size: 13, relativeTo: .footnote, weight: .bold, design: .rounded)
             .foregroundStyle(sky.accent)
             .frame(minHeight: SkyMetrics.minimumTapSize, alignment: .leading)
@@ -73,17 +73,17 @@ struct NotificationManagementView: View {
       SkySectionLabel(text: "Live Activity")
 
       if liveActivityBusID != nil {
-        Text("ロック画面にバスの出発時間を表示しています。")
+        Text(L10n.Manage.liveActivityShowing)
           .dynamicFont(size: 13, relativeTo: .footnote, weight: .medium)
           .foregroundStyle(sky.inkSecondary)
           .fixedSize(horizontal: false, vertical: true)
 
-        Button("Live Activityを終了", action: onEndLiveActivity)
+        Button(L10n.Manage.endLiveActivity, action: onEndLiveActivity)
           .dynamicFont(size: 14, relativeTo: .subheadline, weight: .bold, design: .rounded)
           .foregroundStyle(sky.warning)
           .frame(minHeight: SkyMetrics.minimumTapSize, alignment: .leading)
       } else {
-        Text("表示中のLive Activityはありません。便を選ぶと開始できます。")
+        Text(L10n.Manage.noLiveActivity)
           .dynamicFont(size: 13, relativeTo: .footnote, weight: .medium)
           .foregroundStyle(sky.inkSecondary)
           .fixedSize(horizontal: false, vertical: true)
@@ -96,10 +96,10 @@ struct NotificationManagementView: View {
   private var localNotifications: some View {
     VStack(alignment: .leading, spacing: 12) {
       HStack {
-        SkySectionLabel(text: "通常の通知")
+        SkySectionLabel(text: L10n.Options.standardSection)
         Spacer()
         if !viewModel.scheduledNotifications.isEmpty {
-          Button("すべて解除") {
+          Button(L10n.Manage.clearAll) {
             viewModel.cancelAllNotifications()
           }
           .dynamicFont(size: 12, relativeTo: .caption, weight: .bold, design: .rounded)
@@ -108,7 +108,7 @@ struct NotificationManagementView: View {
       }
 
       if viewModel.scheduledNotifications.isEmpty {
-        Text("設定されている通知はありません。")
+        Text(L10n.Manage.empty)
           .dynamicFont(size: 14, relativeTo: .subheadline, weight: .medium)
           .foregroundStyle(sky.inkSecondary)
           .padding(.vertical, 10)
@@ -132,7 +132,7 @@ struct NotificationManagementView: View {
           .dynamicFont(size: 14, relativeTo: .subheadline, weight: .bold, design: .rounded)
           .foregroundStyle(sky.ink)
           .fixedSize(horizontal: false, vertical: true)
-        Text("通知：\(item.notificationDescription)")
+        Text(L10n.Manage.notificationRow(item.notificationDescription))
           .dynamicFont(size: 12, relativeTo: .caption, weight: .bold)
           .foregroundStyle(sky.accent)
           .fixedSize(horizontal: false, vertical: true)
@@ -152,7 +152,7 @@ struct NotificationManagementView: View {
           .frame(width: SkyMetrics.minimumTapSize, height: SkyMetrics.minimumTapSize)
       }
       .buttonStyle(SkyPressStyle())
-      .accessibilityLabel("この通知を解除")
+      .accessibilityLabel(L10n.Manage.cancelOne)
     }
     .skyCard(radius: 16, padding: 14)
   }

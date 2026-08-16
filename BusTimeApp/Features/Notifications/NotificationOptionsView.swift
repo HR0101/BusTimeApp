@@ -32,11 +32,11 @@ struct NotificationOptionsView: View {
         .padding(.bottom, 30)
       }
       .background(SkyBackground())
-      .navigationTitle("この便をお知らせ")
+      .navigationTitle(L10n.Options.title)
       .navigationBarTitleDisplayMode(.inline)
       .toolbar {
         ToolbarItem(placement: .navigationBarTrailing) {
-          Button("閉じる") { dismiss() }
+          Button(L10n.Common.close) { dismiss() }
             .fontWeight(.bold)
             .foregroundStyle(sky.accent)
         }
@@ -49,14 +49,14 @@ struct NotificationOptionsView: View {
 
   private var busSummary: some View {
     VStack(alignment: .leading, spacing: 10) {
-      SkySectionLabel(text: "対象のバス")
+      SkySectionLabel(text: L10n.Options.targetSection)
 
       HStack(alignment: .lastTextBaseline, spacing: 6) {
         Text(bus.departure)
           .dynamicFont(size: 30, relativeTo: .title, weight: .bold, design: .rounded)
           .monospacedDigit()
           .foregroundStyle(sky.ink)
-        Text("発")
+        Text(L10n.Result.departureSuffix)
           .dynamicFont(size: 13, relativeTo: .footnote, weight: .bold)
           .foregroundStyle(sky.inkSecondary)
       }
@@ -68,7 +68,9 @@ struct NotificationOptionsView: View {
 
       if !bus.intermediateStops.isEmpty {
         SkyNoticeRow(
-          message: "途中停車：\(bus.intermediateStops.map(\.name).joined(separator: "、"))",
+          message: L10n.Options.intermediateStops(
+            bus.intermediateStops.map(\.name).joined(separator: "、")
+          ),
           systemImage: "mappin.and.ellipse"
         )
       }
@@ -86,14 +88,14 @@ struct NotificationOptionsView: View {
 
   private var localNotificationSection: some View {
     VStack(alignment: .leading, spacing: 12) {
-      SkySectionLabel(text: "通常の通知")
+      SkySectionLabel(text: L10n.Options.standardSection)
 
       if let scheduledNotification {
-        Text("現在の設定：\(scheduledNotification.notificationDescription)")
+        Text(L10n.Options.currentSetting(scheduledNotification.notificationDescription))
           .dynamicFont(size: 13, relativeTo: .footnote, weight: .bold)
           .foregroundStyle(sky.accent)
           .fixedSize(horizontal: false, vertical: true)
-        Text("同じ便の通知は1件だけ設定できます。選び直すと通知時刻が変更されます。")
+        Text(L10n.Options.onlyOnePerBus)
           .dynamicFont(size: 11, relativeTo: .caption2, weight: .medium)
           .foregroundStyle(sky.inkSecondary)
           .fixedSize(horizontal: false, vertical: true)
@@ -106,11 +108,11 @@ struct NotificationOptionsView: View {
       if permissionStatus == .denied {
         VStack(alignment: .leading, spacing: 6) {
           SkyNoticeRow(
-            message: "通知が許可されていません。",
+            message: L10n.Options.notPermitted,
             systemImage: "exclamationmark.circle.fill",
             isWarning: true
           )
-          Button("iPhoneの設定で通知を許可する", action: onOpenNotificationSettings)
+          Button(L10n.Options.allowInSettings, action: onOpenNotificationSettings)
             .dynamicFont(size: 13, relativeTo: .footnote, weight: .bold, design: .rounded)
             .foregroundStyle(sky.accent)
             .frame(minHeight: SkyMetrics.minimumTapSize, alignment: .leading)
@@ -118,7 +120,7 @@ struct NotificationOptionsView: View {
       }
 
       SkyNoticeRow(
-        message: "この通知は時刻表の予定時刻を基準にしています。遅延や運休は自動では反映されません。"
+        message: L10n.Options.timetableCaveat
       )
     }
   }
@@ -140,13 +142,15 @@ struct NotificationOptionsView: View {
           .frame(width: 26)
 
         VStack(alignment: .leading, spacing: 3) {
-          Text("\(minutes)分前に通知")
+          Text(L10n.Options.minutesBefore(minutes))
             .dynamicFont(size: 15, relativeTo: .subheadline, weight: .bold, design: .rounded)
             .foregroundStyle(sky.ink)
           Text(
             schedule.map {
-              "通知時刻：\(BusNotificationTimeCalculator.displayString($0.notificationDate))"
-            } ?? "この便では設定できません"
+              L10n.Options.notificationTime(
+              BusNotificationTimeCalculator.displayString($0.notificationDate)
+            )
+            } ?? L10n.Options.notAvailable
           )
           .dynamicFont(size: 12, relativeTo: .caption, weight: .medium)
           .foregroundStyle(sky.inkSecondary)
@@ -171,7 +175,7 @@ struct NotificationOptionsView: View {
     VStack(alignment: .leading, spacing: 12) {
       SkySectionLabel(text: "Live Activity")
 
-      Text("ロック画面やDynamic Islandで、出発までの時間を確認できます。")
+      Text(L10n.Options.liveActivityDescription)
         .dynamicFont(size: 13, relativeTo: .footnote, weight: .medium)
         .foregroundStyle(sky.inkSecondary)
         .fixedSize(horizontal: false, vertical: true)
@@ -187,19 +191,19 @@ struct NotificationOptionsView: View {
   private var liveActivityStatusText: some View {
     if !isLiveActivityAvailable {
       SkyNoticeRow(
-        message: "この端末では利用できないか、iPhoneの設定でLive Activityがオフになっています。",
+        message: L10n.Options.liveActivityUnavailable,
         systemImage: "exclamationmark.circle.fill",
         isWarning: true
       )
     } else if !isLiveActivityEnabled {
-      SkyNoticeRow(message: "アプリの設定で自動表示がオフです。必要なときは下のボタンから開始できます。")
+      SkyNoticeRow(message: L10n.Options.autoStartOff)
     } else if let scheduledNotification {
-      Text("設定済みの\(scheduledNotification.minutesBefore)分前通知も、そのまま届きます。")
+      Text(L10n.Options.existingAlertKept(scheduledNotification.minutesBefore))
         .dynamicFont(size: 12, relativeTo: .caption, weight: .bold)
         .foregroundStyle(sky.accent)
         .fixedSize(horizontal: false, vertical: true)
     } else {
-      Text("通常の通知を設定すると、Live Activityも自動で開始します。下のボタンから始める場合は5分前通知も一緒に設定します。")
+      Text(L10n.Options.autoStartDescription)
         .dynamicFont(size: 12, relativeTo: .caption, weight: .medium)
         .foregroundStyle(sky.accent)
         .fixedSize(horizontal: false, vertical: true)
@@ -210,7 +214,7 @@ struct NotificationOptionsView: View {
   private var liveActivityControl: some View {
     if liveActivityBusID == bus.id {
       Button(action: onEndLiveActivity) {
-        Label("この便の表示を終了", systemImage: "stop.circle.fill")
+        Label(L10n.Options.endThisDisplay, systemImage: "stop.circle.fill")
           .dynamicFont(size: 15, relativeTo: .subheadline, weight: .bold, design: .rounded)
           .foregroundStyle(sky.warning)
           .frame(maxWidth: .infinity, minHeight: 50)
@@ -224,8 +228,8 @@ struct NotificationOptionsView: View {
       Button(action: onStartLiveActivity) {
         Label(
           scheduledNotification == nil
-            ? "5分前通知とLive Activityを開始"
-            : "Live Activityを開始（通知は継続）",
+            ? L10n.Options.startWithAlert
+            : L10n.Options.startKeepingAlert,
           systemImage: "lock.rectangle.on.rectangle"
         )
         .dynamicFont(size: 15, relativeTo: .subheadline, weight: .bold, design: .rounded)
@@ -240,7 +244,7 @@ struct NotificationOptionsView: View {
       .disabled(!isLiveActivityAvailable)
       .opacity(isLiveActivityAvailable ? 1 : 0.48)
     } else {
-      SkyNoticeRow(message: "別の便をLive Activityで表示中です。先に管理画面から終了してください。")
+      SkyNoticeRow(message: L10n.Options.otherBusShowing)
     }
   }
 }

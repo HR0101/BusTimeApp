@@ -29,11 +29,11 @@ struct TutorialView: View {
 
   private var header: some View {
     HStack {
-      SkySectionLabel(text: "はじめに")
+      SkySectionLabel(text: L10n.Tutorial.section)
       Spacer()
       SkyIconButton(
         systemImage: "xmark",
-        accessibilityLabel: "使い方を閉じる"
+        accessibilityLabel: L10n.Tutorial.closeAccessibility
       ) {
         dismiss()
       }
@@ -51,7 +51,7 @@ struct TutorialView: View {
       }
     } label: {
       HStack {
-        Text(viewModel.isLastPage ? "はじめる" : "次へ")
+        Text(viewModel.isLastPage ? L10n.Tutorial.start : L10n.Tutorial.next)
         Spacer()
         Image(systemName: viewModel.isLastPage ? "checkmark" : "arrow.right")
       }

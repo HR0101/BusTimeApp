@@ -20,19 +20,67 @@ enum SkyMetrics {
 
 // MARK: - カード
 
+/// カードの地の濃さの決め方をまとめたものです。
+enum SkyCardOpacity {
+  /// 設定できる濃さの下限です。地を1枚だけ塗った、最も背景が透ける状態です。
+  static let minimum: Double = 0
+  /// 設定できる濃さの上限です。
+  static let maximum: Double = 1
+  /// 初期値です。
+  static let standard: Double = 0.5
+  /// 文字が詰まった面で追加する濃さです。
+  static let denseBoost: Double = 0.25
+
+  /// 背景を隠す地をどれだけ効かせるかを返します。
+  /// 1で背景が完全に隠れ、0で半透明の地だけになります。
+  static func coverage(for value: Double, isDense: Bool) -> Double {
+    let boosted = value + (isDense ? denseBoost : 0)
+    return min(max(boosted, minimum), maximum)
+  }
+}
+
+private struct SkyCardOpacityKey: EnvironmentKey {
+  static let defaultValue: Double = SkyCardOpacity.standard
+}
+
+extension EnvironmentValues {
+  /// カードの地の濃さです。0が最も透け、1が最も濃くなります。設定画面で変えられます。
+  var skyCardOpacity: Double {
+    get { self[SkyCardOpacityKey.self] }
+    set { self[SkyCardOpacityKey.self] = newValue }
+  }
+}
+
 /// カードの地と輪郭を与える修飾子です。
 private struct SkyCardModifier: ViewModifier {
   @Environment(\.sky) private var sky
+  @Environment(\.skyCardOpacity) private var cardOpacity
 
   let radius: CGFloat
   let padding: CGFloat
+  /// 文字や数字が詰まった面かどうかです。
+  /// あてはまる場合は、設定された濃さよりさらに濃く塗ります。
+  let isDense: Bool
+
+  /// 背景を隠す地をどれだけ効かせるかです。1で完全に隠れます。
+  private var coverage: Double {
+    SkyCardOpacity.coverage(for: cardOpacity, isDense: isDense)
+  }
 
   func body(content: Content) -> some View {
     content
       .padding(padding)
       .background(
-        RoundedRectangle(cornerRadius: radius, style: .continuous)
-          .fill(sky.surface)
+        ZStack {
+          // 半透明の地です。背景の風景がうっすら残ります。
+          RoundedRectangle(cornerRadius: radius, style: .continuous)
+            .fill(sky.surface)
+
+          // 不透明の地です。濃さに応じて重ね、最大で背景を完全に隠します。
+          RoundedRectangle(cornerRadius: radius, style: .continuous)
+            .fill(sky.surfaceOpaque)
+            .opacity(coverage)
+        }
       )
       .overlay(
         RoundedRectangle(cornerRadius: radius, style: .continuous)
@@ -43,11 +91,13 @@ private struct SkyCardModifier: ViewModifier {
 
 extension View {
   /// 時刻連動の配色でカードの見た目を与えます。
+  /// - Parameter isDense: 文字が詰まった面で、背景の透けをさらに抑えたいときに指定します。
   func skyCard(
     radius: CGFloat = SkyMetrics.cardRadius,
-    padding: CGFloat = SkyMetrics.cardPadding
+    padding: CGFloat = SkyMetrics.cardPadding,
+    isDense: Bool = false
   ) -> some View {
-    modifier(SkyCardModifier(radius: radius, padding: padding))
+    modifier(SkyCardModifier(radius: radius, padding: padding, isDense: isDense))
   }
 }
 

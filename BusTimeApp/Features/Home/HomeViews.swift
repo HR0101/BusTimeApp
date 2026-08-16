@@ -33,7 +33,7 @@ struct HomeHeaderBar: View {
         .font(.system(size: 17, weight: .bold))
         .foregroundStyle(sky.accent)
 
-      Text("コロンブスシティ")
+      Text(L10n.Home.brandName)
         .dynamicFont(size: 16, relativeTo: .headline, weight: .bold, design: .rounded)
         .foregroundStyle(sky.ink)
         .lineLimit(1)
@@ -47,18 +47,18 @@ struct HomeHeaderBar: View {
     HStack(spacing: 8) {
       SkyIconButton(
         systemImage: hasScheduledNotification ? "bell.badge.fill" : "bell",
-        accessibilityLabel: "設定した通知を確認",
+        accessibilityLabel: L10n.Home.notificationsButton,
         isHighlighted: hasScheduledNotification,
         action: notificationAction
       )
       SkyIconButton(
         systemImage: "gearshape",
-        accessibilityLabel: "設定を開く",
+        accessibilityLabel: L10n.Home.settingsButton,
         action: settingsAction
       )
       SkyIconButton(
         systemImage: "questionmark",
-        accessibilityLabel: "使い方を開く",
+        accessibilityLabel: L10n.Home.tutorialButton,
         action: helpAction
       )
     }
@@ -75,6 +75,13 @@ struct NextDepartureHero: View {
   /// 残り時間です。`HomeViewModel` の規約に従い、-1は出発済み、0はまもなく出発を表します。
   let remainingMinutes: Int?
   let isNotificationScheduled: Bool
+  /// このカードの見出しです。見ている運行日によって変わります。
+  let sectionTitle: String
+  /// 今まさに乗れる便を見ているかどうかです。
+  /// そうでないときは残り時間の代わりに発車時刻を主役にします。
+  let isRealtime: Bool
+  /// 通知を設定できない理由です。設定できるときはnilです。
+  let notificationUnavailableReason: String?
   let notifyAction: () -> Void
 
   /// 残り時間の数字の基準サイズです。
@@ -86,7 +93,7 @@ struct NextDepartureHero: View {
 
   var body: some View {
     VStack(alignment: .leading, spacing: 18) {
-      SkySectionLabel(text: "つぎのバス")
+      SkySectionLabel(text: sectionTitle)
 
       countdown
         .accessibilityElement(children: .combine)
@@ -115,47 +122,64 @@ struct NextDepartureHero: View {
       notifyButton
     }
     .frame(maxWidth: .infinity, alignment: .leading)
-    .skyCard(padding: 20)
   }
 
   // MARK: 残り時間の表示
 
   @ViewBuilder
   private var countdown: some View {
+    if !isRealtime {
+      // 先の日や運休日は残り時間に意味がないため、発車時刻そのものを主役にします。
+      HStack(alignment: .lastTextBaseline, spacing: 4) {
+        countdownText(bus.departure)
+        countdownUnit(L10n.Result.departureSuffix)
+      }
+    } else {
+      remainingTimeCountdown
+    }
+  }
+
+  @ViewBuilder
+  private var remainingTimeCountdown: some View {
     switch remainingMinutes {
     case .none:
-      countdownPhrase("計算中")
+      countdownPhrase(L10n.Result.calculating)
     case .some(HomeViewModel.departedMinutesValue):
-      countdownPhrase("出発済み")
+      countdownPhrase(L10n.Countdown.departed)
     case .some(HomeViewModel.imminentMinutesValue):
-      countdownPhrase("まもなく出発")
+      countdownPhrase(L10n.Countdown.leavingSoon)
     case let .some(minutes) where minutes < minutesPerHour:
       HStack(alignment: .lastTextBaseline, spacing: 4) {
         countdownPrefix
         countdownNumber(minutes)
-        countdownUnit("分")
+        countdownUnit(L10n.Result.unitMinute)
       }
     case let .some(minutes):
       HStack(alignment: .lastTextBaseline, spacing: 4) {
         countdownPrefix
         countdownNumber(minutes / minutesPerHour)
-        countdownUnit("時間")
+        countdownUnit(L10n.Result.unitHour)
         if minutes % minutesPerHour > 0 {
           countdownNumber(minutes % minutesPerHour)
-          countdownUnit("分")
+          countdownUnit(L10n.Result.unitMinute)
         }
       }
     }
   }
 
   private var countdownPrefix: some View {
-    Text("あと")
+    Text(L10n.Result.remainingPrefix)
       .dynamicFont(size: 15, relativeTo: .subheadline, weight: .bold, design: .rounded)
       .foregroundStyle(sky.inkSecondary)
   }
 
   private func countdownNumber(_ value: Int) -> some View {
-    Text("\(value)")
+    countdownText("\(value)")
+  }
+
+  /// 残り時間の数字や発車時刻を、同じ大きさで表します。
+  private func countdownText(_ text: String) -> some View {
+    Text(text)
       .dynamicFont(
         size: countdownNumberSize,
         relativeTo: .largeTitle,
@@ -189,21 +213,25 @@ struct NextDepartureHero: View {
   }
 
   private var countdownAccessibilityText: String {
+    if !isRealtime {
+      return L10n.Result.a11yScheduledDeparture(sectionTitle, bus.departure)
+    }
+
     switch remainingMinutes {
     case .none:
-      return "残り時間を計算中"
+      return L10n.Result.a11yCalculating
     case .some(HomeViewModel.departedMinutesValue):
-      return "この便は出発済みです"
+      return L10n.Result.a11yDeparted
     case .some(HomeViewModel.imminentMinutesValue):
-      return "まもなく出発します"
+      return L10n.Result.a11yLeavingSoon
     case let .some(minutes) where minutes < minutesPerHour:
-      return "あと\(minutes)分で出発します"
+      return L10n.Result.a11yMinutes(minutes)
     case let .some(minutes):
       let hours = minutes / minutesPerHour
       let remainder = minutes % minutesPerHour
       return remainder == 0
-        ? "あと\(hours)時間で出発します"
-        : "あと\(hours)時間\(remainder)分で出発します"
+        ? L10n.Result.a11yHours(hours)
+        : L10n.Result.a11yHoursMinutes(hours, remainder)
     }
   }
 
@@ -216,7 +244,7 @@ struct NextDepartureHero: View {
         .monospacedDigit()
         .foregroundStyle(sky.ink)
         .minimumScaleFactor(0.7)
-      Text("発")
+      Text(L10n.Result.departureSuffix)
         .dynamicFont(size: 12, relativeTo: .caption, weight: .bold)
         .foregroundStyle(sky.inkSecondary)
 
@@ -229,30 +257,33 @@ struct NextDepartureHero: View {
         .monospacedDigit()
         .foregroundStyle(sky.inkSecondary)
         .minimumScaleFactor(0.7)
-      Text("着")
+      Text(L10n.Result.arrivalSuffix)
         .dynamicFont(size: 12, relativeTo: .caption, weight: .bold)
         .foregroundStyle(sky.inkSecondary)
     }
     .accessibilityElement(children: .combine)
-    .accessibilityLabel("\(bus.departure)発、\(bus.arrival)着")
+    .accessibilityLabel(L10n.Result.a11yTimeRow(bus.departure, bus.arrival))
   }
 
   @ViewBuilder
   private var notifyButton: some View {
-    if isNotificationScheduled {
+    if let notificationUnavailableReason {
+      // 走らない日や先の日に通知を入れると、意図しない日に鳴ってしまいます。
+      SkyNoticeRow(message: notificationUnavailableReason)
+    } else if isNotificationScheduled {
       SkySecondaryButton(
-        title: "通知を設定済み",
+        title: L10n.Result.notifyScheduled,
         systemImage: "bell.fill",
         action: notifyAction
       )
-      .accessibilityHint("通知の内容を変更できます")
+      .accessibilityHint(L10n.Result.notifyScheduledHint)
     } else {
       SkyPrimaryButton(
-        title: "この便を通知する",
+        title: L10n.Result.notify,
         systemImage: "bell",
         action: notifyAction
       )
-      .accessibilityHint("出発前に通知する方法を選びます")
+      .accessibilityHint(L10n.Result.notifyHint)
     }
   }
 }
@@ -266,6 +297,8 @@ struct UpcomingDepartureRow: View {
   let bus: Bus
   let countdown: String?
   let isNotificationScheduled: Bool
+  /// この便に通知を設定できるかどうかです。設定できないときは行を押せなくします。
+  let canSchedule: Bool
   let action: () -> Void
 
   var body: some View {
@@ -300,18 +333,26 @@ struct UpcomingDepartureRow: View {
             .foregroundStyle(sky.inkSecondary)
         }
 
-        Image(systemName: isNotificationScheduled ? "bell.fill" : "bell")
-          .font(.system(size: 14, weight: .semibold))
-          .foregroundStyle(isNotificationScheduled ? sky.accent : sky.inkSecondary)
-          .frame(width: SkyMetrics.minimumTapSize, height: SkyMetrics.minimumTapSize)
+        if canSchedule {
+          Image(systemName: isNotificationScheduled ? "bell.fill" : "bell")
+            .font(.system(size: 14, weight: .semibold))
+            .foregroundStyle(isNotificationScheduled ? sky.accent : sky.inkSecondary)
+            .frame(width: SkyMetrics.minimumTapSize, height: SkyMetrics.minimumTapSize)
+        }
       }
-      .skyCard(radius: 16, padding: 12)
+      .padding(.vertical, 2)
     }
     .buttonStyle(SkyPressStyle())
+    .disabled(!canSchedule)
     .accessibilityLabel(
-      "\(bus.departure)発 \(bus.arrival)着\(isNotificationScheduled ? "、通知設定済み" : "")"
+      L10n.Result.rowLabel(bus.departure, bus.arrival)
+        + (isNotificationScheduled ? L10n.Result.rowLabelScheduled : "")
     )
-    .accessibilityHint("出発前に通知する方法を選びます")
+    .accessibilityHint(
+      canSchedule
+        ? L10n.Result.notifyHint
+        : L10n.Result.rowHintCannotNotify
+    )
   }
 }
 

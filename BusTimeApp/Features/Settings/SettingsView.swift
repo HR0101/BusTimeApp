@@ -10,6 +10,7 @@ struct SettingsView: View {
       ScrollView(showsIndicators: false) {
         VStack(alignment: .leading, spacing: SkyMetrics.sectionSpacing) {
           appearanceCard
+          cardOpacityCard
           liveActivityCard
         }
         .padding(.horizontal, SkyMetrics.screenPadding)
@@ -17,11 +18,11 @@ struct SettingsView: View {
         .padding(.bottom, 32)
       }
       .background(SkyBackground())
-      .navigationTitle("設定")
+      .navigationTitle(L10n.Settings.title)
       .navigationBarTitleDisplayMode(.inline)
       .toolbar {
         ToolbarItem(placement: .navigationBarTrailing) {
-          Button("完了") { dismiss() }
+          Button(L10n.Common.done) { dismiss() }
             .fontWeight(.bold)
             .foregroundStyle(sky.accent)
         }
@@ -31,19 +32,21 @@ struct SettingsView: View {
         viewModel.refreshLiveActivityAvailability()
       }
     }
+    // この画面自身のカードにも、選んでいる濃さをその場で反映します。
+    .environment(\.skyCardOpacity, viewModel.cardOpacity)
   }
 
   /// 時刻に連動する配色について説明するカードです。設定項目ではなく案内です。
   private var appearanceCard: some View {
     VStack(alignment: .leading, spacing: 12) {
-      SkySectionLabel(text: "画面の色")
+      SkySectionLabel(text: L10n.Settings.appearanceSection)
 
-      Text("時刻に合わせて変わります")
+      Text(L10n.Settings.appearanceTitle)
         .dynamicFont(size: 18, relativeTo: .title3, weight: .bold, design: .rounded)
         .foregroundStyle(sky.ink)
         .fixedSize(horizontal: false, vertical: true)
 
-      Text("朝は明るい空、夕方は夕焼け、夜は星空へと背景がゆっくり変化します。太陽と月の位置も現在時刻に合わせて動きます。")
+      Text(L10n.Settings.appearanceDescription)
         .dynamicFont(size: 13, relativeTo: .footnote, weight: .medium)
         .foregroundStyle(sky.inkSecondary)
         .fixedSize(horizontal: false, vertical: true)
@@ -51,7 +54,7 @@ struct SettingsView: View {
       skyPreviewStrip
 
       SkyNoticeRow(
-        message: "海浜幕張駅の周辺で雨が降っているときは、背景にも雨が降ります。天気の情報は Open-Meteo から取得しています。",
+        message: L10n.Settings.weatherNotice,
         systemImage: "cloud.rain"
       )
     }
@@ -62,10 +65,10 @@ struct SettingsView: View {
   /// 1日の色の移り変わりを小さな帯で示します。
   private var skyPreviewStrip: some View {
     let previewHours: [(hour: Double, label: String)] = [
-      (7, "朝"),
-      (12, "昼"),
-      (17.5, "夕"),
-      (22, "夜")
+      (7, L10n.Settings.previewMorning),
+      (12, L10n.Settings.previewNoon),
+      (17.5, L10n.Settings.previewEvening),
+      (22, L10n.Settings.previewNight)
     ]
 
     return HStack(spacing: 8) {
@@ -83,12 +86,48 @@ struct SettingsView: View {
       }
     }
     .accessibilityElement(children: .ignore)
-    .accessibilityLabel("朝、昼、夕方、夜の背景の見本")
+    .accessibilityLabel(L10n.Settings.previewAccessibility)
+  }
+
+  /// カードの地の濃さを選ぶカードです。
+  private var cardOpacityCard: some View {
+    VStack(alignment: .leading, spacing: 12) {
+      SkySectionLabel(text: L10n.Settings.cardOpacitySection)
+
+      Text(L10n.Settings.cardOpacityDescription)
+        .dynamicFont(size: 13, relativeTo: .footnote, weight: .medium)
+        .foregroundStyle(sky.inkSecondary)
+        .fixedSize(horizontal: false, vertical: true)
+
+      HStack(spacing: 12) {
+        Text(L10n.Settings.cardOpacityLight)
+          .dynamicFont(size: 11, relativeTo: .caption2, weight: .bold)
+          .foregroundStyle(sky.inkSecondary)
+
+        Slider(
+          value: Binding(
+            get: { viewModel.cardOpacity },
+            set: viewModel.setCardOpacity
+          ),
+          in: SkyCardOpacity.minimum...SkyCardOpacity.maximum
+        )
+        .tint(sky.accent)
+        .accessibilityLabel(L10n.Settings.cardOpacitySection)
+
+        Text(L10n.Settings.cardOpacityDense)
+          .dynamicFont(size: 11, relativeTo: .caption2, weight: .bold)
+          .foregroundStyle(sky.inkSecondary)
+      }
+
+      SkyNoticeRow(message: L10n.Settings.cardOpacityNotice)
+    }
+    .frame(maxWidth: .infinity, alignment: .leading)
+    .skyCard()
   }
 
   private var liveActivityCard: some View {
     VStack(alignment: .leading, spacing: 12) {
-      SkySectionLabel(text: "バスのお知らせ")
+      SkySectionLabel(text: L10n.Settings.notificationsSection)
 
       Toggle(
         isOn: Binding(
@@ -97,10 +136,10 @@ struct SettingsView: View {
         )
       ) {
         VStack(alignment: .leading, spacing: 4) {
-          Text("Live Activityを使う")
+          Text(L10n.Settings.liveActivityToggle)
             .dynamicFont(size: 15, relativeTo: .subheadline, weight: .bold, design: .rounded)
             .foregroundStyle(sky.ink)
-          Text("通常の通知と一緒に、ロック画面やDynamic Islandへ残り時間を表示します。")
+          Text(L10n.Settings.liveActivityDescription)
             .dynamicFont(size: 12, relativeTo: .caption, weight: .medium)
             .foregroundStyle(sky.inkSecondary)
             .fixedSize(horizontal: false, vertical: true)
@@ -110,10 +149,10 @@ struct SettingsView: View {
       .disabled(!viewModel.isLiveActivityAvailable)
 
       if viewModel.isLiveActivityAvailable {
-        SkyNoticeRow(message: "対応端末では最初からオンです。ここでいつでも変更できます。")
+        SkyNoticeRow(message: L10n.Settings.liveActivityAvailable)
       } else {
         SkyNoticeRow(
-          message: "この端末では利用できないか、iPhoneの設定でLive Activityがオフになっています。",
+          message: L10n.Options.liveActivityUnavailable,
           systemImage: "exclamationmark.circle.fill",
           isWarning: true
         )

@@ -88,11 +88,11 @@ enum WeatherServiceError: LocalizedError, Equatable {
   var errorDescription: String? {
     switch self {
     case .invalidURL:
-      return "天気情報の取得先を組み立てられませんでした。"
+      return L10n.Weather.invalidURL
     case .requestFailed:
-      return "天気情報を取得できませんでした。通信状態を確認してください。"
+      return L10n.Weather.requestFailed
     case .invalidResponse:
-      return "天気情報の形式を解釈できませんでした。"
+      return L10n.Weather.decodingFailed
     }
   }
 }

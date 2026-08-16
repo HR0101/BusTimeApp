@@ -33,7 +33,7 @@ struct BusTimeWidgetLiveActivity: Widget {
                 // 右側: 出発までの時間を、秒を含まない時間・分表記で表示
                 VStack(alignment: .trailing, spacing: 0) {
                     if context.state.isDeparted {
-                        Text("出発済み")
+                        Text(L10n.Remaining.departed)
                             .font(.headline.bold())
                             .foregroundColor(Color.gray)
                             .padding(.horizontal, 12)
@@ -41,7 +41,7 @@ struct BusTimeWidgetLiveActivity: Widget {
                             .background(Color.gray.opacity(0.2))
                             .clipShape(Capsule())
                     } else {
-                        Text("出発まで")
+                        Text(L10n.Widget.untilDeparture)
                             .font(.caption2.bold())
                             .foregroundColor(Color.gray)
                         
@@ -73,7 +73,7 @@ struct BusTimeWidgetLiveActivity: Widget {
                             .font(.title2.bold())
                             .foregroundColor(.red)
                     } else {
-                        Text("出発済")
+                        Text(L10n.Widget.departedShort)
                             .foregroundColor(.gray)
                     }
                 }

@@ -10,9 +10,9 @@ enum MainTab: Hashable {
   var title: String {
     switch self {
     case .home:
-      return "ホーム"
+      return L10n.Tab.home
     case .timetable:
-      return "時刻表"
+      return L10n.Timetable.title
     }
   }
 
@@ -28,9 +28,9 @@ enum MainTab: Hashable {
   var accessibilityLabel: String {
     switch self {
     case .home:
-      return "ホームタブ"
+      return L10n.Tab.homeAccessibility
     case .timetable:
-      return "時刻表タブ"
+      return L10n.Tab.timetableAccessibility
     }
   }
 }
@@ -125,7 +125,18 @@ struct ContentView: View {
             Task { await weatherViewModel.refreshIfNeeded() }
           }
         }
+        // 経路・検索方法・時刻のいずれを変えても、その場で結果へ反映します。
+        // 実行ボタンを置かないぶん、変更が即座に画面へ出ることを保証します。
         .onChange(of: viewModel.selectedRoute) { _ in
+          viewModel.performSearch()
+        }
+        .onChange(of: viewModel.serviceDay) { _ in
+          viewModel.performSearch()
+        }
+        .onChange(of: viewModel.searchType) { _ in
+          viewModel.performSearch()
+        }
+        .onChange(of: viewModel.searchTime) { _ in
           viewModel.performSearch()
         }
         .sheet(isPresented: Binding(
@@ -134,6 +145,8 @@ struct ContentView: View {
         )) {
           TutorialView()
             .environment(\.sky, palette)
+            .environment(\.skyWeather, weatherViewModel.weather)
+            .environment(\.skyCardOpacity, settingsViewModel.cardOpacity)
             .presentationDragIndicator(.visible)
         }
         .sheet(isPresented: Binding(
@@ -155,6 +168,8 @@ struct ContentView: View {
             onEndLiveActivity: viewModel.endLiveActivity
           )
           .environment(\.sky, palette)
+          .environment(\.skyWeather, weatherViewModel.weather)
+          .environment(\.skyCardOpacity, settingsViewModel.cardOpacity)
           .presentationDragIndicator(.visible)
         }
         .sheet(isPresented: Binding(
@@ -185,10 +200,12 @@ struct ContentView: View {
               }
             )
             .environment(\.sky, palette)
+            .environment(\.skyWeather, weatherViewModel.weather)
+            .environment(\.skyCardOpacity, settingsViewModel.cardOpacity)
             .presentationDragIndicator(.visible)
           }
         }
-        .alert("通知設定", isPresented: Binding(
+        .alert(L10n.Notify.resultTitle, isPresented: Binding(
           get: { coordinator.isNotificationResultPresented },
           set: { if !$0 { coordinator.send(.dismiss) } }
         )) {
@@ -197,7 +214,7 @@ struct ContentView: View {
           Text(coordinator.notificationMessage ?? "")
         }
         .alert(
-          "Live Activityエラー",
+          L10n.LiveActivity.errorTitle,
           isPresented: Binding(
             get: { coordinator.isLiveActivityErrorPresented },
             set: { if !$0 {
@@ -206,7 +223,7 @@ struct ContentView: View {
             } }
           )
         ) {
-          Button("設定を確認") {
+          Button(L10n.LiveActivity.openSettings) {
             viewModel.openAppSettings()
             viewModel.liveActivityError = nil
             coordinator.send(.clearError)
@@ -216,7 +233,7 @@ struct ContentView: View {
             coordinator.send(.clearError)
           }
         } message: {
-          Text(coordinator.liveActivityErrorMessage ?? "Live Activityでエラーが発生しました。")
+          Text(coordinator.liveActivityErrorMessage ?? L10n.LiveActivity.genericError)
         }
         .onChange(of: viewModel.liveActivityError) { errorMessage in
           if let errorMessage {
@@ -227,6 +244,7 @@ struct ContentView: View {
     }
     .environment(\.sky, palette)
     .environment(\.skyWeather, weatherViewModel.weather)
+    .environment(\.skyCardOpacity, settingsViewModel.cardOpacity)
     .animation(.easeInOut(duration: paletteAnimationDuration), value: palette)
     .preferredColorScheme(palette.isNight ? .dark : .light)
   }
@@ -311,13 +329,15 @@ struct ContentView: View {
           helpAction: { coordinator.send(.showTutorial) }
         )
 
-        heroSection
-        upcomingSection
-
-        SearchPanel(
+        RouteHeaderCard(
           viewModel: viewModel,
-          locationAction: viewModel.checkLocationAndSetOrigin
+          locationAction: viewModel.useCurrentLocationForRoute
         )
+
+        ServiceDayTimeCard(viewModel: viewModel)
+
+        serviceDayNotice
+        departuresSection
 
         serviceFooter
       }
@@ -327,34 +347,39 @@ struct ContentView: View {
     }
   }
 
-  /// 画面の主役です。次に乗れる便の残り時間を大きく表示します。
+  /// 便の情報をまとめたカードです。
+  ///
+  /// 次の便とそれに続く便は同じ「いつ乗れるか」の話なので、
+  /// カードを分けずに1枚へ収め、区切り線だけで役割を分けています。
   @ViewBuilder
-  private var heroSection: some View {
-    if case let .serviceUnavailable(message) = viewModel.state {
+  private var departuresSection: some View {
+    if case let .failed(message) = viewModel.state {
       NoticeCard(
-        title: "本日の運行",
-        message: message,
-        systemImage: "calendar.badge.exclamationmark",
-        isWarning: true
-      )
-    } else if case let .failed(message) = viewModel.state {
-      NoticeCard(
-        title: "読み込みできませんでした",
+        title: L10n.Result.failedTitle,
         message: message,
         systemImage: "exclamationmark.triangle.fill",
         isWarning: true
       )
     } else if let nextBus = viewModel.searchResults.first {
-      NextDepartureHero(
-        bus: nextBus,
-        remainingMinutes: viewModel.remainingMinutes[nextBus.id],
-        isNotificationScheduled: scheduledBusIDs.contains(nextBus.id),
-        notifyAction: { selectBus(nextBus) }
-      )
+      VStack(alignment: .leading, spacing: 16) {
+        NextDepartureHero(
+          bus: nextBus,
+          remainingMinutes: viewModel.remainingMinutes[nextBus.id],
+          isNotificationScheduled: scheduledBusIDs.contains(nextBus.id),
+          sectionTitle: viewModel.resultSectionTitle,
+          isRealtime: viewModel.isRealtimeContext,
+          notificationUnavailableReason: viewModel.notificationUnavailableReason,
+          notifyAction: { selectBus(nextBus) }
+        )
+
+        followingDepartures
+      }
+      .frame(maxWidth: .infinity, alignment: .leading)
+      .skyCard(padding: 20)
     } else {
       NoticeCard(
-        title: "条件に合うバスがありません",
-        message: "行き先または時刻を変えて検索してください",
+        title: L10n.Result.emptyTitle,
+        message: L10n.Result.emptyMessage,
         systemImage: "bus",
         isWarning: false
       )
@@ -363,22 +388,38 @@ struct ContentView: View {
 
   /// 次の便に続く候補です。検索結果が1件だけのときは表示しません。
   @ViewBuilder
-  private var upcomingSection: some View {
+  private var followingDepartures: some View {
     let followingBuses = Array(viewModel.searchResults.dropFirst())
 
-    if viewModel.holidayMessage == nil, !followingBuses.isEmpty {
+    if !followingBuses.isEmpty {
+      SkyDivider()
+
       VStack(alignment: .leading, spacing: 10) {
-        SkySectionLabel(text: "このあとの便")
+        SkySectionLabel(text: L10n.Result.followingTitle)
 
         ForEach(followingBuses) { bus in
           UpcomingDepartureRow(
             bus: bus,
             countdown: viewModel.countdownMessages[bus.id],
             isNotificationScheduled: scheduledBusIDs.contains(bus.id),
+            canSchedule: viewModel.notificationUnavailableReason == nil,
             action: { selectBus(bus) }
           )
         }
       }
+    }
+  }
+
+  /// 運休日でも時刻は調べられるようにしたうえで、運休であることは必ず伝えます。
+  @ViewBuilder
+  private var serviceDayNotice: some View {
+    if let message = viewModel.serviceDayNotice {
+      NoticeCard(
+        title: L10n.Result.serviceNoticeTitle,
+        message: message,
+        systemImage: "calendar.badge.exclamationmark",
+        isWarning: true
+      )
     }
   }
 
@@ -387,7 +428,7 @@ struct ContentView: View {
       Circle()
         .fill(palette.positive)
         .frame(width: 6, height: 6)
-      Text("平日のみ運行・時刻表は現地の案内を優先してください")
+      Text(L10n.Result.footer)
         .dynamicFont(size: 11, relativeTo: .caption2, weight: .medium)
         .foregroundStyle(palette.inkSecondary)
         .fixedSize(horizontal: false, vertical: true)
@@ -420,7 +461,11 @@ struct ContentView: View {
           shouldStart: shouldStartLiveActivity
         )
         coordinator.send(.notificationScheduled(
-          "通知を設定しました。\n\n\(item.busDescription)\n\(item.notificationDescription)にお知らせします。\(liveActivityMessage)\n\n※時刻表の予定です。遅延・運休は反映されません。"
+          L10n.Notify.scheduledMessage(
+            item.busDescription,
+            item.notificationDescription,
+            liveActivityMessage
+          )
         ))
       case let .failure(error):
         coordinator.send(.notificationScheduled(error.localizedDescription))
@@ -432,21 +477,21 @@ struct ContentView: View {
     guard shouldStart else { return "" }
 
     if viewModel.trackedBusId == bus.id {
-      return "\nLive Activityも表示中です。"
+      return L10n.Notify.alsoLiveActivity
     }
 
     guard viewModel.trackedBusId == nil else {
-      return "\n別の便をLive Activityで表示中のため、通常通知だけを設定しました。"
+      return L10n.Notify.onlyNormalNotification
     }
 
     viewModel.startLiveActivity(for: bus)
     if viewModel.trackedBusId == bus.id {
-      return "\nLive Activityも開始しました。"
+      return L10n.Notify.liveActivityStarted
     }
 
     // 通常通知は登録済みなので、Live Activityの失敗も同じ完了画面で伝えます。
     viewModel.liveActivityError = nil
-    return "\n通常通知は設定されましたが、Live Activityは開始できませんでした。"
+    return L10n.Notify.liveActivityFailed
   }
 }
 
