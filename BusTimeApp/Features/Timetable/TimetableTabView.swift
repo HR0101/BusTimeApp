@@ -41,6 +41,9 @@ struct TimetableTabView: View {
   private let rowPadding: CGFloat = 6
   /// マスの角丸半径です。
   private let cellRadius: CGFloat = 10
+  /// 備考のある便に添える点の直径です。
+  /// 小さく淡いと見落とすため、時刻の文字と同じ濃さでしっかり置きます。
+  private let noteMarkerSize: CGFloat = 5
 
   /// 画面左右の余白です。マスの幅を稼ぐため、他の画面より狭くしています。
   private var horizontalPadding: CGFloat {
@@ -61,7 +64,7 @@ struct TimetableTabView: View {
         // 運休日でも時刻表そのものは見たい情報なので、案内を出したうえで表示します。
         if let holidayMessage = viewModel.holidayMessage {
           NoticeCard(
-            title: "本日の運行",
+            title: L10n.Timetable.serviceNoticeTitle,
             message: holidayMessage,
             systemImage: "calendar.badge.exclamationmark",
             isWarning: true
@@ -70,14 +73,15 @@ struct TimetableTabView: View {
 
         if viewModel.currentFullTimetable.isEmpty {
           NoticeCard(
-            title: "時刻表がありません",
-            message: "ホームタブで出発地と目的地を選び直してください",
+            title: L10n.Timetable.emptyTitle,
+            message: L10n.Timetable.emptyMessage,
             systemImage: "bus",
             isWarning: false
           )
         } else {
           // 通知をまだ使っていない間だけ、操作の仕方を大きく案内します。
-          if scheduledBusIDs.isEmpty {
+          // 運休日は通知を設定できないため、案内も出しません。
+          if scheduledBusIDs.isEmpty, !viewModel.isServiceSuspended {
             notificationHint
           }
 
@@ -95,7 +99,7 @@ struct TimetableTabView: View {
 
   private var header: some View {
     VStack(alignment: .leading, spacing: 10) {
-      SkySectionLabel(text: "時刻表")
+      SkySectionLabel(text: L10n.Timetable.title)
 
       DynamicTypeStack(verticalAlignment: .firstTextBaseline, spacing: 10) {
         Text(viewModel.selectedRoute.rawValue)
@@ -104,14 +108,14 @@ struct TimetableTabView: View {
           .fixedSize(horizontal: false, vertical: true)
           .frame(maxWidth: .infinity, alignment: .leading)
 
-        Text("\(viewModel.currentFullTimetable.count)便")
+        Text(L10n.Timetable.serviceCount(viewModel.currentFullTimetable.count))
           .dynamicFont(size: 13, relativeTo: .footnote, weight: .bold, design: .rounded)
           .monospacedDigit()
           .foregroundStyle(sky.accent)
       }
 
       SkyNoticeRow(
-        message: "経路を変えるときは、ホームタブで出発地と目的地を選んでください",
+        message: L10n.Timetable.routeHint,
         systemImage: "arrow.left.arrow.right"
       )
     }
@@ -128,12 +132,12 @@ struct TimetableTabView: View {
         .foregroundStyle(sky.accent)
 
       VStack(alignment: .leading, spacing: 5) {
-        Text("時刻をタップすると通知できます")
+        Text(L10n.Timetable.notificationHintTitle)
           .dynamicFont(size: 15, relativeTo: .subheadline, weight: .bold, design: .rounded)
           .foregroundStyle(sky.ink)
           .fixedSize(horizontal: false, vertical: true)
 
-        Text("選んだ便が出発する前にお知らせします。設定した時刻は色が変わります。")
+        Text(L10n.Timetable.notificationHintBody)
           .dynamicFont(size: 12, relativeTo: .caption, weight: .medium)
           .foregroundStyle(sky.inkSecondary)
           .fixedSize(horizontal: false, vertical: true)
@@ -157,7 +161,7 @@ struct TimetableTabView: View {
         }
       }
     }
-    .skyCard(padding: 0, isOpaque: true)
+    .skyCard(padding: 0, isDense: true)
   }
 
   /// 1つの時台を、時のラベルと分のマスで表します。
@@ -194,7 +198,7 @@ struct TimetableTabView: View {
     .frame(maxWidth: .infinity, alignment: .leading)
     .background(isCurrentHour ? sky.accentSoft : Color.clear)
     .accessibilityElement(children: .contain)
-    .accessibilityLabel("\(group.hour)時台")
+    .accessibilityLabel(L10n.Timetable.hourAccessibility(group.hour))
   }
 
   /// 1便を表す分のマスです。押すとその便の通知を設定できます。
@@ -213,9 +217,10 @@ struct TimetableTabView: View {
           .foregroundStyle(isScheduled ? Color.white : sky.ink)
 
         // 備考のある便には印だけを添え、内容はタップ後に見せます。
+        // 便のない位置でも場所は確保し、行の高さを揃えます。
         Circle()
-          .fill(isScheduled ? Color.white : sky.inkSecondary)
-          .frame(width: 3, height: 3)
+          .fill(isScheduled ? Color.white : sky.ink)
+          .frame(width: noteMarkerSize, height: noteMarkerSize)
           .opacity(bus.note == nil ? 0 : 1)
           .padding(.top, 2)
       }
@@ -236,18 +241,24 @@ struct TimetableTabView: View {
       .opacity(hasDeparted ? 0.45 : 1)
     }
     .buttonStyle(SkyPressStyle())
+    // 運休日は今日その便が走らないため、通知の設定を受け付けません。
+    .disabled(viewModel.isServiceSuspended)
     .accessibilityLabel(accessibilityLabel(for: bus, isScheduled: isScheduled))
-    .accessibilityHint("出発前に通知する方法を選びます")
+    .accessibilityHint(
+      viewModel.isServiceSuspended
+        ? L10n.Timetable.cannotNotifyHint
+        : L10n.Result.notifyHint
+    )
   }
 
   private var legend: some View {
     VStack(alignment: .leading, spacing: 6) {
       SkyNoticeRow(
-        message: "色のついた時刻は通知を設定済みです",
+        message: L10n.Timetable.legendScheduled,
         systemImage: "bell.fill"
       )
       SkyNoticeRow(
-        message: "点の付いた便はお買い物便や経由便です",
+        message: L10n.Timetable.legendNote,
         systemImage: "smallcircle.filled.circle"
       )
     }
@@ -298,16 +309,16 @@ struct TimetableTabView: View {
   }
 
   private func accessibilityLabel(for bus: Bus, isScheduled: Bool) -> String {
-    var text = "\(bus.departure)発、\(bus.arrival)着"
+    var text = L10n.Timetable.cellAccessibility(bus.departure, bus.arrival)
 
     if let note = bus.note {
       text += "、\(note)"
     }
     if isScheduled {
-      text += "、通知設定済み"
+      text += L10n.Timetable.cellScheduled
     }
     if hasDeparted(bus) {
-      text += "、出発済み"
+      text += L10n.Timetable.cellDeparted
     }
     return text
   }

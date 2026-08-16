@@ -8,11 +8,11 @@ enum BusNotificationPermission: Equatable {
     var title: String {
         switch self {
         case .notDetermined:
-            return "まだ確認していません"
+            return L10n.Permission.notDetermined
         case .authorized:
-            return "通知は許可されています"
+            return L10n.Permission.authorized
         case .denied:
-            return "通知が許可されていません"
+            return L10n.Permission.denied
         }
     }
 
@@ -30,13 +30,13 @@ enum BusNotificationSchedulingError: LocalizedError, Equatable {
     var errorDescription: String? {
         switch self {
         case .permissionDenied:
-            return "通知が許可されていません。iPhoneの設定で「BusTime」の通知をオンにしてください。"
+            return L10n.ScheduleError.notPermitted
         case .invalidDeparture:
-            return "バスの出発時刻を確認できませんでした。別の便を選んでください。"
+            return L10n.ScheduleError.noDeparture
         case .tooLate:
-            return "この便は通知時刻がすでに過ぎています。もう少し先の便を選んでください。"
+            return L10n.ScheduleError.tooLate
         case .registrationFailed:
-            return "通知を設定できませんでした。もう一度お試しください。"
+            return L10n.ScheduleError.unknown
         }
     }
 }
@@ -54,11 +54,14 @@ struct ScheduledBusNotification: Identifiable, Codable, Equatable {
     let minutesBefore: Int
 
     var busDescription: String {
-        "\(departure)発｜\(stopSummary ?? "\(originName) → \(destinationName)")"
+        L10n.Notify.busDescription(departure, stopSummary ?? "\(originName) → \(destinationName)")
     }
 
     var notificationDescription: String {
-        "\(minutesBefore)分前（\(BusNotificationTimeCalculator.displayString(notificationDate))）"
+        L10n.Notify.minutesBefore(
+            minutesBefore,
+            BusNotificationTimeCalculator.displayString(notificationDate)
+        )
     }
 }
 
@@ -160,7 +163,7 @@ enum BusNotificationTimeCalculator {
     static func displayString(_ date: Date) -> String {
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "ja_JP")
-        formatter.dateFormat = "M月d日(E) H:mm"
+        formatter.dateFormat = L10n.Notify.dateFormat
         return formatter.string(from: date)
     }
 
