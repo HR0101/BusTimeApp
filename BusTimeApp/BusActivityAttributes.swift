@@ -18,17 +18,18 @@ public struct BusActivityAttributes: ActivityAttributes {
     public var routeName: String
 }
 
-/// Live Activityで表示する残り時間を、秒を含まない日本語表記へ変換します。
+/// Live Activityで表示する残り時間を、秒を含まない表記へ変換します。
+/// 文言は端末の言語に合わせて切り替わります。
 public enum BusRemainingTimeFormatter {
     public static func string(until departureDate: Date, now: Date) -> String {
         let remainingSeconds = departureDate.timeIntervalSince(now)
 
         guard remainingSeconds > 0 else {
-            return "出発済み"
+            return L10n.Remaining.departed
         }
 
         guard remainingSeconds >= 60 else {
-            return "1分未満"
+            return L10n.Remaining.lessThanMinute
         }
 
         let totalMinutes = Int(remainingSeconds / 60)
@@ -36,11 +37,11 @@ public enum BusRemainingTimeFormatter {
         let minutes = totalMinutes % 60
 
         guard hours > 0 else {
-            return "\(minutes)分"
+            return L10n.Remaining.minutes(minutes)
         }
 
         return minutes == 0
-            ? "\(hours)時間"
-            : "\(hours)時間\(minutes)分"
+            ? L10n.Remaining.hours(hours)
+            : L10n.Remaining.hoursMinutes(hours, minutes)
     }
 }

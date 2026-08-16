@@ -66,6 +66,8 @@
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				BusActivityAttributes.swift,
+				Localization/L10n.swift,
+				Localization/Localizable.xcstrings,
 			);
 			target = 9D06C45E8298F96D48921377 /* BusTimeWidgetExtension */;
 		};
@@ -281,11 +283,13 @@
 				};
 			};
 			buildConfigurationList = 7934EAF72DFBF98100C306D1 /* Build configuration list for PBXProject "BusTimeApp" */;
-			developmentRegion = en;
+			developmentRegion = ja;
 			hasScannedForEncodings = 0;
 			knownRegions = (
 				en,
 				Base,
+				ja,
+				"zh-Hans",
 			);
 			mainGroup = 7934EAF32DFBF98100C306D1;
 			minimizedProjectReferenceProxies = 1;
