@@ -597,6 +597,123 @@ struct BusTimeAppTests {
         #expect(viewModel.routeDecision == .automatic)
     }
 
+    @Test @MainActor
+    func arrivalSearchListsTheEarlierServiceSecond() {
+        let viewModel = HomeViewModel(
+            nowProvider: { makeTestDate(hour: 8) },
+            defaults: makeIsolatedDefaults()
+        )
+        viewModel.selectOrigin(.mansion)
+        viewModel.searchType = .arrival
+        viewModel.searchTime = makeTestDate(hour: 9)
+        viewModel.performSearch()
+
+        // 到着時間で探すと「間に合う中で最も遅い便」から並ぶため、
+        // 2件目は1件目より前に出る便になります。
+        #expect(viewModel.searchResults.count == 2)
+        #expect(viewModel.searchResults[0].departure == "8:40")
+        #expect(viewModel.searchResults[1].departure == "8:30")
+        // 見出しもそれに合わせて変わります。
+        #expect(viewModel.followingSectionTitle == "ひとつ前の便")
+
+        viewModel.searchType = .departure
+        #expect(viewModel.followingSectionTitle == "このあとの便")
+    }
+
+    // MARK: - 深夜の検索
+
+    @Test @MainActor
+    func lateNightShowsTheMorningServiceInsteadOfNothing() {
+        // 運行日は午前4時区切りのため、深夜2時は前日の運行日に属します。
+        // その運行日の便は終わっていますが、同じ朝の始発を案内します。
+        let lateNight = makeTestDate(hour: 2)
+        let viewModel = HomeViewModel(
+            nowProvider: { lateNight },
+            defaults: makeIsolatedDefaults()
+        )
+        viewModel.searchTime = lateNight
+        viewModel.performSearch()
+
+        #expect(!viewModel.searchResults.isEmpty)
+        #expect(viewModel.showsNextServiceDay)
+        #expect(viewModel.searchResults.first?.departure == "6:03")
+    }
+
+    @Test @MainActor
+    func daytimeSearchDoesNotWrapToTheNextServiceDay() {
+        let morning = makeTestDate(hour: 8)
+        let viewModel = HomeViewModel(
+            nowProvider: { morning },
+            defaults: makeIsolatedDefaults()
+        )
+        viewModel.searchTime = morning
+        viewModel.performSearch()
+
+        #expect(!viewModel.showsNextServiceDay)
+        #expect(!viewModel.searchResults.isEmpty)
+    }
+
+    @Test @MainActor
+    func earlyMorningAfterASuspendedDayShowsTodaysFirstService() {
+        // 2026年8月17日は月曜です。その0時台は日曜の運行日に属し、日曜は運休なので
+        // 0時台の便は走りません。月曜の始発を案内する必要があります。
+        let mondayMidnight = makeTestDate(day: 17, hour: 0, minute: 3)
+        let viewModel = HomeViewModel(
+            nowProvider: { mondayMidnight },
+            defaults: makeIsolatedDefaults()
+        )
+        viewModel.searchTime = mondayMidnight
+        viewModel.performSearch()
+
+        #expect(!viewModel.isServiceSuspended)
+        #expect(viewModel.showsNextServiceDay)
+        #expect(viewModel.searchResults.first?.departure == "6:03")
+    }
+
+    @Test @MainActor
+    func earlyMorningOfAServiceDayKeepsTheLateNightBuses() {
+        // 2026年8月15日は土曜です。その0時台はまだ金曜の運行日なので、
+        // コロンブスシティ0時04分発の深夜便は走ります。運休扱いにしてはいけません。
+        let justBeforeTheLastBus = makeTestDate(day: 15, hour: 0, minute: 1)
+        let viewModel = HomeViewModel(
+            nowProvider: { justBeforeTheLastBus },
+            defaults: makeIsolatedDefaults()
+        )
+        viewModel.selectOrigin(.mansion)
+        viewModel.searchTime = justBeforeTheLastBus
+        viewModel.performSearch()
+
+        #expect(!viewModel.isServiceSuspended)
+        // まだこの運行日に便が残っているので、次の運行日へは送りません。
+        #expect(!viewModel.showsNextServiceDay)
+        #expect(viewModel.searchResults.first?.departure == "0:04")
+    }
+
+    @Test @MainActor
+    func afterTheLastLateNightBusPointsAtTheNextServiceDay() {
+        // 深夜便も終わった土曜0時30分では、次に乗れるのは月曜の始発です。
+        let afterTheLastBus = makeTestDate(day: 15, hour: 0, minute: 30)
+        let viewModel = HomeViewModel(
+            nowProvider: { afterTheLastBus },
+            defaults: makeIsolatedDefaults()
+        )
+        viewModel.searchTime = afterTheLastBus
+        viewModel.performSearch()
+
+        #expect(viewModel.showsNextServiceDay)
+    }
+
+    @Test @MainActor
+    func saturdayDaytimeIsStillSuspended() {
+        let saturdayMorning = makeTestDate(day: 15, hour: 8)
+        let viewModel = HomeViewModel(
+            nowProvider: { saturdayMorning },
+            defaults: makeIsolatedDefaults()
+        )
+
+        #expect(viewModel.isServiceSuspended)
+    }
+
     // MARK: - 運行日をまたぐ通知
 
     @Test
