@@ -87,6 +87,8 @@ struct SkyPalette: Equatable {
   /// バス停の標識の縁と、板に引く線の色です。
   let signboardInk: Color
   /// 太陽・月の水平位置です。0が画面左端、1が画面右端に対応します。
+  /// この配色が表す時刻です。0以上24未満で持ちます。
+  let hour: Double
   let celestialProgress: Double
   /// 太陽・月の軌道の高さです。0が地平線、1が天頂に対応します。
   let celestialAltitude: Double
@@ -302,6 +304,7 @@ struct SkyPalette: Equatable {
         .darkened(by: nightness * groundNightDarkening * 0.4)
         .mixed(with: skyBottom, ratio: groundAmbientBlend * 0.3)
         .color(),
+      hour: normalizedHour,
       celestialProgress: celestialProgress(at: normalizedHour),
       celestialAltitude: celestialAltitude(at: normalizedHour),
       nightness: nightness,

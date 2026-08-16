@@ -1,5 +1,28 @@
 import SwiftUI
 
+/// 月の満ち欠けを、実際の日付から求めます。
+///
+/// 新月から次の新月までの平均日数（朔望月）を使った近似です。
+/// 実際の新月・満月と比べたずれは0.4日ほどで、絵として描くには十分な精度です。
+enum MoonPhase {
+  /// 基準にする新月です。2000年1月6日18時14分（協定世界時）が新月でした。
+  private static let referenceNewMoon = Date(timeIntervalSince1970: 947_182_440)
+  /// 朔望月の長さです。新月から次の新月までの平均日数です。
+  static let synodicMonth: Double = 29.530588853
+
+  /// その日時の月齢です。0が新月、およそ14.8が満月です。
+  static func age(at date: Date) -> Double {
+    let days = date.timeIntervalSince(referenceNewMoon) / 86_400
+    let age = days.truncatingRemainder(dividingBy: synodicMonth)
+    return age < 0 ? age + synodicMonth : age
+  }
+
+  /// その日時の位相です。0が新月、0.5が満月、1でまた新月に戻ります。
+  static func phase(at date: Date) -> Double {
+    age(at: date) / synodicMonth
+  }
+}
+
 /// アプリ全体の背景です。画面いっぱいにドット絵の空を敷きます。
 struct SkyBackground: View {
   var body: some View {
@@ -175,6 +198,85 @@ struct SkyCanvas: View {
 
   /// バス停を立てる横位置です。
   private static let busStopRatio: Double = 0.13
+  /// 対岸の陸地の、いちばん低いところの高さです。セルの数で数えます。
+  private static let distantShoreBaseHeight = 1
+  /// 対岸に建つものの、最も高いところの高さです。
+  /// 遠くにあるものなので、低く抑えるほうが距離が出ます。
+  private static let distantShoreMaxHeight = 4
+  /// 建物が現れる割合です。これを超えた列だけ高くなります。
+  private static let distantBuildingChance: Double = 0.80
+  /// 対岸の色を、空の色からどれだけ暗くするかです。
+  private static let distantShoreDarkening: Double = 0.55
+  /// 対岸に灯りがともる割合です。夜だけ現れます。
+  private static let distantLightChance: Double = 0.86
+  /// 対岸の灯りの色です。
+  private static let distantLightColor = Color(red: 1.0, green: 0.898, blue: 0.647)
+  /// 街灯を立てる横位置です。
+  /// 1本目はバス停を照らす位置に、2本目は道路の先に置きます。
+  /// 傘は支柱の左へ伸びるので、照らしたいものより右に立てます。
+  private static let streetLightRatios: [Double] = [0.26, 0.96]
+  /// 街灯の支柱の高さです。セル数で指定します。
+  /// バス停は支柱14セルに標識11セルで約25セルあるため、
+  /// 街灯はそれよりはっきり高くして、道路の照明らしく見せます。
+  private static let streetLightHeight = 42
+  /// 街灯の傘の幅です。セル数で指定します。
+  private static let streetLightHeadWidth = 7
+  /// 街灯の光だまりが路面に広がる幅です。セル数で指定します。
+  private static let streetLightGlowWidth = 32
+  /// 光だまりが手前へ伸びる深さです。セル数で指定します。
+  private static let streetLightGlowDepth = 9
+  /// 街灯が点く時刻です。これ以降は夕方から夜として扱います。
+  private static let streetLightOnHour: Double = 16
+  /// 街灯が消える時刻です。これ以降は朝として扱います。
+  private static let streetLightOffHour: Double = 4.5
+  /// 光だまりを道路の手前端からどれだけ奥へずらすかです。セル数で指定します。
+  /// 道路の縁に貼りつくと手前に寄って見えるため、少し奥に落とします。
+  private static let streetLightGlowLift = 5
+  /// 光だまりの最も明るいところの濃さです。
+  private static let streetLightGlowOpacity: Double = 0.16
+  /// 光の筋の最も明るいところの濃さです。
+  /// 空気に散った光なので、路面の光だまりより淡くします。
+  private static let streetLightBeamOpacity: Double = 0.09
+  /// 光だまりの粒を、風景の何分の1の大きさで描くかです。
+  /// 細かいほど減衰が滑らかになります。
+  private static let streetLightGlowSubdivision = 2
+  /// 街灯の光の色です。
+  private static let streetLightColor = Color(red: 1.0, green: 0.925, blue: 0.741)
+  /// 雲が最も多いときに増やす数です。雲量に応じてこの数まで増えます。
+  private static let extraCloudCount = 5
+  /// 風速1メートルあたり、雲が1秒でどれだけ流れるかです。画面幅に対する割合です。
+  private static let cloudDriftPerWind: Double = 0.0016
+  /// 雪が1秒間に落ちるマス数です。雨よりゆっくり舞います。
+  private static let snowSpeedPerSecond: Double = 26
+  /// 雪が横に揺れる幅です。マス数で指定します。
+  private static let snowSwayCells: Double = 3
+  /// 雪の色です。
+  private static let snowColor = Color(red: 0.97, green: 0.98, blue: 1.0)
+  /// 霧の濃さです。
+  private static let fogOpacity: Double = 0.30
+  /// 霧がかかる高さの範囲です。水平線を中心に上下へ広がります。
+  private static let fogBand: Double = 0.22
+  /// 雷が光る周期です。この間隔ごとに一度光ります。
+  private static let lightningPeriod: Double = 11
+  /// 雷の光っている時間です。
+  private static let lightningDuration: Double = 0.22
+  /// 潮の満ち引きで波打ち際が動く幅です。セル数で指定します。
+  /// 砂浜の高さは約9セルしかないため、大きく振ると満潮時に砂浜が消えます。
+  private static let tideRangeCells = 2
+  /// 潮が一巡する時間です。実際の潮汐に合わせて約12.4時間にします。
+  private static let tidePeriodHours: Double = 12.4
+  /// 鳥が現れる空の暗さの範囲です。朝夕の薄明のときだけ飛びます。
+  private static let birdNightnessRange: ClosedRange<Double> = 0.18...0.72
+  /// 鳥の群れの数です。
+  private static let birdCount = 5
+  /// 鳥が画面を横切るのにかかる時間です。
+  private static let birdTravelSeconds: Double = 26
+  /// 鳥が羽ばたく周期です。描き直し何回ぶんで一往復するかを表します。
+  private static let birdFlapTicks = 3
+  /// 船が現れる周期です。この間隔ごとに一度だけ通ります。
+  private static let shipPeriod: Double = 190
+  /// 船が水平線を渡りきるまでの時間です。
+  private static let shipDuration: Double = 70
   /// バス停の標識の一辺です。セル数で指定します。
   private static let signSize = 11
   /// バス停の支柱の高さです。セル数で指定します。
@@ -196,6 +298,15 @@ struct SkyCanvas: View {
     (0.36, 0.21, 4)
   ]
 
+  /// 雲量が多いときに足す雲です。空が埋まるように配置します。
+  private static let extraCloudLayout: [(x: Double, y: Double, scale: Int)] = [
+    (0.82, 0.16, 5),
+    (0.20, 0.30, 5),
+    (0.50, 0.34, 4),
+    (0.00, 0.19, 6),
+    (0.70, 0.27, 4)
+  ]
+
   var body: some View {
     ZStack {
       staticLayer
@@ -210,8 +321,9 @@ struct SkyCanvas: View {
   private var staticLayer: some View {
     Canvas { context, size in
       drawSkyBase(in: &context, size: size)
-      drawClouds(in: &context, size: size)
       drawCelestialBody(in: &context, size: size)
+      // 対岸は太陽や月より手前です。水平線に沈む様子を隠して奥行きを作ります。
+      drawDistantShore(in: &context, size: size)
       drawGround(in: &context, size: size)
     }
   }
@@ -240,13 +352,223 @@ struct SkyCanvas: View {
 
   /// 海と岸辺の一場面を描きます。動かす場合も止める場合も、同じ絵を使います。
   private func drawSeaScene(in context: inout GraphicsContext, size: CGSize, tick: Int) {
+    // 雲は風で流れるので、静止した層ではなくここで描きます。
+    drawClouds(in: &context, size: size, tick: tick)
     drawWater(in: &context, size: size, tick: tick)
     drawSwell(in: &context, size: size, tick: tick)
     drawReflectionPath(in: &context, size: size, tick: tick)
     drawStars(in: &context, size: size, tick: tick / Self.twinkleTicks)
     drawShoreEdge(in: &context, size: size)
     drawSurf(in: &context, size: size, tick: tick)
+    drawShip(in: &context, size: size, elapsed: Double(tick) * Self.animationInterval)
+    drawBirds(in: &context, size: size, tick: tick)
+    // 街灯とバス停は海より手前です。静止した層に描くと、
+    // 支柱の上半分が海に覆われて見えなくなります。
+    drawStreetLights(in: &context, size: size)
     drawBusStop(in: &context, size: size)
+    // 霧はいちばん最後に重ね、遠くのものほど霞ませます。
+    drawFog(in: &context, size: size)
+  }
+
+  /// 潮の満ち引きを含めた、海と砂浜の境目の行です。
+  /// 海・砂浜・泡・光の道のすべてがこの行を基準にします。
+  /// 一部だけ潮位を反映すると、泡だけが砂浜の上へ取り残されます。
+  private func tidalShoreRow(rowCount: Int) -> Int {
+    min(max(Int(Self.shoreRatio * Double(rowCount)) + tideOffsetCells, 0), rowCount)
+  }
+
+  /// 潮の満ち引きを含めた、海と砂浜の境目の縦位置です。
+  private func tidalShoreY(size: CGSize) -> CGFloat {
+    snapped(CGFloat(Self.shoreRatio) * size.height)
+      + CGFloat(tideOffsetCells) * Self.cellSize
+  }
+
+  /// 潮の満ち引きによる、波打ち際のずれです。
+  ///
+  /// 満潮のときは波が陸へ寄り、干潮のときは沖へ引きます。
+  /// 約12.4時間で一巡するので、朝と夕で海際の位置が変わります。
+  private var tideOffsetCells: Int {
+    let phase = sin(sky.hour / Self.tidePeriodHours * 2 * .pi)
+    return Int(phase * Double(Self.tideRangeCells))
+  }
+
+  /// 朝夕に横切る鳥の群れです。
+  ///
+  /// 空が明るいときも暗いときも出さず、薄明のあいだだけ飛ばします。
+  /// 一日のうち短い時間にしか会えないほうが、見かけたときの印象が残ります。
+  private func drawBirds(in context: inout GraphicsContext, size: CGSize, tick: Int) {
+    guard Self.birdNightnessRange.contains(sky.nightness) else { return }
+
+    let cell = Self.cellSize
+    let elapsed = Double(tick) * Self.animationInterval
+    let progress = (elapsed / Self.birdTravelSeconds).truncatingRemainder(dividingBy: 1)
+    // 羽ばたきは上下2つの形を交互に出します。
+    let isFlapUp = (tick / Self.birdFlapTicks) % 2 == 0
+
+    var path = Path()
+    for index in 0..<Self.birdCount {
+      // 群れは少しずつ位置と高さをずらし、隊列に見えるようにします。
+      let lag = Double(index) * 0.035
+      let x = (progress - lag) * 1.2 - 0.1
+      guard x > -0.05, x < 1.05 else { continue }
+
+      let y = 0.18 + pseudoRandom(index * 19 + 7) * 0.12 + Double(index % 2) * 0.02
+      let column = Int(x * size.width / cell)
+      let row = Int(y * size.height / cell)
+
+      // 翼を「へ」の字で表します。
+      let wing = isFlapUp ? 1 : 0
+      for side in [-1, 1] {
+        path.addRect(
+          CGRect(
+            x: CGFloat(column + side) * cell,
+            y: CGFloat(row - wing) * cell,
+            width: cell,
+            height: cell
+          )
+        )
+      }
+      path.addRect(
+        CGRect(x: CGFloat(column) * cell, y: CGFloat(row) * cell, width: cell, height: cell)
+      )
+    }
+
+    context.fill(path, with: .color(sky.ink.opacity(0.45)))
+  }
+
+  /// 水平線を渡る船です。まれにしか通りません。
+  private func drawShip(in context: inout GraphicsContext, size: CGSize, elapsed: Double) {
+    let phase = elapsed.truncatingRemainder(dividingBy: Self.shipPeriod)
+    guard phase < Self.shipDuration else { return }
+
+    let cell = Self.cellSize
+    let rowCount = max(Int(ceil(size.height / cell)), 1)
+    let horizonRow = Int(Self.horizonRatio * Double(rowCount))
+    let progress = phase / Self.shipDuration
+    let column = Int((1 - progress) * size.width / cell)
+
+    var path = Path()
+    // 船体です。水平線のすぐ上に置きます。
+    for offset in 0..<5 {
+      path.addRect(
+        CGRect(
+          x: CGFloat(column + offset) * cell,
+          y: CGFloat(horizonRow - 1) * cell,
+          width: cell,
+          height: cell
+        )
+      )
+    }
+    // 船橋です。
+    path.addRect(
+      CGRect(
+        x: CGFloat(column + 2) * cell,
+        y: CGFloat(horizonRow - 2) * cell,
+        width: cell,
+        height: cell
+      )
+    )
+
+    context.fill(path, with: .color(sky.skyBottom))
+    context.fill(path, with: .color(Color.black.opacity(Self.distantShoreDarkening)))
+  }
+
+  /// 街灯が点いているかどうかです。
+  ///
+  /// 実際の街灯は暗ければ点きますが、夜明け前から朝にかけて点いていると
+  /// 「これから明るくなる」時間帯の印象と合いません。
+  /// 夕方から夜のあいだだけ点け、朝と昼は消します。
+  private var isStreetLightOn: Bool {
+    let isEveningOrNight = sky.hour >= Self.streetLightOnHour
+      || sky.hour < Self.streetLightOffHour
+    return isEveningOrNight && sky.nightness > Self.starVisibilityThreshold
+  }
+
+  /// 街灯から路面へ広がる光の筋です。
+  ///
+  /// 灯りと路面の光だまりだけでは、光が届いている空間が見えません。
+  /// 灯りを頂点に、路面へ向かって末広がりの筋を薄く敷きます。
+  /// 空気に散った光なので、路面の光だまりよりさらに淡くします。
+  private func drawStreetLightBeam(
+    in context: inout GraphicsContext,
+    size: CGSize,
+    headRow: Int,
+    roadRow: Int,
+    centerColumn: Int
+  ) {
+    guard roadRow > headRow else { return }
+
+    let cell = Self.cellSize
+    let subdivision = Self.streetLightGlowSubdivision
+    let beamCell = cell / CGFloat(subdivision)
+    let centerX = CGFloat(centerColumn) * cell
+    let topY = CGFloat(headRow + 1) * cell
+    // 筋の着地点も光だまりに合わせて奥へずらします。
+    let rowSteps = (roadRow - Self.streetLightGlowLift - headRow - 1) * subdivision
+    guard rowSteps > 0 else { return }
+
+    // 路面に着くときの広がりは、光だまりの幅に合わせます。
+    let bottomHalfWidth = Double(Self.streetLightGlowWidth / 2 * subdivision)
+
+    for step in 0..<rowSteps {
+      let progress = Double(step) / Double(rowSteps)
+      let y = topY + CGFloat(step) * beamCell
+      guard y < size.height else { continue }
+
+      // 灯りの真下ほど細く、路面に近づくほど広がります。
+      let halfWidth = max(bottomHalfWidth * progress, 1)
+      // 遠ざかるほど弱まります。
+      let verticalFade = 1 - progress
+
+      var rowPath = Path()
+      for offset in -Int(halfWidth)...Int(halfWidth) {
+        let horizontal = Double(abs(offset)) / halfWidth
+        let intensity = max((1 - horizontal * horizontal) * verticalFade, 0)
+        guard intensity > 0.03 else { continue }
+        guard pseudoRandom(offset &* 29 &+ step &* 181 &+ centerColumn &* 11 &+ 7) < intensity else { continue }
+
+        rowPath.addRect(
+          CGRect(
+            x: centerX + CGFloat(offset) * beamCell,
+            y: y,
+            width: beamCell,
+            height: beamCell
+          )
+        )
+      }
+
+      context.fill(
+        rowPath,
+        with: .color(
+          Self.streetLightColor.opacity(sky.nightness * Self.streetLightBeamOpacity * verticalFade)
+        )
+      )
+    }
+  }
+
+  /// 水平線のあたりにかかる霧です。遠くの景色を白く霞ませます。
+  private func drawFog(in context: inout GraphicsContext, size: CGSize) {
+    guard weather.isFoggy else { return }
+
+    let cell = Self.cellSize
+    let rowCount = max(Int(ceil(size.height / cell)), 1)
+    let centerRow = Int(Self.horizonRatio * Double(rowCount))
+    let band = Int(Self.fogBand * Double(rowCount))
+
+    for offset in -band...band {
+      let row = centerRow + offset
+      guard row >= 0, row < rowCount else { continue }
+
+      // 水平線から離れるほど薄くします。
+      let distance = Double(abs(offset)) / Double(band)
+      let opacity = Self.fogOpacity * (1 - distance)
+      guard opacity > 0.01 else { continue }
+
+      context.fill(
+        Path(CGRect(x: 0, y: CGFloat(row) * cell, width: size.width, height: cell)),
+        with: .color(Color.white.opacity(opacity))
+      )
+    }
   }
 
   /// 流れ星だけを描く層です。星が見える時間帯にだけ動かします。
@@ -332,17 +654,18 @@ struct SkyCanvas: View {
   /// 雨が降っていること自体が伝えたい情報なので、落とさずに静止させます。
   @ViewBuilder
   private var rainLayer: some View {
-    if weather.isRaining {
+    if weather.isRaining || weather.isSnowing || weather.hasThunder {
       if reduceMotion {
         Canvas { context, size in
-          drawRain(in: &context, size: size, frame: Self.stillTick)
+          drawPrecipitation(in: &context, size: size, frame: Self.stillTick, elapsed: 0)
         }
       } else {
         TimelineView(.periodic(from: Self.animationEpoch, by: Self.rainInterval)) { timeline in
-          let frame = Int(timeline.date.timeIntervalSinceReferenceDate / Self.rainInterval)
+          let elapsed = timeline.date.timeIntervalSinceReferenceDate
+          let frame = Int(elapsed / Self.rainInterval)
 
           Canvas { context, size in
-            drawRain(in: &context, size: size, frame: frame)
+            drawPrecipitation(in: &context, size: size, frame: frame, elapsed: elapsed)
           }
         }
       }
@@ -350,6 +673,76 @@ struct SkyCanvas: View {
   }
 
   // MARK: - 雨
+
+  /// 降っているものと雷をまとめて描きます。
+  private func drawPrecipitation(
+    in context: inout GraphicsContext,
+    size: CGSize,
+    frame: Int,
+    elapsed: Double
+  ) {
+    drawLightning(in: &context, size: size, elapsed: elapsed)
+    if weather.isSnowing {
+      drawSnow(in: &context, size: size, frame: frame)
+    } else {
+      drawRain(in: &context, size: size, frame: frame)
+    }
+  }
+
+  /// 雷の光です。ときどき空全体が一瞬白みます。
+  private func drawLightning(in context: inout GraphicsContext, size: CGSize, elapsed: Double) {
+    guard weather.hasThunder, elapsed > 0 else { return }
+
+    let phase = elapsed.truncatingRemainder(dividingBy: Self.lightningPeriod)
+    guard phase < Self.lightningDuration else { return }
+
+    // 光り始めが最も明るく、すぐに引きます。
+    let strength = 1 - phase / Self.lightningDuration
+    context.fill(
+      Path(CGRect(origin: .zero, size: size)),
+      with: .color(Color.white.opacity(strength * 0.5))
+    )
+  }
+
+  /// 雪の量です。強さごとに、画面の列数に対する割合で決めます。
+  private static func snowDensity(for intensity: RainIntensity) -> Double {
+    switch intensity {
+    case .light:
+      return 0.5
+    case .moderate:
+      return 0.9
+    case .heavy:
+      return 1.4
+    }
+  }
+
+  /// 雪を降らせます。雨より遅く、横に揺れながら落ちます。
+  private func drawSnow(in context: inout GraphicsContext, size: CGSize, frame: Int) {
+    guard let intensity = weather.snowIntensity else { return }
+
+    let cell = Self.cellSize
+    let columnCount = max(Int(ceil(size.width / cell)), 1)
+    let rowCount = max(Int(ceil(size.height / cell)), 1)
+    let dropCount = Int(Double(columnCount) * Self.snowDensity(for: intensity))
+    let elapsed = Double(frame) * Self.rainInterval
+
+    var path = Path()
+    for index in 0..<dropCount {
+      let column = Int(pseudoRandom(index * 3 + 1) * Double(columnCount))
+      let speed = 0.6 + pseudoRandom(index * 5 + 2) * 0.8
+      let travel = elapsed * Self.snowSpeedPerSecond * speed
+      let row = Int(travel + pseudoRandom(index * 7 + 3) * Double(rowCount)) % rowCount
+      // 横揺れは粒ごとに位相をずらし、同じ動きに見えないようにします。
+      let sway = sin(elapsed * 1.6 + pseudoRandom(index * 11 + 5) * 6.28) * Self.snowSwayCells
+      let x = (Double(column) + sway).truncatingRemainder(dividingBy: Double(columnCount))
+
+      path.addRect(
+        CGRect(x: CGFloat(x) * cell, y: CGFloat(row) * cell, width: cell, height: cell)
+      )
+    }
+
+    context.fill(path, with: .color(Self.snowColor.opacity(0.82)))
+  }
 
   /// 雨粒を真下へ降らせます。粒はそれぞれ決まった速さで落ち、画面の下端まで来ると上へ戻ります。
   private func drawRain(in context: inout GraphicsContext, size: CGSize, frame: Int) {
@@ -453,7 +846,7 @@ struct SkyCanvas: View {
     let columnCount = max(Int(ceil(size.width / Self.cellSize)), 1)
     let rowCount = max(Int(ceil(size.height / Self.cellSize)), 1)
     let startRow = max(Int(Self.horizonRatio * Double(rowCount)), 0)
-    let endRow = min(Int(Self.shoreRatio * Double(rowCount)), rowCount)
+    let endRow = tidalShoreRow(rowCount: rowCount)
 
     guard startRow < endRow else { return }
 
@@ -519,7 +912,7 @@ struct SkyCanvas: View {
 
   /// 岸辺の水打ち際です。海面の上に重ねる必要があるため、動く層で描きます。
   private func drawShoreEdge(in context: inout GraphicsContext, size: CGSize) {
-    let shoreTop = snapped(CGFloat(Self.shoreRatio) * size.height)
+    let shoreTop = tidalShoreY(size: size)
     drawDitheredEdge(in: &context, size: size, top: shoreTop, color: sky.shore)
   }
 
@@ -557,7 +950,7 @@ struct SkyCanvas: View {
     let allRowCount = max(Int(ceil(size.height / Self.cellSize)), 1)
     let horizonRow = Int(Self.horizonRatio * Double(allRowCount))
     // 岸辺から下は道路になるため、水面はそこまでを描きます。
-    let rowCount = min(Int(Self.shoreRatio * Double(allRowCount)), allRowCount)
+    let rowCount = tidalShoreRow(rowCount: allRowCount)
 
     guard horizonRow + 1 < rowCount else { return }
 
@@ -620,10 +1013,14 @@ struct SkyCanvas: View {
     size: CGSize,
     tick: Int
   ) {
+    // 新月の夜は月そのものが見えないので、海に落ちる光の道も出しません。
+    let strength = reflectionStrength
+    guard strength > 0.02 else { return }
+
     let columnCount = max(Int(ceil(size.width / Self.cellSize)), 1)
     let allRowCount = max(Int(ceil(size.height / Self.cellSize)), 1)
     let horizonRow = Int(Self.horizonRatio * Double(allRowCount))
-    let waterEndRow = min(Int(Self.shoreRatio * Double(allRowCount)), allRowCount)
+    let waterEndRow = tidalShoreRow(rowCount: allRowCount)
 
     guard horizonRow < waterEndRow else { return }
 
@@ -664,14 +1061,19 @@ struct SkyCanvas: View {
       }
     }
 
-    context.fill(path, with: .color(sky.celestialTint.opacity(Self.reflectionOpacity)))
+    // 月が細いほど、道も淡くなります。
+    context.fill(
+      path,
+      with: .color(sky.celestialTint.opacity(Self.reflectionOpacity * strength))
+    )
   }
 
   /// 波打ち際に白い泡を寄せます。周期的に前後して、寄せては返す動きになります。
   private func drawSurf(in context: inout GraphicsContext, size: CGSize, tick: Int) {
     let columnCount = max(Int(ceil(size.width / Self.cellSize)), 1)
     let rowCount = max(Int(ceil(size.height / Self.cellSize)), 1)
-    let shoreRow = Int(Self.shoreRatio * Double(rowCount))
+    // 潮の満ち引きで、波打ち際そのものの位置が上下します。
+    let shoreRow = tidalShoreRow(rowCount: rowCount)
 
     // 寄せ引きの位相です。1のときが最も沖へ引き、0のときが最も岸へ寄せた状態です。
     let phase = (sin(Double(tick) / Self.surfPeriod * 2 * .pi) + 1) / 2
@@ -707,7 +1109,7 @@ struct SkyCanvas: View {
 
   /// 海の手前に岸辺と道路を敷きます。
   private func drawGround(in context: inout GraphicsContext, size: CGSize) {
-    let shoreTop = snapped(CGFloat(Self.shoreRatio) * size.height)
+    let shoreTop = tidalShoreY(size: size)
     let roadTop = snapped(CGFloat(Self.roadRatio) * size.height)
 
     context.fill(
@@ -991,15 +1393,25 @@ struct SkyCanvas: View {
   // MARK: - 雲
 
   /// 昼の空にドット絵の雲を置きます。夜が近づくにつれて薄くなります。
-  private func drawClouds(in context: inout GraphicsContext, size: CGSize) {
+  private func drawClouds(in context: inout GraphicsContext, size: CGSize, tick: Int) {
     let visibility = 1 - sky.nightness
     guard visibility > 0.05 else { return }
 
+    // 風で流れた距離です。時間と風速から求めるので、風が強いほど速く流れます。
+    let elapsed = Double(tick) * Self.animationInterval
+    let drift = elapsed * weather.windSpeed * Self.cloudDriftPerWind
+
     var path = Path()
 
-    for cloud in Self.cloudLayout {
+    // 雲量が多いほど、雲の数を増やします。
+    let extra = Int((weather.cloudCover * Double(Self.extraCloudCount)).rounded())
+    let clouds = Self.cloudLayout + Self.extraCloudLayout.prefix(extra)
+
+    for cloud in clouds {
       let unit = Self.cellSize * CGFloat(cloud.scale)
-      let baseX = snapped(CGFloat(cloud.x) * size.width)
+      // 画面の外へ出たら反対側から戻します。
+      let driftedX = (cloud.x + drift).truncatingRemainder(dividingBy: 1.4) - 0.2
+      let baseX = snapped(CGFloat(driftedX) * size.width)
       let baseY = snapped(CGFloat(cloud.y) * size.height)
 
       for (rowIndex, row) in Self.cloudRows.enumerated() {
@@ -1014,7 +1426,196 @@ struct SkyCanvas: View {
       }
     }
 
-    context.fill(path, with: .color(Color.white.opacity(visibility * 0.38)))
+    // 雲が多いほど厚く見せます。
+    let thickness = 0.38 + weather.cloudCover * 0.34
+    context.fill(path, with: .color(Color.white.opacity(visibility * thickness)))
+  }
+
+  // MARK: - 遠景と近景
+
+  /// 水平線の向こうに見える対岸です。
+  ///
+  /// 空と海だけでは画面の奥が抜けてしまうため、遠くの陸地と建物の影を置きます。
+  /// 色は空の色を暗くして作るので、時刻が変わっても風景から浮きません。
+  private func drawDistantShore(in context: inout GraphicsContext, size: CGSize) {
+    let cell = Self.cellSize
+    let columnCount = max(Int(ceil(size.width / cell)), 1)
+    let rowCount = max(Int(ceil(size.height / cell)), 1)
+    let horizonRow = Int(Self.horizonRatio * Double(rowCount))
+
+    var path = Path()
+    for column in 0..<columnCount {
+      let height = distantShoreHeight(atColumn: column)
+      let topRow = max(horizonRow - height, 0)
+
+      for row in topRow..<horizonRow {
+        path.addRect(
+          CGRect(x: CGFloat(column) * cell, y: CGFloat(row) * cell, width: cell, height: cell)
+        )
+      }
+    }
+
+    // 空の色を暗くして作るので、時刻が変わっても風景から浮きません。
+    context.fill(path, with: .color(sky.skyBottom))
+    context.fill(path, with: .color(Color.black.opacity(Self.distantShoreDarkening)))
+
+    drawDistantLights(in: &context, size: size, horizonRow: horizonRow, columnCount: columnCount)
+  }
+
+  /// 対岸にともる灯りです。夜だけ現れ、海の向こうに街があることを示します。
+  private func drawDistantLights(
+    in context: inout GraphicsContext,
+    size: CGSize,
+    horizonRow: Int,
+    columnCount: Int
+  ) {
+    guard sky.nightness > Self.starVisibilityThreshold else { return }
+
+    let cell = Self.cellSize
+    var path = Path()
+    for column in 0..<columnCount {
+      let height = distantShoreHeight(atColumn: column)
+      guard height > Self.distantShoreBaseHeight + 1 else { continue }
+      guard pseudoRandom(column * 53 + 29) > Self.distantLightChance else { continue }
+
+      // 建物の高さの範囲で、窓の位置をひとつ決めます。
+      let offset = 1 + Int(pseudoRandom(column * 61 + 7) * Double(height - 2))
+      let row = horizonRow - offset
+      guard row >= 0 else { continue }
+
+      path.addRect(
+        CGRect(x: CGFloat(column) * cell, y: CGFloat(row) * cell, width: cell, height: cell)
+      )
+    }
+
+    context.fill(
+      path,
+      with: .color(Self.distantLightColor.opacity(sky.nightness))
+    )
+  }
+
+  /// 道路脇の街灯です。夜だけ点灯し、路面に光だまりを落とします。
+  private func drawStreetLights(in context: inout GraphicsContext, size: CGSize) {
+    for ratio in Self.streetLightRatios {
+      drawStreetLight(in: &context, size: size, horizontalRatio: ratio)
+    }
+  }
+
+  private func drawStreetLight(
+    in context: inout GraphicsContext,
+    size: CGSize,
+    horizontalRatio: Double
+  ) {
+    let cell = Self.cellSize
+    let rowCount = max(Int(ceil(size.height / cell)), 1)
+    let roadRow = Int(Self.roadRatio * Double(rowCount))
+    let baseColumn = Int(horizontalRatio * size.width / cell)
+
+    var poleePath = Path()
+    for row in (roadRow - Self.streetLightHeight)..<roadRow where row >= 0 {
+      poleePath.addRect(
+        CGRect(x: CGFloat(baseColumn) * cell, y: CGFloat(row) * cell, width: cell, height: cell)
+      )
+    }
+
+    // 傘は支柱の先から片側へ伸ばします。
+    let headRow = max(roadRow - Self.streetLightHeight, 0)
+    for offset in 0..<Self.streetLightHeadWidth {
+      poleePath.addRect(
+        CGRect(
+          x: CGFloat(baseColumn - offset) * cell,
+          y: CGFloat(headRow) * cell,
+          width: cell,
+          height: cell
+        )
+      )
+    }
+    context.fill(poleePath, with: .color(sky.road))
+
+    guard isStreetLightOn else { return }
+
+    // 灯り本体と、路面に落ちる光だまりです。
+    var glowPath = Path()
+    glowPath.addRect(
+      CGRect(
+        x: CGFloat(baseColumn - Self.streetLightHeadWidth + 1) * cell,
+        y: CGFloat(headRow + 1) * cell,
+        width: cell * 2,
+        height: cell
+      )
+    )
+    context.fill(glowPath, with: .color(Self.streetLightColor.opacity(sky.nightness)))
+
+    // 光だまりは、濃さを一律にすると縁がくっきり切れて貼り紙のように見えます。
+    // 中心から楕円状に弱め、粒の密度と濃さの両方を落として滲ませます。
+    drawStreetLightBeam(
+      in: &context,
+      size: size,
+      headRow: headRow,
+      roadRow: roadRow,
+      centerColumn: baseColumn - Self.streetLightHeadWidth + 1
+    )
+
+    // 光だまりだけは半分の大きさの粒で描きます。
+    // 風景と同じ粗さだと段が目立つため、ここだけ細かくして滑らかに落とします。
+    let glowCell = cell / CGFloat(Self.streetLightGlowSubdivision)
+    let subdivision = Self.streetLightGlowSubdivision
+    let poolCenterX = CGFloat(baseColumn - Self.streetLightHeadWidth + 1) * cell
+    // 道路の手前端ではなく、少し奥から光が当たるようにします。
+    let poolTopY = CGFloat(roadRow - Self.streetLightGlowLift) * cell
+    let halfWidth = Double(Self.streetLightGlowWidth / 2 * subdivision)
+    let depth = Double(Self.streetLightGlowDepth * subdivision)
+
+    for rowOffset in 0..<(Self.streetLightGlowDepth * subdivision) {
+      let y = poolTopY + CGFloat(rowOffset) * glowCell
+      guard y < size.height else { continue }
+
+      var rowPath = Path()
+      // 縦は光だまりの中ほどが最も広くなるようにします。
+      // 上端がいちばん広いと、切り取った長方形のように見えてしまいます。
+      let vertical = (Double(rowOffset) - depth / 2) / (depth / 2)
+
+      let halfSpan = Self.streetLightGlowWidth / 2 * subdivision
+      for offset in -halfSpan...halfSpan {
+        let horizontal = Double(abs(offset)) / halfWidth
+        // 楕円の内側だけを塗ります。中心が最も明るく、縁へ向かってなだらかに消えます。
+        let intensity = max(1 - horizontal * horizontal - vertical * vertical, 0)
+        guard intensity > 0.02 else { continue }
+        // 粒の密度も明るさに従わせ、縁ほどまばらにします。
+        guard pseudoRandom(offset &* 13 &+ rowOffset &* 137 &+ baseColumn &* 7 &+ 91) < intensity else { continue }
+
+        rowPath.addRect(
+          CGRect(
+            x: poolCenterX + CGFloat(offset) * glowCell,
+            y: y,
+            width: glowCell,
+            height: glowCell
+          )
+        )
+      }
+
+      // 濃さも中ほどで最も強くします。密度と濃さの両方を落とすことで縁が滲みます。
+      let rowStrength = max(1 - vertical * vertical, 0)
+      context.fill(
+        rowPath,
+        with: .color(
+          Self.streetLightColor.opacity(sky.nightness * Self.streetLightGlowOpacity * rowStrength)
+        )
+      )
+    }
+  }
+
+  /// 対岸のある列の高さです。ほとんどは低い陸地で、ときどき建物が立ちます。
+  private func distantShoreHeight(atColumn column: Int) -> Int {
+    let noise = pseudoRandom(column * 7 + 13)
+    guard noise > Self.distantBuildingChance else {
+      // 低い陸地です。1セルだけ起伏をつけます。
+      return Self.distantShoreBaseHeight + (pseudoRandom(column * 31 + 5) > 0.6 ? 1 : 0)
+    }
+
+    let extra = pseudoRandom(column * 17 + 3)
+    let span = Self.distantShoreMaxHeight - Self.distantShoreBaseHeight
+    return Self.distantShoreBaseHeight + Int(extra * Double(span)) + 1
   }
 
   // MARK: - 太陽と月
@@ -1034,7 +1635,9 @@ struct SkyCanvas: View {
       centerY: centerY,
       radiusInCells: celestialRadiusInCells(),
       color: sky.celestialTint,
-      opacity: 0.92
+      opacity: 0.92,
+      // 夜に近いほど月として扱い、実際の日付の満ち欠けで欠かします。
+      moonPhase: sky.nightness > 0.5 ? MoonPhase.phase(at: Date()) : nil
     )
   }
 
@@ -1056,7 +1659,8 @@ struct SkyCanvas: View {
     radiusInCells: Int,
     innerRadiusInCells: Int = 0,
     color: Color,
-    opacity: Double
+    opacity: Double,
+    moonPhase: Double? = nil
   ) {
     guard radiusInCells > 0 else { return }
 
@@ -1074,6 +1678,15 @@ struct SkyCanvas: View {
         let squaredDistance = Double(row * row + column * column)
         guard squaredDistance <= squaredLimit,
               squaredDistance > squaredInnerLimit else { continue }
+        if let moonPhase,
+           !Self.isLitByMoonPhase(
+             column: column,
+             row: row,
+             radiusInCells: radiusInCells,
+             phase: moonPhase
+           ) {
+          continue
+        }
         path.addRect(
           CGRect(
             x: centerX + CGFloat(column) * Self.cellSize,
@@ -1089,6 +1702,35 @@ struct SkyCanvas: View {
   }
 
   // MARK: - 補助
+
+  /// 海に落ちる光の道の強さです。
+  ///
+  /// 昼は太陽なので満ち欠けに関係なく満ちた強さで、
+  /// 夜へ近づくほど月の照らされている割合に従います。
+  /// 新月では月が見えないため、光の道も消えます。
+  private var reflectionStrength: Double {
+    let illuminated = (1 - cos(2 * .pi * MoonPhase.phase(at: Date()))) / 2
+    return 1 - sky.nightness * (1 - illuminated)
+  }
+
+  /// 月のそのマスが照らされているかどうかです。
+  ///
+  /// 明暗の境目は、円を横切る楕円になります。
+  /// その行の円の半幅に位相の余弦を掛けた位置が境目で、
+  /// 新月へ向かう側か満月へ向かう側かで、どちら側が光るかが入れ替わります。
+  private static func isLitByMoonPhase(
+    column: Int,
+    row: Int,
+    radiusInCells: Int,
+    phase: Double
+  ) -> Bool {
+    let radius = Double(radiusInCells)
+    let halfWidth = (radius * radius - Double(row * row)).squareRoot()
+    let terminator = cos(2 * .pi * phase) * halfWidth
+    return phase < 0.5
+      ? Double(column) > terminator
+      : Double(column) < -terminator
+  }
 
   /// ドットで円を描くときの、中心からの距離の二乗のしきい値です。
   /// 半径の二乗そのままでは角が飛び出るため、半径の半分だけ緩めます。
