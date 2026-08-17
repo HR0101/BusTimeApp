@@ -278,23 +278,6 @@ struct SkyCanvas: View {
   private static let windWhitecapBoost: Double = 0.18
   /// 雲を空の色で染める強さです。
   private static let cloudTintStrength: Double = 0.42
-  /// 波紋の粒の細かさです。風景の何分の1の大きさで描くかを指定します。
-  /// 風景と同じ粗さでは輪が点に潰れてしまうため、ここだけ細かくして
-  /// 広がっていく輪として見えるようにします。
-  private static let rippleSubdivision = 2
-  /// 波紋の輪が広がりきる半径です。細かい粒の数で指定します。
-  private static let rippleMaxRadius = 4
-  /// 手前の海面での、輪の縦の潰れ具合です。横の半径に対する割合で指定します。
-  /// 水面を斜めから見ているので、輪は真円ではなく横長の楕円に見えます。
-  private static let rippleFlattenNear: Double = 0.55
-  /// 水平線近くでの、輪の縦の潰れ具合です。遠いほど水面を浅い角度で見るため、より潰れます。
-  private static let rippleFlattenFar: Double = 0.22
-  /// 同時に見えている波紋の数です。雨の強さに応じて増えます。
-  private static let rippleCountPerIntensity = 90
-  /// 波紋が現れてから消えるまでのコマ数です。
-  private static let rippleLifeTicks = 3
-  /// 波紋の濃さです。
-  private static let rippleOpacityValue: Double = 0.30
   /// 風が最も強いときに、鳥の飛ぶ速さが何倍になるかです。
   private static let birdWindSpeedBoost: Double = 1.8
   /// 電柱を立てる横位置です。等間隔に並べます。
@@ -377,6 +360,10 @@ struct SkyCanvas: View {
   private static let shipPeriod: Double = 190
   /// 船が水平線を渡りきるまでの時間です。
   private static let shipDuration: Double = 70
+  /// 船体の長さです。セル数で指定します。
+  private static let shipHullWidth = 6
+  /// 船の濃さです。明るい海面の上でも影として見えるところまで落とします。
+  private static let shipDarkening: Double = 0.5
   /// バス停の標識の一辺です。セル数で指定します。
   private static let signSize = 11
   /// バス停の支柱の高さです。セル数で指定します。
@@ -467,8 +454,6 @@ struct SkyCanvas: View {
     drawUtilityPoles(in: &context, size: size)
     drawStreetLights(in: &context, size: size)
     drawBusStop(in: &context, size: size)
-    // 雨が海面を叩く跳ねです。海の描画のあとに重ねます。
-    drawRainRipples(in: &context, size: size, tick: tick)
     // 積もった雪は地面の上、霧の下に重ねます。
     drawSnowCover(in: &context, size: size)
     // 霧はいちばん最後に重ね、遠くのものほど霞ませます。
@@ -559,29 +544,32 @@ struct SkyCanvas: View {
     let column = Int((1 - progress) * size.width / cell)
 
     var path = Path()
-    // 船体です。水平線のすぐ上に置きます。
-    for offset in 0..<5 {
+    // 船体です。水平線のすぐ下、海の上に浮かべます。
+    //
+    // 水平線より上は対岸の街の影と同じ帯なので、そこに置くと影の中に紛れます。
+    // 海側へ1マス下ろし、明るい海面に対する影として見えるようにします。
+    for offset in 0..<Self.shipHullWidth {
       path.addRect(
         CGRect(
           x: CGFloat(column + offset) * cell,
-          y: CGFloat(horizonRow - 1) * cell,
+          y: CGFloat(horizonRow + 1) * cell,
           width: cell,
           height: cell
         )
       )
     }
-    // 船橋です。
+    // 船橋です。船体の中ほどに1段だけ載せます。
     path.addRect(
       CGRect(
-        x: CGFloat(column + 2) * cell,
-        y: CGFloat(horizonRow - 2) * cell,
-        width: cell,
+        x: CGFloat(column + Self.shipHullWidth / 2 - 1) * cell,
+        y: CGFloat(horizonRow) * cell,
+        width: cell * 2,
         height: cell
       )
     )
 
     context.fill(path, with: .color(sky.skyBottom))
-    context.fill(path, with: .color(Color.black.opacity(Self.distantShoreDarkening)))
+    context.fill(path, with: .color(Color.black.opacity(Self.shipDarkening)))
   }
 
   /// 濡れた路面で光がどれだけ強く映るかです。
@@ -769,67 +757,6 @@ struct SkyCanvas: View {
     let position = 1 - abs(local - 0.5) * 2
 
     return Int(position * Double(Self.powerLineSag))
-  }
-
-  /// 雨が海面に落ちた跳ねです。
-  ///
-  /// 実際の波紋は同心円ですが、この粗さでは輪を描いても点にしかなりません。
-  /// そこで粒をあえて大きくし、短い横棒として水面のきらめきだけを表します。
-  private func drawRainRipples(in context: inout GraphicsContext, size: CGSize, tick: Int) {
-    guard let intensity = weather.rainIntensity else { return }
-
-    let cell = Self.cellSize / CGFloat(Self.rippleSubdivision)
-    let columnCount = max(Int(size.width / cell), 1)
-    let allRowCount = max(Int(ceil(size.height / Self.cellSize)), 1)
-    let horizonRow = Int(Self.horizonRatio * Double(allRowCount))
-    let waterEndRow = tidalShoreRow(rowCount: allRowCount)
-    guard waterEndRow > horizonRow else { return }
-
-    let topY = CGFloat(horizonRow) * Self.cellSize
-    let bandHeight = CGFloat(waterEndRow - horizonRow) * Self.cellSize
-    let rowCount = max(Int(bandHeight / cell), 1)
-    let count = Int(Double(Self.rippleCountPerIntensity) * Self.snowDensity(for: intensity))
-
-    var path = Path()
-    for index in 0..<count {
-      // 波紋ごとに現れる時期をずらし、ばらばらに跳ねているように見せます。
-      let phase = (tick + Int(pseudoRandom(index &* 31 &+ 5) * 40)) % 40
-      guard phase < Self.rippleLifeTicks else { continue }
-
-      // 現れるたびに位置を変えます。
-      let seed = index &* 97 &+ (tick / 40) &* 13
-      let column = Int(pseudoRandom(seed &+ 1) * Double(columnCount))
-      let row = Int(pseudoRandom(seed &+ 2) * Double(rowCount))
-      // 輪は落ちた瞬間が最も小さく、消えるまでに広がります。
-      let radiusX = 1 + phase * (Self.rippleMaxRadius - 1) / max(Self.rippleLifeTicks - 1, 1)
-
-      // 水平線に近いほど水面を浅い角度で見るため、縦により潰れます。
-      let depth = Double(row) / Double(max(rowCount - 1, 1))
-      let flatten = Self.rippleFlattenFar
-        + (Self.rippleFlattenNear - Self.rippleFlattenFar) * depth
-      let radiusY = max(Int((Double(radiusX) * flatten).rounded()), 1)
-
-      for dy in -radiusY...radiusY {
-        for dx in -radiusX...radiusX {
-          // 楕円の縁に乗る粒だけを置きます。
-          let normalizedX = Double(dx) / Double(radiusX)
-          let normalizedY = Double(dy) / Double(radiusY)
-          let distance = (normalizedX * normalizedX + normalizedY * normalizedY).squareRoot()
-          guard abs(distance - 1) < 0.34 else { continue }
-
-          path.addRect(
-            CGRect(
-              x: CGFloat(column + dx) * cell,
-              y: topY + CGFloat(row + dy) * cell,
-              width: cell,
-              height: cell
-            )
-          )
-        }
-      }
-    }
-
-    context.fill(path, with: .color(Self.rainColor.opacity(Self.rippleOpacityValue)))
   }
 
   /// 砂浜と道路に積もった雪です。
