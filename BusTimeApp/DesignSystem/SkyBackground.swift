@@ -232,10 +232,15 @@ struct SkyCanvas: View {
   /// 傘は支柱の左へ伸びるので、照らしたいものより右の電柱を選びます。
   /// 1本目はバス停を照らし、2本目は道路の先を照らします。
   private static let lightedPoleIndices: Set<Int> = [0, 1]
-  /// 電柱のどの高さに街灯を吊るかです。路面からのセル数で指定します。
-  /// バス停は支柱14セルに標識11セルで約25セルあるため、
-  /// 街灯はそれよりはっきり高くして、道路の照明らしく見せます。
-  private static let streetLightHeight = 42
+  /// 街灯を吊る高さです。水平線から上へ何セルかで指定します。
+  ///
+  /// 路面から数えると、画面の高さによっては灯りが対岸の街と重なります。
+  /// 対岸の建物は水平線から最大4セルなので、そこより確実に上へ出る高さを
+  /// 水平線を基準に取り、どの画面でも街に紛れないようにします。
+  private static let streetLightAboveHorizon = 7
+  /// 街灯と電柱の腕木のあいだに空けるセル数です。
+  /// 近づきすぎると腕木と見分けがつかなくなります。
+  private static let streetLightArmClearance = 3
   /// 街灯の傘の幅です。セル数で指定します。
   private static let streetLightHeadWidth = 7
   /// 街灯の光だまりが路面に広がる幅です。セル数で指定します。
@@ -2046,7 +2051,13 @@ struct SkyCanvas: View {
     let baseColumn = Int(horizontalRatio * size.width / cell)
 
     // 腕木です。電柱の支柱から片側へ伸ばします。
-    let headRow = max(roadRow - Self.streetLightHeight, 0)
+    // 高さは水平線を基準に取り、電柱の腕木に近づきすぎないところで止めます。
+    let horizonRow = Int(Self.horizonRatio * Double(rowCount))
+    let lowestArmRow = roadRow - Self.utilityPoleHeight + 4
+    let headRow = max(
+      horizonRow - Self.streetLightAboveHorizon,
+      lowestArmRow + Self.streetLightArmClearance
+    )
     var armPath = Path()
     for offset in 0..<Self.streetLightHeadWidth {
       armPath.addRect(
