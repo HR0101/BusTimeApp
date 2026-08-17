@@ -322,12 +322,35 @@ struct BusTimeAppTests {
 
     @Test
     func rainIntensityFollowsPrecipitation() {
-        #expect(WeatherCodeInterpreter.weather(code: 61, precipitation: 0.2) == .rain(.light))
-        #expect(WeatherCodeInterpreter.weather(code: 63, precipitation: 2.0) == .rain(.moderate))
-        #expect(WeatherCodeInterpreter.weather(code: 65, precipitation: 8.0) == .rain(.heavy))
+        #expect(WeatherCodeInterpreter.weather(code: 61, precipitation: 0.2).precipitation == .rain(.light))
+        #expect(WeatherCodeInterpreter.weather(code: 63, precipitation: 2.0).precipitation == .rain(.moderate))
+        #expect(WeatherCodeInterpreter.weather(code: 65, precipitation: 8.0).precipitation == .rain(.heavy))
         // 雷雨は降水量が少なくても強い雨として扱います。
-        #expect(WeatherCodeInterpreter.weather(code: 95, precipitation: 0.1) == .rain(.heavy))
+        #expect(WeatherCodeInterpreter.weather(code: 95, precipitation: 0.1).precipitation == .rain(.heavy))
         #expect(WeatherCodeInterpreter.weather(code: 0, precipitation: 0.0) == .clear)
+    }
+
+    @Test
+    func weatherCarriesCloudFogThunderAndWind() {
+        // 雲量は百分率で届くので、0〜1に直します。
+        let cloudy = WeatherCodeInterpreter.weather(
+            code: 3, precipitation: 0, cloudCover: 90, windSpeed: 7
+        )
+        #expect(cloudy.precipitation == .none)
+        #expect(abs(cloudy.cloudCover - 0.9) < 0.001)
+        #expect(cloudy.windSpeed == 7)
+
+        // 霧は45と48です。
+        #expect(WeatherCodeInterpreter.weather(code: 45, precipitation: 0).isFoggy)
+        #expect(!WeatherCodeInterpreter.weather(code: 3, precipitation: 0).isFoggy)
+
+        // 雷雨は雷ありとして扱います。
+        #expect(WeatherCodeInterpreter.weather(code: 95, precipitation: 0.1).hasThunder)
+
+        // 雪は雨と区別します。
+        let snow = WeatherCodeInterpreter.weather(code: 73, precipitation: 1.5)
+        #expect(snow.isSnowing)
+        #expect(!snow.isRaining)
     }
 
     @Test @MainActor
@@ -785,6 +808,67 @@ struct BusTimeAppTests {
         #expect(BusServiceCalendar.isServiceDay(weekday, calendar: calendar))
         #expect(!BusServiceCalendar.isServiceDay(saturday, calendar: calendar))
         #expect(!BusServiceCalendar.isServiceDay(holiday, calendar: calendar))
+    }
+
+    @Test
+    func paletteCarriesTheHourForTimeBasedEffects() {
+        // 街灯の点灯や潮位は時刻そのものを見ます。
+        // celestialProgressは太陽の軌道上の進み具合なので、時刻の代わりには使えません。
+        #expect(SkyPalette.at(hour: 6).hour == 6)
+        #expect(SkyPalette.at(hour: 18.5).hour == 18.5)
+        // 範囲外の時刻は24時間周期に丸めます。
+        #expect(SkyPalette.at(hour: 26).hour == 2)
+    }
+
+    @Test
+    func streetLightHoursCoverEveningAndNightOnly() {
+        // 街灯が点くのは夕方16時から翌朝4時半までです。
+        // 判定に使う暗さも合わせて確かめます。
+        func isEveningOrNight(_ hour: Double) -> Bool {
+            hour >= 16 || hour < 4.5
+        }
+
+        // 朝と昼は消えています。
+        #expect(!isEveningOrNight(6))
+        #expect(!isEveningOrNight(12))
+        #expect(!isEveningOrNight(15))
+        // 夕方と夜は点きます。
+        #expect(isEveningOrNight(18))
+        #expect(isEveningOrNight(22))
+        #expect(isEveningOrNight(2))
+
+        // 朝6時は空が暗くても点けません。
+        #expect(SkyPalette.at(hour: 6).nightness > 0.22)
+        #expect(!isEveningOrNight(6))
+    }
+
+    // MARK: - 月の満ち欠け
+
+    @Test
+    func moonPhaseMatchesRealNewAndFullMoons() {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "UTC")!
+
+        func date(_ y: Int, _ m: Int, _ d: Int, _ hour: Int, _ minute: Int) -> Date {
+            calendar.date(from: DateComponents(year: y, month: m, day: d, hour: hour, minute: minute))!
+        }
+
+        /// 新月からのずれです。0と1はどちらも新月なので、近いほうを見ます。
+        func distanceFromNewMoon(_ phase: Double) -> Double {
+            min(phase, 1 - phase)
+        }
+
+        // 実際の新月の日時です。位相が0に近いことを確かめます。
+        #expect(distanceFromNewMoon(MoonPhase.phase(at: date(2024, 1, 11, 11, 57))) < 0.02)
+        #expect(distanceFromNewMoon(MoonPhase.phase(at: date(2025, 3, 29, 10, 58))) < 0.02)
+
+        // 実際の満月の日時です。位相が0.5に近いことを確かめます。
+        #expect(abs(MoonPhase.phase(at: date(2024, 1, 25, 17, 54)) - 0.5) < 0.02)
+
+        // 月齢は0以上、朔望月未満に収まります。
+        let age = MoonPhase.age(at: date(2026, 8, 17, 0, 0))
+        #expect(age >= 0)
+        #expect(age < MoonPhase.synodicMonth)
     }
 
     // MARK: - 配色

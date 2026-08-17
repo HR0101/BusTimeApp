@@ -49,7 +49,9 @@ struct OpenMeteoWeatherService: WeatherFetching {
       let decoded = try JSONDecoder().decode(OpenMeteoResponse.self, from: data)
       return WeatherCodeInterpreter.weather(
         code: decoded.current.weatherCode,
-        precipitation: decoded.current.precipitation
+        precipitation: decoded.current.precipitation,
+        cloudCover: decoded.current.cloudCover,
+        windSpeed: decoded.current.windSpeed
       )
     } catch {
       throw WeatherServiceError.invalidResponse
@@ -61,7 +63,10 @@ struct OpenMeteoWeatherService: WeatherFetching {
     components?.queryItems = [
       URLQueryItem(name: "latitude", value: String(latitude)),
       URLQueryItem(name: "longitude", value: String(longitude)),
-      URLQueryItem(name: "current", value: "weather_code,precipitation"),
+      URLQueryItem(
+        name: "current",
+        value: "weather_code,precipitation,cloud_cover,wind_speed_10m"
+      ),
       URLQueryItem(name: "timezone", value: "Asia/Tokyo")
     ]
     return components?.url
@@ -126,10 +131,16 @@ private struct OpenMeteoResponse: Decodable {
   struct Current: Decodable {
     let weatherCode: Int
     let precipitation: Double
+    /// 空を覆う雲の割合です。百分率で届きます。
+    let cloudCover: Double
+    /// 地上10メートルの風の強さです。
+    let windSpeed: Double
 
     private enum CodingKeys: String, CodingKey {
       case weatherCode = "weather_code"
       case precipitation
+      case cloudCover = "cloud_cover"
+      case windSpeed = "wind_speed_10m"
     }
   }
 }

@@ -1,23 +1,58 @@
 import Foundation
 
 /// 背景に描く空模様です。
-enum SkyWeather: Equatable {
-  /// 雨が降っていない状態です。
-  case clear
-  /// 雨が降っている状態です。
-  case rain(RainIntensity)
+///
+/// 降っているもの・雲の量・霧・雷・風を別々に持ちます。
+/// 「雨か晴れか」の2択では、曇りや雪や風を表せないためです。
+struct SkyWeather: Equatable {
+  /// 降っているものです。
+  enum Precipitation: Equatable {
+    case none
+    case rain(RainIntensity)
+    case snow(RainIntensity)
+  }
+
+  /// 降っているものです。
+  var precipitation: Precipitation = .none
+  /// 空を覆う雲の割合です。0が快晴、1が一面の曇りです。
+  var cloudCover: Double = 0
+  /// 霧が出ているかどうかです。
+  var isFoggy: Bool = false
+  /// 雷が鳴っているかどうかです。
+  var hasThunder: Bool = false
+  /// 風の強さです。毎秒何メートルかで持ちます。
+  var windSpeed: Double = 0
+
+  /// 何も起きていない空です。
+  static let clear = SkyWeather()
+
+  /// 雨だけの空を作ります。
+  static func rain(_ intensity: RainIntensity) -> SkyWeather {
+    SkyWeather(precipitation: .rain(intensity), cloudCover: 0.9)
+  }
+
+  /// 雪だけの空を作ります。
+  static func snow(_ intensity: RainIntensity) -> SkyWeather {
+    SkyWeather(precipitation: .snow(intensity), cloudCover: 0.9)
+  }
 
   var isRaining: Bool {
-    if case .rain = self {
-      return true
-    }
+    if case .rain = precipitation { return true }
     return false
   }
 
   var rainIntensity: RainIntensity? {
-    if case let .rain(intensity) = self {
-      return intensity
-    }
+    if case let .rain(intensity) = precipitation { return intensity }
+    return nil
+  }
+
+  var isSnowing: Bool {
+    if case .snow = precipitation { return true }
+    return false
+  }
+
+  var snowIntensity: RainIntensity? {
+    if case let .snow(intensity) = precipitation { return intensity }
     return nil
   }
 }
@@ -57,6 +92,10 @@ enum WeatherCodeInterpreter {
   private static let showerCodes: Set<Int> = [80, 81, 82]
   /// 雷雨を表すコードです。
   private static let thunderstormCodes: Set<Int> = [95, 96, 99]
+  /// 雪を表すコードです。
+  private static let snowCodes: Set<Int> = [71, 73, 75, 77, 85, 86]
+  /// 霧を表すコードです。
+  private static let fogCodes: Set<Int> = [45, 48]
 
   /// 天気コードが雨を表すかどうかを返します。
   /// 雪やあられは対象外とし、雨のときだけ背景を変えます。
@@ -67,15 +106,40 @@ enum WeatherCodeInterpreter {
       || thunderstormCodes.contains(code)
   }
 
-  /// 天気コードと降水量から空模様を組み立てます。
-  static func weather(code: Int, precipitation: Double) -> SkyWeather {
-    guard isRaining(code: code) else { return .clear }
+  /// 天気コードが雪を表すかどうかを返します。
+  static func isSnowing(code: Int) -> Bool {
+    snowCodes.contains(code)
+  }
 
-    // 雷雨は降水量が少なくても強い雨として扱います。
-    if thunderstormCodes.contains(code) {
-      return .rain(.heavy)
+  /// 天気コードと観測値から空模様を組み立てます。
+  /// - Parameters:
+  ///   - code: WMOの天気コードです。
+  ///   - precipitation: 直近1時間の降水量です。
+  ///   - cloudCover: 空を覆う雲の割合です。百分率で渡します。
+  ///   - windSpeed: 風の強さです。毎秒何メートルかで渡します。
+  static func weather(
+    code: Int,
+    precipitation: Double,
+    cloudCover: Double = 0,
+    windSpeed: Double = 0
+  ) -> SkyWeather {
+    var weather = SkyWeather()
+    weather.cloudCover = min(max(cloudCover / 100, 0), 1)
+    weather.windSpeed = max(windSpeed, 0)
+    weather.isFoggy = fogCodes.contains(code)
+    weather.hasThunder = thunderstormCodes.contains(code)
+
+    if isSnowing(code: code) {
+      weather.precipitation = .snow(RainIntensity.from(millimetersPerHour: precipitation))
+    } else if isRaining(code: code) {
+      // 雷雨は降水量が少なくても強い雨として扱います。
+      let intensity = thunderstormCodes.contains(code)
+        ? RainIntensity.heavy
+        : RainIntensity.from(millimetersPerHour: precipitation)
+      weather.precipitation = .rain(intensity)
     }
-    return .rain(RainIntensity.from(millimetersPerHour: precipitation))
+
+    return weather
   }
 }
 

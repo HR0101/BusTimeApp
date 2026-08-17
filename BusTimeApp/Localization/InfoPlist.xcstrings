@@ -1,6 +1,18 @@
 {
   "sourceLanguage" : "ja",
   "strings" : {
+    "CFBundleName" : {
+      "comment" : "Bundle name",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "BusTimeApp"
+          }
+        }
+      }
+    },
     "NSLocationWhenInUseUsageDescription" : {
       "comment" : "位置情報の許可を求めるときにiOSが出すダイアログの説明文です。",
       "extractionState" : "manual",
