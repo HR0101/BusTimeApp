@@ -950,19 +950,19 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "MMM d (E) H:mm"
+            "value": "MMMdEjmm"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "M月d日(E) H:mm"
+            "value": "MdEjmm"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "M月d日(E) H:mm"
+            "value": "MdEjmm"
           }
         }
       }

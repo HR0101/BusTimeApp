@@ -918,6 +918,36 @@ struct BusTimeAppTests {
         }
     }
 
+    // MARK: - 日時の表し方
+
+    @Test
+    func notificationDateFollowsTheDeviceLanguage() {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "Asia/Tokyo")!
+        let date = calendar.date(
+            from: DateComponents(year: 2026, month: 8, day: 17, hour: 18, minute: 30)
+        )!
+
+        let japanese = BusNotificationTimeCalculator.displayString(
+            date,
+            locale: Locale(identifier: "ja_JP")
+        )
+        let english = BusNotificationTimeCalculator.displayString(
+            date,
+            locale: Locale(identifier: "en_US")
+        )
+
+        // 言語ごとに書式が変わることを確かめます。
+        // 日本語に固定していたころは、どの言語でも同じ文字列になっていました。
+        #expect(japanese != english)
+        // 日本語は「8月17日」のように月日を漢字で区切ります。
+        #expect(japanese.contains("月"))
+        // アメリカ英語は12時間制なので、午後を表す語が付きます。
+        #expect(english.contains("PM"))
+        // 日本語は24時間制なので、午後を表す語は付きません。
+        #expect(!japanese.contains("PM"))
+    }
+
     // MARK: - 月の満ち欠け
 
     @Test

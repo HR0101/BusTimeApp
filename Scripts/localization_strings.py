@@ -183,7 +183,9 @@ ENTRIES = [
     # ---- 通知 ----
     ('notify.busDescription', '%1$@発｜%2$@', '%1$@ dep. | %2$@', '%1$@出发｜%2$@', ['String', 'String']),
     ('notify.minutesBefore', '%1$lld分前（%2$@）', '%1$lld min before (%2$@)', '提前%1$lld分钟（%2$@）', ['Int', 'String']),
-    ('notify.dateFormat', 'M月d日(E) H:mm', 'MMM d (E) H:mm', 'M月d日(E) H:mm', []),
+    # 日付と時刻の「並べる要素」だけを決めます。実際の並び順・区切り・
+    # 12時間制か24時間制かは、端末の設定にあわせてiOSが決めます。
+    ('notify.dateFormat', 'MdEjmm', 'MMMdEjmm', 'MdEjmm', []),
 
     # ---- 通知の管理画面 ----
     ('manage.title', '設定した通知', 'Scheduled alerts', '已设置的提醒', []),

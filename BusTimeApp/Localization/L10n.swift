@@ -278,7 +278,7 @@ public enum L10n {
     public static func minutesBefore(_ arg0: Int, _ arg1: String) -> String {
       String.localizedStringWithFormat(String(localized: "notify.minutesBefore"), arg0, arg1)
     }
-    /// M月d日(E) H:mm
+    /// MdEjmm
     public static var dateFormat: String { String(localized: "notify.dateFormat") }
   }
 

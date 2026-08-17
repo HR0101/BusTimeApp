@@ -689,9 +689,11 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
     
     // UIに表示する検索条件の説明文を更新します。
     func updateSearchCriteriaDescription() {
+        // 書式を固定すると、12時間制の地域でも24時間表記のままになります。
+        // 端末の言語と時刻表示の設定に従わせます。
         let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "ja_JP")
-        formatter.dateFormat = "HH:mm"
+        formatter.timeStyle = .short
+        formatter.dateStyle = .none
         let time = formatter.string(from: searchTime)
         if searchType == .arrival {
             searchCriteriaDescription = L10n.Search.criteriaArrival(
@@ -723,7 +725,11 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
             return L10n.Holiday.weekend
         }
 
+        // こちらは画面に出す文字ではなく、祝日の一覧と突き合わせる鍵です。
+        // 地域の暦に左右されないよう、書式と暦を固定します。
         let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.calendar = Calendar(identifier: .gregorian)
         formatter.dateFormat = "yyyy-MM-dd"
         if publicHolidays.contains(formatter.string(from: date)) {
             return L10n.Holiday.publicHoliday

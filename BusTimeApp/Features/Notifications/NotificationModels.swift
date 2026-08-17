@@ -221,10 +221,12 @@ enum BusNotificationTimeCalculator {
         return (departureDate, notificationDate)
     }
 
-    static func displayString(_ date: Date) -> String {
+    static func displayString(_ date: Date, locale: Locale = .current) -> String {
+        // 日本語に固定すると、他の言語でも日本語の暦と書式で出てしまいます。
+        // 並べる要素だけを言語ごとに決め、実際の並びと区切りは端末に任せます。
         let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "ja_JP")
-        formatter.dateFormat = L10n.Notify.dateFormat
+        formatter.locale = locale
+        formatter.setLocalizedDateFormatFromTemplate(L10n.Notify.dateFormat)
         return formatter.string(from: date)
     }
 
