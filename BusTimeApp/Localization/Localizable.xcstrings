@@ -2850,6 +2850,29 @@
         }
       }
     },
+    "route.locationPermissionDenied": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Allow location access in iPhone Settings to use your current location."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "現在地を使うには、iPhoneの設定で位置情報を許可してください。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "要使用当前位置，请在 iPhone 设置中允许位置访问。"
+          }
+        }
+      }
+    },
     "route.menuHint": {
       "extractionState": "manual",
       "localizations": {
@@ -2892,6 +2915,29 @@
           "stringUnit": {
             "state": "translated",
             "value": "今日从您附近出发的班次已结束"
+          }
+        }
+      }
+    },
+    "route.openLocationSettings": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open Location Settings"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "位置情報の設定を開く"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "打开位置设置"
           }
         }
       }
@@ -3426,6 +3472,52 @@
         }
       }
     },
+    "settings.appearanceAutomatic": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Follow time of day"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "時刻に合わせる"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "跟随时间"
+          }
+        }
+      }
+    },
+    "settings.appearanceDark": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dark"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ダーク"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "深色"
+          }
+        }
+      }
+    },
     "settings.appearanceDescription": {
       "extractionState": "manual",
       "localizations": {
@@ -3449,6 +3541,52 @@
         }
       }
     },
+    "settings.appearanceLight": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Light"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ライト"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "浅色"
+          }
+        }
+      }
+    },
+    "settings.appearanceMode": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Display mode"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "表示モード"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "显示模式"
+          }
+        }
+      }
+    },
     "settings.appearanceSection": {
       "extractionState": "manual",
       "localizations": {
@@ -3468,6 +3606,29 @@
           "stringUnit": {
             "state": "translated",
             "value": "界面颜色"
+          }
+        }
+      }
+    },
+    "settings.appearanceSystem": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "System setting"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "システム設定"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "系统设置"
           }
         }
       }
@@ -3840,6 +4001,29 @@
         }
       }
     },
+    "settings.weatherCached": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unable to refresh. Showing weather retrieved at %@."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "現在は更新できないため、%@に取得した天気を表示しています。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "目前无法更新，正在显示%@获取的天气。"
+          }
+        }
+      }
+    },
     "settings.weatherNotice": {
       "extractionState": "manual",
       "localizations": {
@@ -3859,6 +4043,52 @@
           "stringUnit": {
             "state": "translated",
             "value": "当海浜幕張駅附近下雨时，背景中也会下雨。天气信息来自 Open-Meteo。"
+          }
+        }
+      }
+    },
+    "settings.weatherUnavailable": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Weather is unavailable. The app will retry automatically when the connection improves."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "天気を取得できません。通信状態を確認すると自動で再試行します。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无法获取天气。网络恢复后应用会自动重试。"
+          }
+        }
+      }
+    },
+    "settings.weatherUpdated": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Weather updated at %@"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "天気は%@に更新しました"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "天气已于%@更新"
           }
         }
       }

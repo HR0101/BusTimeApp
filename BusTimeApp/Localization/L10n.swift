@@ -78,6 +78,10 @@ public enum L10n {
     public static var swapHintUnavailable: String { String(localized: "route.swapHintUnavailable") }
     /// 現在地に合わせる
     public static var useCurrentLocation: String { String(localized: "route.useCurrentLocation") }
+    /// 現在地を使うには、iPhoneの設定で位置情報を許可してください。
+    public static var locationPermissionDenied: String { String(localized: "route.locationPermissionDenied") }
+    /// 位置情報の設定を開く
+    public static var openLocationSettings: String { String(localized: "route.openLocationSettings") }
     /// 現在地から自動で選びました
     public static var decisionAutomatic: String { String(localized: "route.decisionAutomatic") }
     /// 時間帯と前回の行き先から選びました
@@ -493,8 +497,28 @@ public enum L10n {
     public static var appearanceTitle: String { String(localized: "settings.appearanceTitle") }
     /// 朝は明るい空、夕方は夕焼け、夜は星空へと背景がゆっくり変化します。太陽と月の位置も現在時刻に合わせて動きます。
     public static var appearanceDescription: String { String(localized: "settings.appearanceDescription") }
+    /// 表示モード
+    public static var appearanceMode: String { String(localized: "settings.appearanceMode") }
+    /// 時刻に合わせる
+    public static var appearanceAutomatic: String { String(localized: "settings.appearanceAutomatic") }
+    /// システム設定
+    public static var appearanceSystem: String { String(localized: "settings.appearanceSystem") }
+    /// ライト
+    public static var appearanceLight: String { String(localized: "settings.appearanceLight") }
+    /// ダーク
+    public static var appearanceDark: String { String(localized: "settings.appearanceDark") }
     /// 海浜幕張駅の周辺で雨が降っているときは、背景にも雨が降ります。天気の情報は Open-Meteo から取得しています。
     public static var weatherNotice: String { String(localized: "settings.weatherNotice") }
+    /// 天気は%@に更新しました
+    public static func weatherUpdated(_ arg0: String) -> String {
+      String.localizedStringWithFormat(String(localized: "settings.weatherUpdated"), arg0)
+    }
+    /// 現在は更新できないため、%@に取得した天気を表示しています。
+    public static func weatherCached(_ arg0: String) -> String {
+      String.localizedStringWithFormat(String(localized: "settings.weatherCached"), arg0)
+    }
+    /// 天気を取得できません。通信状態を確認すると自動で再試行します。
+    public static var weatherUnavailable: String { String(localized: "settings.weatherUnavailable") }
     /// 朝
     public static var previewMorning: String { String(localized: "settings.previewMorning") }
     /// 昼
