@@ -29,6 +29,9 @@ struct SkyBackground: View {
     SkyCanvas()
       .ignoresSafeArea()
       .accessibilityHidden(true)
+      // 「色を反転」は文字を読みやすくするための設定です。
+      // 風景まで反転させると、夜空が白くなるなど意図しない絵になるので外します。
+      .accessibilityIgnoresInvertColors()
   }
 }
 

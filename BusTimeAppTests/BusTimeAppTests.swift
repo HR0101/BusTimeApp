@@ -229,6 +229,17 @@ struct BusTimeAppTests {
     }
 
     @Test
+    func showButtonShapesStrengthensTheOutline() {
+        // 「ボタンの形」がオンのときは、押せる範囲がはっきり分かるよう輪郭を濃くします。
+        let normal = SkyButtonOutline.opacity(showButtonShapes: false)
+        let emphasized = SkyButtonOutline.opacity(showButtonShapes: true)
+
+        #expect(emphasized > normal)
+        // ふだんは風景を邪魔しない薄さに保ちます。
+        #expect(normal < 0.3)
+    }
+
+    @Test
     func reduceTransparencyHidesTheSceneBehindCards() {
         // 「透明度を下げる」がオンのときは、濃さの設定にかかわらず地を敷き切ります。
         // 背景の風景が透けること自体が、この設定で避けたいことだからです。

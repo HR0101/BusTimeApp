@@ -61,6 +61,22 @@ extension EnvironmentValues {
   }
 }
 
+/// ボタンの輪郭の濃さです。
+///
+/// このアプリのボタンは、塗りつぶさないものには薄い輪郭を引いています。
+/// iPhoneの「ボタンの形」設定は、押せる範囲をはっきり示すためのものなので、
+/// オンのときは輪郭をはっきりさせて、文字との区別が付くようにします。
+enum SkyButtonOutline {
+  /// ふだんの濃さです。風景を邪魔しない薄さにしています。
+  static let normal: Double = 0.22
+  /// 「ボタンの形」がオンのときの濃さです。
+  static let emphasized: Double = 0.65
+
+  static func opacity(showButtonShapes: Bool) -> Double {
+    showButtonShapes ? emphasized : normal
+  }
+}
+
 /// カードの地と輪郭を与える修飾子です。
 private struct SkyCardModifier: ViewModifier {
   @Environment(\.sky) private var sky
@@ -161,6 +177,8 @@ struct SkyPrimaryButton: View {
 /// 補助的な操作に使う、枠線だけのボタンです。
 struct SkySecondaryButton: View {
   @Environment(\.sky) private var sky
+  /// iPhoneの「ボタンの形」設定です。
+  @Environment(\.accessibilityShowButtonShapes) private var showButtonShapes
 
   let title: String
   let systemImage: String
@@ -178,7 +196,10 @@ struct SkySecondaryButton: View {
         .frame(minHeight: SkyMetrics.minimumTapSize)
         .background(
           RoundedRectangle(cornerRadius: radius, style: .continuous)
-            .stroke(sky.ink.opacity(0.28), lineWidth: SkyMetrics.borderWidth)
+            .stroke(
+              sky.ink.opacity(SkyButtonOutline.opacity(showButtonShapes: showButtonShapes)),
+              lineWidth: SkyMetrics.borderWidth
+            )
         )
     }
     .buttonStyle(SkyPressStyle())
@@ -188,6 +209,8 @@ struct SkySecondaryButton: View {
 /// ヘッダーなどで使う、輪郭だけの円形アイコンボタンです。
 struct SkyIconButton: View {
   @Environment(\.sky) private var sky
+  /// iPhoneの「ボタンの形」設定です。
+  @Environment(\.accessibilityShowButtonShapes) private var showButtonShapes
 
   let systemImage: String
   let accessibilityLabel: String
@@ -205,7 +228,9 @@ struct SkyIconButton: View {
         )
         .overlay(
           Circle().stroke(
-            isHighlighted ? Color.clear : sky.ink.opacity(0.22),
+            isHighlighted
+              ? Color.clear
+              : sky.ink.opacity(SkyButtonOutline.opacity(showButtonShapes: showButtonShapes)),
             lineWidth: SkyMetrics.borderWidth
           )
         )
@@ -218,6 +243,8 @@ struct SkyIconButton: View {
 /// 2択以上の選択に使う、小さなチップです。
 struct SkyChip: View {
   @Environment(\.sky) private var sky
+  /// iPhoneの「ボタンの形」設定です。
+  @Environment(\.accessibilityShowButtonShapes) private var showButtonShapes
 
   let title: String
   let isSelected: Bool
@@ -235,7 +262,9 @@ struct SkyChip: View {
         )
         .overlay(
           Capsule().stroke(
-            isSelected ? Color.clear : sky.ink.opacity(0.2),
+            isSelected
+              ? Color.clear
+              : sky.ink.opacity(SkyButtonOutline.opacity(showButtonShapes: showButtonShapes)),
             lineWidth: SkyMetrics.borderWidth
           )
         )
