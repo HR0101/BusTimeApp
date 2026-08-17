@@ -228,6 +228,17 @@ struct BusTimeAppTests {
         #expect(SkyCardOpacity.coverage(for: 1, isDense: true) == 1)
     }
 
+    @Test
+    func reduceTransparencyHidesTheSceneBehindCards() {
+        // 「透明度を下げる」がオンのときは、濃さの設定にかかわらず地を敷き切ります。
+        // 背景の風景が透けること自体が、この設定で避けたいことだからです。
+        #expect(SkyCardOpacity.coverage(for: 0, isDense: false, reduceTransparency: true) == 1)
+        #expect(SkyCardOpacity.coverage(for: 0.5, isDense: false, reduceTransparency: true) == 1)
+
+        // オフのときは、これまでどおり設定の濃さに従います。
+        #expect(SkyCardOpacity.coverage(for: 0, isDense: false, reduceTransparency: false) == 0)
+    }
+
     @Test @MainActor
     func liveActivityDefaultsOnWhenAvailableAndPersistsChanges() {
         let suiteName = "BusTimeAppTests.LiveActivityPreference"

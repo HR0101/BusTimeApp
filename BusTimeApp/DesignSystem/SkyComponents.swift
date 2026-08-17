@@ -33,7 +33,17 @@ enum SkyCardOpacity {
 
   /// 背景を隠す地をどれだけ効かせるかを返します。
   /// 1で背景が完全に隠れ、0で半透明の地だけになります。
-  static func coverage(for value: Double, isDense: Bool) -> Double {
+  ///
+  /// 「透明度を下げる」がオンのときは、設定の濃さにかかわらず地を敷き切ります。
+  /// 背景の風景が透けること自体がこの設定で避けたいことなので、
+  /// 濃さの好みより、読みやすさの求めを優先します。
+  static func coverage(
+    for value: Double,
+    isDense: Bool,
+    reduceTransparency: Bool = false
+  ) -> Double {
+    guard !reduceTransparency else { return maximum }
+
     let boosted = value + (isDense ? denseBoost : 0)
     return min(max(boosted, minimum), maximum)
   }
@@ -55,6 +65,8 @@ extension EnvironmentValues {
 private struct SkyCardModifier: ViewModifier {
   @Environment(\.sky) private var sky
   @Environment(\.skyCardOpacity) private var cardOpacity
+  /// iPhoneの「透明度を下げる」設定です。
+  @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
 
   let radius: CGFloat
   let padding: CGFloat
@@ -64,7 +76,11 @@ private struct SkyCardModifier: ViewModifier {
 
   /// 背景を隠す地をどれだけ効かせるかです。1で完全に隠れます。
   private var coverage: Double {
-    SkyCardOpacity.coverage(for: cardOpacity, isDense: isDense)
+    SkyCardOpacity.coverage(
+      for: cardOpacity,
+      isDense: isDense,
+      reduceTransparency: reduceTransparency
+    )
   }
 
   func body(content: Content) -> some View {
