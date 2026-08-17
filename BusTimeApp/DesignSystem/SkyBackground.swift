@@ -211,11 +211,13 @@ struct SkyCanvas: View {
   private static let distantLightChance: Double = 0.86
   /// 対岸の灯りの色です。
   private static let distantLightColor = Color(red: 1.0, green: 0.898, blue: 0.647)
-  /// 街灯を立てる横位置です。
-  /// 1本目はバス停を照らす位置に、2本目は道路の先に置きます。
-  /// 傘は支柱の左へ伸びるので、照らしたいものより右に立てます。
-  private static let streetLightRatios: [Double] = [0.26, 0.96]
-  /// 街灯の支柱の高さです。セル数で指定します。
+  /// 街灯を吊る電柱です。`utilityPoleRatios` の何本目かで指定します。
+  ///
+  /// 実際の道路でも、街灯はすべての電柱ではなく1本おきに付いています。
+  /// 傘は支柱の左へ伸びるので、照らしたいものより右の電柱を選びます。
+  /// 1本目はバス停を照らし、3本目は道路の先を照らします。
+  private static let lightedPoleIndices: Set<Int> = [0, 2]
+  /// 電柱のどの高さに街灯を吊るかです。路面からのセル数で指定します。
   /// バス停は支柱14セルに標識11セルで約25セルあるため、
   /// 街灯はそれよりはっきり高くして、道路の照明らしく見せます。
   private static let streetLightHeight = 42
@@ -265,8 +267,9 @@ struct SkyCanvas: View {
   private static let guardrailPostSpacing = 14
   /// ガードレールの支柱の高さです。セル数で指定します。
   private static let guardrailPostHeight = 5
-  /// 電柱を立てる横位置です。
-  private static let utilityPoleRatios: [Double] = [0.05, 0.55]
+  /// 電柱を立てる横位置です。等間隔に並べます。
+  /// 電線のたるみは、この間隔がそのまま画面の外へ続くものとして描きます。
+  private static let utilityPoleRatios: [Double] = [0.26, 0.61, 0.96]
   /// 電柱の高さです。セル数で指定します。街灯より高くします。
   private static let utilityPoleHeight = 72
   /// 電柱の腕木の幅です。セル数で指定します。
@@ -914,9 +917,11 @@ struct SkyCanvas: View {
   /// 電柱と電柱のちょうど中間で最も垂れます。画面の外にも電柱が続いているものとして、
   /// 両端の外側にも同じ間隔で仮の電柱を置き、端まで同じ形で垂らします。
   private func powerLineSag(atColumn column: Int, poles: [Int]) -> Int {
-    guard let first = poles.first, let last = poles.last, last > first else { return 0 }
+    guard let first = poles.first, poles.count >= 2 else { return 0 }
 
-    let span = Double(last - first)
+    // 電柱は等間隔に並んでいるので、隣り合う2本の間隔をそのまま周期に使います。
+    let span = Double(poles[1] - first)
+    guard span > 0 else { return 0 }
     // 最も近い電柱からの距離を、電柱の間隔に対する割合で求めます。
     let distance = (Double(column) - Double(first)) / span
     let local = distance - distance.rounded(.down)
@@ -2068,9 +2073,12 @@ struct SkyCanvas: View {
     )
   }
 
-  /// 道路脇の街灯です。夜だけ点灯し、路面に光だまりを落とします。
+  /// 電柱に取り付けた街灯です。夜だけ点灯し、路面に光だまりを落とします。
+  ///
+  /// 支柱は電柱として描いてあるので、ここでは腕木と灯りだけを足します。
   private func drawStreetLights(in context: inout GraphicsContext, size: CGSize) {
-    for ratio in Self.streetLightRatios {
+    for (index, ratio) in Self.utilityPoleRatios.enumerated()
+    where Self.lightedPoleIndices.contains(index) {
       drawStreetLight(in: &context, size: size, horizontalRatio: ratio)
     }
   }
@@ -2085,17 +2093,11 @@ struct SkyCanvas: View {
     let roadRow = Int(Self.roadRatio * Double(rowCount))
     let baseColumn = Int(horizontalRatio * size.width / cell)
 
-    var poleePath = Path()
-    for row in (roadRow - Self.streetLightHeight)..<roadRow where row >= 0 {
-      poleePath.addRect(
-        CGRect(x: CGFloat(baseColumn) * cell, y: CGFloat(row) * cell, width: cell, height: cell)
-      )
-    }
-
-    // 傘は支柱の先から片側へ伸ばします。
+    // 腕木です。電柱の支柱から片側へ伸ばします。
     let headRow = max(roadRow - Self.streetLightHeight, 0)
+    var armPath = Path()
     for offset in 0..<Self.streetLightHeadWidth {
-      poleePath.addRect(
+      armPath.addRect(
         CGRect(
           x: CGFloat(baseColumn - offset) * cell,
           y: CGFloat(headRow) * cell,
@@ -2104,7 +2106,20 @@ struct SkyCanvas: View {
         )
       )
     }
-    context.fill(poleePath, with: .color(sky.road))
+
+    // 腕木の先に吊る灯りの外側です。消えているときはここだけが見えます。
+    armPath.addRect(
+      CGRect(
+        x: CGFloat(baseColumn - Self.streetLightHeadWidth + 1) * cell,
+        y: CGFloat(headRow + 1) * cell,
+        width: cell * 2,
+        height: cell
+      )
+    )
+
+    // 電柱と同じ色で塗り、別々の柱ではなく1本の電柱に見えるようにします。
+    context.fill(armPath, with: .color(sky.skyBottom))
+    context.fill(armPath, with: .color(Color.black.opacity(Self.utilityPoleInkOpacity)))
 
     guard isStreetLightOn else { return }
 
