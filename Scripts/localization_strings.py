@@ -9,6 +9,16 @@ Scripts/generate_l10n.py を実行して次の2つを作り直してください
 1件の形式は (キー, 日本語, 英語, 簡体字中国語, 引数の型) です。
 キーは「区分.名前」で、区分がSwiftの列挙型、名前がその要素になります。
 引数がある場合は %@ や %lld を含め、2つ以上なら %1$@ のように順番を明示します。
+
+英語のように数で語形が変わる言語では、訳を辞書で書けます。
+日本語と中国語は語形が変わらないので、これまでどおり文字列のままで構いません。
+
+  {'one': '%lld service', 'other': '%lld services'}
+    1つ目の引数の数で切り替えます。
+
+  {'format': 'Departing in %1$@ %2$@',
+   'units': [('%lld hour', '%lld hours'), ('%lld minute', '%lld minutes')]}
+    引数ごとに切り替えます。書式の %1$@ %2$@ が順に units の語へ置き換わります。
 """
 
 ENTRIES = [
@@ -79,9 +89,16 @@ ENTRIES = [
     ('result.a11yCalculating', '残り時間を計算中', 'Calculating the time remaining', '正在计算剩余时间', []),
     ('result.a11yDeparted', 'この便は出発済みです', 'This service has departed', '该班次已出发', []),
     ('result.a11yLeavingSoon', 'まもなく出発します', 'Leaving soon', '即将出发', []),
-    ('result.a11yMinutes', 'あと%lld分で出発します', 'Departing in %lld minutes', '%lld分钟后出发', ['Int']),
-    ('result.a11yHours', 'あと%lld時間で出発します', 'Departing in %lld hours', '%lld小时后出发', ['Int']),
-    ('result.a11yHoursMinutes', 'あと%1$lld時間%2$lld分で出発します', 'Departing in %1$lld hours %2$lld minutes', '%1$lld小时%2$lld分钟后出发', ['Int', 'Int']),
+    ('result.a11yMinutes', 'あと%lld分で出発します',
+     {'one': 'Departing in %lld minute', 'other': 'Departing in %lld minutes'},
+     '%lld分钟后出发', ['Int']),
+    ('result.a11yHours', 'あと%lld時間で出発します',
+     {'one': 'Departing in %lld hour', 'other': 'Departing in %lld hours'},
+     '%lld小时后出发', ['Int']),
+    ('result.a11yHoursMinutes', 'あと%1$lld時間%2$lld分で出発します',
+     {'format': 'Departing in %1$@ %2$@',
+      'units': [('%lld hour', '%lld hours'), ('%lld minute', '%lld minutes')]},
+     '%1$lld小时%2$lld分钟后出发', ['Int', 'Int']),
     ('result.a11yScheduledDeparture', '%1$@、%2$@発です', '%1$@, departing at %2$@', '%1$@，%2$@出发', ['String', 'String']),
     ('result.a11yTimeRow', '%1$@発、%2$@着', 'Departs %1$@, arrives %2$@', '%1$@出发，%2$@到达', ['String', 'String']),
     ('result.notifyScheduled', '通知を設定済み', 'Alert set', '已设置提醒', []),
@@ -101,8 +118,13 @@ ENTRIES = [
     ('search.criteriaInitial', '検索条件: まだ検索されていません', 'Search: not run yet', '搜索条件：尚未搜索', []),
     ('search.resultInitial', '出発地・目的地と時刻を選んでください', 'Choose the stops and the time', '请选择站点和时间', []),
     ('search.noResults', '条件に合う便がありません。時刻または目的地を変更してください', 'No services match. Change the time or the destination.', '没有符合条件的班次。请更改时间或目的地。', []),
-    ('search.resultCountSuspended', '%lld便見つかりました。運休日のため平日ダイヤの時刻です', 'Found %lld services. There is no service today, so these are weekday times.', '找到%lld个班次。今日停运，显示的是工作日时刻。', ['Int']),
-    ('search.resultCount', '%1$lld便見つかりました。%2$@', 'Found %1$lld services. %2$@', '找到%1$lld个班次。%2$@', ['Int', 'String']),
+    ('search.resultCountSuspended', '%lld便見つかりました。運休日のため平日ダイヤの時刻です',
+     {'one': 'Found %lld service. There is no service today, so these are weekday times.',
+      'other': 'Found %lld services. There is no service today, so these are weekday times.'},
+     '找到%lld个班次。今日停运，显示的是工作日时刻。', ['Int']),
+    ('search.resultCount', '%1$lld便見つかりました。%2$@',
+     {'one': 'Found %1$lld service. %2$@', 'other': 'Found %1$lld services. %2$@'},
+     '找到%1$lld个班次。%2$@', ['Int', 'String']),
     ('search.criteriaArrival', '%1$@ → %2$@｜%3$@までに到着', '%1$@ → %2$@ | arriving by %3$@', '%1$@ → %2$@｜%3$@前到达', ['String', 'String', 'String']),
     ('search.criteriaDeparture', '%1$@ → %2$@｜%3$@以降に出発', '%1$@ → %2$@ | departing after %3$@', '%1$@ → %2$@｜%3$@后出发', ['String', 'String', 'String']),
     ('search.timetableLoadFailed', '選択された路線の時刻表を読み込めませんでした。', 'Could not load the timetable for the selected route.', '无法加载所选路线的时刻表。', []),
@@ -204,7 +226,9 @@ ENTRIES = [
     ('timetable.serviceNoticeTitle', '本日の運行', "Today's service", '今日运行', []),
     ('timetable.emptyTitle', '時刻表がありません', 'No timetable', '没有时刻表', []),
     ('timetable.emptyMessage', 'ホームタブで出発地と目的地を選び直してください', 'Choose the stops again on the Home tab', '请在首页标签页重新选择出发地和目的地', []),
-    ('timetable.serviceCount', '%lld便', '%lld services', '%lld个班次', ['Int']),
+    ('timetable.serviceCount', '%lld便',
+     {'one': '%lld service', 'other': '%lld services'},
+     '%lld个班次', ['Int']),
     ('timetable.routeHint', '経路を変えるときは、ホームタブで出発地と目的地を選んでください', 'To change the route, choose the stops on the Home tab', '要更改路线，请在首页标签页选择出发地和目的地', []),
     ('timetable.notificationHintTitle', '時刻をタップすると通知できます', 'Tap a time to set an alert', '轻点时刻即可设置提醒', []),
     ('timetable.notificationHintBody', '選んだ便が出発する前にお知らせします。設定した時刻は色が変わります。', 'You will be alerted before the service departs. Times with an alert change colour.', '将在所选班次出发前通知您。已设置的时刻会变色。', []),

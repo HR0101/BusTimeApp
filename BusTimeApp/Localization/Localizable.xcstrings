@@ -1914,9 +1914,21 @@
       "extractionState": "manual",
       "localizations": {
         "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Departing in %lld hours"
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Departing in %lld hour"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Departing in %lld hours"
+                }
+              }
+            }
           }
         },
         "ja": {
@@ -1939,7 +1951,49 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Departing in %1$lld hours %2$lld minutes"
+            "value": "Departing in %1$#@arg1@ %2$#@arg2@"
+          },
+          "substitutions": {
+            "arg1": {
+              "argNum": 1,
+              "formatSpecifier": "lld",
+              "variations": {
+                "plural": {
+                  "one": {
+                    "stringUnit": {
+                      "state": "translated",
+                      "value": "%arg hour"
+                    }
+                  },
+                  "other": {
+                    "stringUnit": {
+                      "state": "translated",
+                      "value": "%arg hours"
+                    }
+                  }
+                }
+              }
+            },
+            "arg2": {
+              "argNum": 2,
+              "formatSpecifier": "lld",
+              "variations": {
+                "plural": {
+                  "one": {
+                    "stringUnit": {
+                      "state": "translated",
+                      "value": "%arg minute"
+                    }
+                  },
+                  "other": {
+                    "stringUnit": {
+                      "state": "translated",
+                      "value": "%arg minutes"
+                    }
+                  }
+                }
+              }
+            }
           }
         },
         "ja": {
@@ -1983,9 +2037,21 @@
       "extractionState": "manual",
       "localizations": {
         "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Departing in %lld minutes"
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Departing in %lld minute"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Departing in %lld minutes"
+                }
+              }
+            }
           }
         },
         "ja": {
@@ -3248,9 +3314,21 @@
       "extractionState": "manual",
       "localizations": {
         "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Found %1$lld services. %2$@"
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Found %1$lld service. %2$@"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Found %1$lld services. %2$@"
+                }
+              }
+            }
           }
         },
         "ja": {
@@ -3271,9 +3349,21 @@
       "extractionState": "manual",
       "localizations": {
         "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Found %lld services. There is no service today, so these are weekday times."
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Found %lld service. There is no service today, so these are weekday times."
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Found %lld services. There is no service today, so these are weekday times."
+                }
+              }
+            }
           }
         },
         "ja": {
@@ -4191,9 +4281,21 @@
       "extractionState": "manual",
       "localizations": {
         "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%lld services"
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld service"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld services"
+                }
+              }
+            }
           }
         },
         "ja": {
