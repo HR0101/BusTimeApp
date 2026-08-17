@@ -316,12 +316,6 @@ struct SkyCanvas: View {
   private static let utilityPoleInkOpacity: Double = 0.55
   /// 電線の濃さです。電柱より細い線なので、薄めにして柵に見えないようにします。
   private static let powerLineInkOpacity: Double = 0.42
-  /// 飛行機が現れる周期です。
-  private static let airplanePeriod: Double = 240
-  /// 飛行機が渡りきるまでの時間です。
-  private static let airplaneDuration: Double = 46
-  /// 飛行機の灯りが点滅する周期です。描き直し何回ぶんかで指定します。
-  private static let airplaneBlinkTicks = 4
   /// 積もった雪の濃さです。降り続けても路面が完全には埋まらない濃さにします。
   private static let snowCoverOpacity: Double = 0.44
   /// 積雪をひとかたまりとして扱う大きさです。マス数で指定します。
@@ -473,7 +467,6 @@ struct SkyCanvas: View {
     drawUtilityPoles(in: &context, size: size)
     drawStreetLights(in: &context, size: size)
     drawBusStop(in: &context, size: size)
-    drawAirplane(in: &context, size: size, elapsed: Double(tick) * Self.animationInterval)
     // 雨が海面を叩く跳ねです。海の描画のあとに重ねます。
     drawRainRipples(in: &context, size: size, tick: tick)
     // 積もった雪は地面の上、霧の下に重ねます。
@@ -778,29 +771,6 @@ struct SkyCanvas: View {
     return Int(position * Double(Self.powerLineSag))
   }
 
-  /// 夜空をゆっくり横切る飛行機です。
-  ///
-  /// 機体は見えず、点滅する灯りだけが動きます。
-  private func drawAirplane(in context: inout GraphicsContext, size: CGSize, elapsed: Double) {
-    guard sky.nightness > Self.starVisibilityThreshold else { return }
-
-    let phase = elapsed.truncatingRemainder(dividingBy: Self.airplanePeriod)
-    guard phase < Self.airplaneDuration else { return }
-
-    let cell = Self.cellSize
-    let progress = phase / Self.airplaneDuration
-    let column = Int(progress * size.width / cell)
-    let row = Int(0.10 * size.height / cell)
-
-    // 点滅しているあいだだけ灯ります。
-    let isBlinkOn = (Int(elapsed / Self.animationInterval) / Self.airplaneBlinkTicks) % 2 == 0
-    guard isBlinkOn else { return }
-
-    context.fill(
-      Path(CGRect(x: CGFloat(column) * cell, y: CGFloat(row) * cell, width: cell, height: cell)),
-      with: .color(Color(red: 1.0, green: 0.55, blue: 0.5).opacity(0.9))
-    )
-  }
   /// 雨が海面に落ちた跳ねです。
   ///
   /// 実際の波紋は同心円ですが、この粗さでは輪を描いても点にしかなりません。
