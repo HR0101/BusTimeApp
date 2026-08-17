@@ -378,6 +378,82 @@ struct SkyCanvas: View {
     (0, 9)
   ]
 
+  /// 星座の定義です。星の位置は星座ごとの正方形の中の割合で持ちます。
+  struct Constellation {
+    /// この星座が見える季節です。
+    let season: Season
+    /// 画面上のどこに置くかです。左上を基準にした割合です。
+    let origin: CGPoint
+    /// 画面に対する大きさです。
+    let scale: Double
+    /// 星の位置です。
+    let stars: [CGPoint]
+    /// 結ぶ星の組です。
+    let links: [(Int, Int)]
+  }
+
+  /// 季節ごとの代表的な星座です。
+  static let constellations: [Constellation] = [
+    // 冬のオリオン座です。三つ星と四辺の star が特徴です。
+    Constellation(
+      season: .winter,
+      origin: CGPoint(x: 0.60, y: 0.08),
+      scale: 0.26,
+      stars: [
+        CGPoint(x: 0.00, y: 0.00),
+        CGPoint(x: 0.62, y: 0.06),
+        CGPoint(x: 0.26, y: 0.44),
+        CGPoint(x: 0.38, y: 0.50),
+        CGPoint(x: 0.50, y: 0.56),
+        CGPoint(x: 0.10, y: 0.96),
+        CGPoint(x: 0.70, y: 0.98)
+      ],
+      links: [(0, 2), (1, 4), (2, 3), (3, 4), (2, 5), (4, 6)]
+    ),
+    // 春の北斗七星です。ひしゃくの形に結びます。
+    Constellation(
+      season: .spring,
+      origin: CGPoint(x: 0.12, y: 0.07),
+      scale: 0.34,
+      stars: [
+        CGPoint(x: 0.00, y: 0.30),
+        CGPoint(x: 0.18, y: 0.10),
+        CGPoint(x: 0.40, y: 0.06),
+        CGPoint(x: 0.58, y: 0.20),
+        CGPoint(x: 0.72, y: 0.40),
+        CGPoint(x: 0.90, y: 0.50),
+        CGPoint(x: 1.00, y: 0.30)
+      ],
+      links: [(0, 1), (1, 2), (2, 3), (3, 4), (4, 5), (5, 6)]
+    ),
+    // 夏の大三角です。3つの明るい星だけを結びます。
+    Constellation(
+      season: .summer,
+      origin: CGPoint(x: 0.30, y: 0.06),
+      scale: 0.34,
+      stars: [
+        CGPoint(x: 0.00, y: 0.00),
+        CGPoint(x: 0.86, y: 0.26),
+        CGPoint(x: 0.30, y: 0.92)
+      ],
+      links: [(0, 1), (1, 2), (2, 0)]
+    ),
+    // 秋のカシオペヤ座です。Wの形に結びます。
+    Constellation(
+      season: .autumn,
+      origin: CGPoint(x: 0.18, y: 0.09),
+      scale: 0.30,
+      stars: [
+        CGPoint(x: 0.00, y: 0.00),
+        CGPoint(x: 0.22, y: 0.42),
+        CGPoint(x: 0.48, y: 0.10),
+        CGPoint(x: 0.74, y: 0.46),
+        CGPoint(x: 1.00, y: 0.06)
+      ],
+      links: [(0, 1), (1, 2), (2, 3), (3, 4)]
+    )
+  ]
+
   /// 雲を置く位置と大きさです。位置は画面に対する比率、大きさはセルの倍率です。
   private static let cloudLayout: [(x: Double, y: Double, scale: Int)] = [
     (0.06, 0.09, 4),
@@ -445,6 +521,7 @@ struct SkyCanvas: View {
     drawSwell(in: &context, size: size, tick: tick)
     drawReflectionPath(in: &context, size: size, tick: tick)
     drawStars(in: &context, size: size, tick: tick / Self.twinkleTicks)
+    drawConstellations(in: &context, size: size)
     drawShoreEdge(in: &context, size: size)
     drawSurf(in: &context, size: size, tick: tick)
     drawShip(in: &context, size: size, elapsed: Double(tick) * Self.animationInterval)
