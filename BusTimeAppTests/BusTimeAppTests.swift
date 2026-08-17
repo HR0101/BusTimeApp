@@ -940,6 +940,22 @@ struct BusTimeAppTests {
         }
     }
 
+    // MARK: - ショートカット（Siri）
+
+    @Test
+    func shortcutAnswerNamesTheRouteAndTheNextDeparture() {
+        // 声で聞く人には画面がないので、経路と時刻が1文に入っている必要があります。
+        let answer = NextBusAnswer.text(at: makeTestDate(hour: 10))
+
+        #expect(!answer.isEmpty)
+        // 経路名（出発地と目的地）が入っています。
+        #expect(answer.contains("コロンブスシティ") || answer.contains("海浜幕張駅"))
+        // 時刻が入っています。
+        #expect(answer.contains(":"))
+        // 便が見つからないときの文ではありません。
+        #expect(answer != L10n.Shortcut.noService)
+    }
+
     // MARK: - ウィジェットのタップ先
 
     @Test

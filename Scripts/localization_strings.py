@@ -23,6 +23,18 @@ Scripts/generate_l10n.py を実行して次の2つを作り直してください
 
 ENTRIES = [
 
+    # ---- ショートカット（Siri） ----
+    ('shortcut.nextBusTitle', '次のバスを調べる', 'Check the next bus', '查询下一班车', []),
+    ('shortcut.nextBusDescription', '次に出るバスの時刻と、出発までの時間を答えます。',
+     'Tells you when the next bus leaves and how long until then.',
+     '告知下一班车的出发时刻和距出发的时间。', []),
+    ('shortcut.phrase', '%@で次のバス', 'Next bus in %@', '%@的下一班车', ['String']),
+    ('shortcut.answer', '%1$@は%2$@発、%3$@着です。%4$@。',
+     'The next %1$@ bus leaves at %2$@ and arrives at %3$@. %4$@.',
+     '%1$@的下一班车%2$@出发，%3$@到达。%4$@。', ['String', 'String', 'String', 'String']),
+    ('shortcut.noService', '次に出るバスが見つかりませんでした。',
+     'I could not find the next bus.', '未能找到下一班车。', []),
+
     # ---- 共通 ----
     ('common.close', '閉じる', 'Close', '关闭', []),
     ('common.done', '完了', 'Done', '完成', []),

@@ -11,6 +11,23 @@ import Foundation
 ///
 /// このファイルは Scripts/generate_l10n.py が作ります。直接編集しないでください。
 public enum L10n {
+  public enum Shortcut {
+    /// 次のバスを調べる
+    public static var nextBusTitle: String { String(localized: "shortcut.nextBusTitle") }
+    /// 次に出るバスの時刻と、出発までの時間を答えます。
+    public static var nextBusDescription: String { String(localized: "shortcut.nextBusDescription") }
+    /// %@で次のバス
+    public static func phrase(_ arg0: String) -> String {
+      String.localizedStringWithFormat(String(localized: "shortcut.phrase"), arg0)
+    }
+    /// %1$@は%2$@発、%3$@着です。%4$@。
+    public static func answer(_ arg0: String, _ arg1: String, _ arg2: String, _ arg3: String) -> String {
+      String.localizedStringWithFormat(String(localized: "shortcut.answer"), arg0, arg1, arg2, arg3)
+    }
+    /// 次に出るバスが見つかりませんでした。
+    public static var noService: String { String(localized: "shortcut.noService") }
+  }
+
   public enum Common {
     /// 閉じる
     public static var close: String { String(localized: "common.close") }
