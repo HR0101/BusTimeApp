@@ -117,7 +117,7 @@ struct TimetableTabView: View {
         Text(L10n.Timetable.serviceCount(viewModel.currentFullTimetable.count))
           .dynamicFont(size: 13, relativeTo: .footnote, weight: .bold, design: .rounded)
           .monospacedDigit()
-          .foregroundStyle(sky.accent)
+          .foregroundStyle(sky.accentReadable)
       }
 
       SkyNoticeRow(
@@ -135,7 +135,7 @@ struct TimetableTabView: View {
     DynamicTypeStack(verticalAlignment: .top, spacing: 12) {
       Image(systemName: "bell.badge")
         .dynamicFont(size: 20, relativeTo: .title3, weight: .semibold)
-        .foregroundStyle(sky.accent)
+        .foregroundStyle(sky.accentReadable)
 
       VStack(alignment: .leading, spacing: 5) {
         Text(L10n.Timetable.notificationHintTitle)
@@ -221,12 +221,12 @@ struct TimetableTabView: View {
         Text(minuteText(for: bus))
           .dynamicFont(size: 16, relativeTo: .body, weight: .bold, design: .rounded)
           .monospacedDigit()
-          .foregroundStyle(isScheduled ? Color.white : sky.ink)
+          .foregroundStyle(isScheduled ? sky.accentInk : sky.ink)
 
         // 備考のある便には印だけを添え、内容はタップ後に見せます。
         // 便のない位置でも場所は確保し、行の高さを揃えます。
         Circle()
-          .fill(isScheduled ? Color.white : sky.ink)
+          .fill(isScheduled ? sky.accentInk : sky.ink)
           .frame(width: noteMarkerSize, height: noteMarkerSize)
           .opacity(bus.note == nil ? 0 : 1)
           .padding(.top, 2)
@@ -249,7 +249,7 @@ struct TimetableTabView: View {
         if differentiateWithoutColor, isScheduled {
           Image(systemName: "bell.fill")
             .dynamicFont(size: 9, relativeTo: .caption2, weight: .bold)
-            .foregroundStyle(Color.white)
+            .foregroundStyle(sky.accentInk)
             .padding(4)
         }
       }
@@ -324,7 +324,7 @@ struct TimetableTabView: View {
 
   /// いま何時台かです。該当する行を強調するために使います。
   private var currentHour: Int {
-    Calendar.current.component(.hour, from: viewModel.availabilityReferenceDate)
+    AppCalendar.japan.component(.hour, from: viewModel.availabilityReferenceDate)
   }
 
   /// その便がすでに出発したかどうかです。

@@ -10,14 +10,22 @@ final class NotificationViewModel: ObservableObject {
 
     private let center: UNUserNotificationCenter
     private let defaults: UserDefaults
+    private let calendar: Calendar
     private let storageKey = "scheduledBusNotifications"
+
+    private struct StoredNotifications: Codable {
+        let version: Int
+        let notifications: [ScheduledBusNotification]
+    }
 
     init(
         center: UNUserNotificationCenter = .current(),
-        defaults: UserDefaults = .standard
+        defaults: UserDefaults = .standard,
+        calendar: Calendar = AppCalendar.japan
     ) {
         self.center = center
         self.defaults = defaults
+        self.calendar = calendar
         loadNotifications()
         refreshPermissionStatus()
     }
@@ -35,7 +43,7 @@ final class NotificationViewModel: ObservableObject {
         for bus: Bus,
         routeName: String,
         minutesBefore: Int,
-        now: Date = Date(),
+        now: Date = AppDate.now(),
         completion: @escaping (Result<ScheduledBusNotification, BusNotificationSchedulingError>) -> Void
     ) {
         Task { @MainActor [weak self] in
@@ -49,7 +57,8 @@ final class NotificationViewModel: ObservableObject {
 
             guard BusNotificationTimeCalculator.nextDepartureDate(
                 for: bus.departure,
-                from: now
+                from: now,
+                calendar: calendar
             ) != nil else {
                 completion(.failure(.invalidDeparture))
                 return
@@ -58,7 +67,8 @@ final class NotificationViewModel: ObservableObject {
             guard let scheduledDates = BusNotificationTimeCalculator.notificationDate(
                 for: bus.departure,
                 minutesBefore: minutesBefore,
-                from: now
+                from: now,
+                calendar: calendar
             ) else {
                 completion(.failure(.tooLate))
                 return
@@ -82,7 +92,7 @@ final class NotificationViewModel: ObservableObject {
             content.body = L10n.Notify.pushBody(item.busDescription, minutesBefore)
             content.sound = .default
 
-            let components = Calendar.current.dateComponents(
+            let components = calendar.dateComponents(
                 [.year, .month, .day, .hour, .minute],
                 from: item.notificationDate
             )
@@ -94,6 +104,9 @@ final class NotificationViewModel: ObservableObject {
                 upsert(item)
                 completion(.success(item))
             } catch {
+                AppLogger.notifications.error(
+                    "Notification registration failed: \(error.localizedDescription, privacy: .public)"
+                )
                 completion(.failure(.registrationFailed))
             }
         }
@@ -153,7 +166,12 @@ final class NotificationViewModel: ObservableObject {
 
     private func requestAuthorization() async -> Bool {
         await withCheckedContinuation { continuation in
-            center.requestAuthorization(options: [.alert, .sound, .badge]) { granted, _ in
+            center.requestAuthorization(options: [.alert, .sound, .badge]) { granted, error in
+                if let error {
+                    AppLogger.notifications.error(
+                        "Notification permission request failed: \(error.localizedDescription, privacy: .public)"
+                    )
+                }
                 continuation.resume(returning: granted)
             }
         }
@@ -175,13 +193,29 @@ final class NotificationViewModel: ObservableObject {
     }
 
     private func loadNotifications() {
-        guard let data = defaults.data(forKey: storageKey),
-              let decoded = try? JSONDecoder().decode([ScheduledBusNotification].self, from: data) else {
+        guard let data = defaults.data(forKey: storageKey) else {
             scheduledNotifications = []
             return
         }
 
-        let now = Date()
+        let decoder = JSONDecoder()
+        let decoded: [ScheduledBusNotification]
+        do {
+            if let stored = try? decoder.decode(StoredNotifications.self, from: data),
+               stored.version == 1 {
+                decoded = stored.notifications
+            } else {
+                // v0は配列を直接保存していました。読み込めたらv1へ移行します。
+                decoded = try decoder.decode([ScheduledBusNotification].self, from: data)
+                AppLogger.persistence.info("Migrating notification storage from v0 to v1")
+            }
+        } catch {
+            scheduledNotifications = []
+            AppLogger.persistence.error("Notification storage could not be decoded")
+            return
+        }
+
+        let now = AppDate.now()
         scheduledNotifications = decoded
             .filter { $0.notificationDate >= now }
             .sorted { $0.notificationDate < $1.notificationDate }
@@ -196,7 +230,11 @@ final class NotificationViewModel: ObservableObject {
     }
 
     private func persistNotifications() {
-        guard let data = try? JSONEncoder().encode(scheduledNotifications) else { return }
-        defaults.set(data, forKey: storageKey)
+        do {
+            let stored = StoredNotifications(version: 1, notifications: scheduledNotifications)
+            defaults.set(try JSONEncoder().encode(stored), forKey: storageKey)
+        } catch {
+            AppLogger.persistence.error("Notification storage could not be encoded")
+        }
     }
 }

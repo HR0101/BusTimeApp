@@ -122,7 +122,7 @@ enum BusSchedule {
     on route: BusRoute,
     from now: Date,
     limit: Int,
-    calendar: Calendar = .current
+    calendar: Calendar = AppCalendar.japan
   ) -> [UpcomingBus] {
     timetable(for: route)
       .compactMap { bus -> UpcomingBus? in
@@ -179,7 +179,7 @@ enum BusSchedule {
     at date: Date,
     location: CLLocation?,
     preferredPartner: BusStop,
-    calendar: Calendar = .current
+    calendar: Calendar = AppCalendar.japan
   ) -> BusRoute {
     if let location, let origin = nearestStop(to: location) {
       if let route = routeFrom(origin: origin, at: date, preferredPartner: preferredPartner) {
@@ -219,7 +219,7 @@ enum BusSchedule {
   private static func routeFromTimeOfDay(
     at date: Date,
     preferredPartner: BusStop,
-    calendar: Calendar = .current
+    calendar: Calendar = AppCalendar.japan
   ) -> BusRoute {
     let hour = calendar.component(.hour, from: date)
     let isOutbound = hour < outboundEndHour

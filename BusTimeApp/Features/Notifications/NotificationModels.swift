@@ -71,45 +71,6 @@ enum BusNotificationIdentifier {
     }
 }
 
-/// バスが走る日かどうかを判定します。
-///
-/// 土日と祝日は全便運休です。時刻表は平日ダイヤの1種類しかないため、
-/// 「その日に走るかどうか」だけを見れば足ります。
-/// 画面の案内と通知の時刻計算で同じ判定を使うため、ここにまとめています。
-enum BusServiceCalendar {
-    /// 運休となる祝日の一覧です。
-    private static let publicHolidays: Set<String> = [
-        "2025-01-01", "2025-01-13", "2025-02-11", "2025-02-23", "2025-03-20",
-        "2025-04-29", "2025-05-03", "2025-05-04", "2025-05-05", "2025-07-21",
-        "2025-08-11", "2025-09-15", "2025-09-23", "2025-10-13", "2025-11-03",
-        "2025-11-23", "2025-12-23"
-    ]
-
-    /// その日が運休になる理由です。運行日であればnilを返します。
-    static func suspensionReason(for date: Date, calendar: Calendar = .current) -> String? {
-        let components = calendar.dateComponents([.year, .month, .day, .weekday], from: date)
-        guard let year = components.year,
-              let month = components.month,
-              let day = components.day,
-              let weekday = components.weekday else {
-            return nil
-        }
-
-        // 1が日曜、7が土曜です。
-        if weekday == 1 || weekday == 7 {
-            return L10n.Holiday.weekend
-        }
-
-        let key = String(format: "%04d-%02d-%02d", year, month, day)
-        return publicHolidays.contains(key) ? L10n.Holiday.publicHoliday : nil
-    }
-
-    /// その日にバスが走るかどうかです。
-    static func isServiceDay(_ date: Date, calendar: Calendar = .current) -> Bool {
-        suspensionReason(for: date, calendar: calendar) == nil
-    }
-}
-
 /// 時刻表の「午前4時を運行日の境目とする」ルールを通知にも適用します。
 /// これにより、深夜0〜3時台の便を通常の暦日だけで判定するずれを防ぎます。
 enum BusNotificationTimeCalculator {
@@ -120,7 +81,7 @@ enum BusNotificationTimeCalculator {
     static func departureDateForCurrentServiceDay(
         for departure: String,
         from now: Date,
-        calendar: Calendar = .current
+        calendar: Calendar = AppCalendar.japan
     ) -> Date? {
         guard let (hour, minute) = timeComponents(from: departure),
               let boundaryToday = calendar.date(
@@ -152,7 +113,7 @@ enum BusNotificationTimeCalculator {
     }
 
     /// その日時が属する運行日の起点（午前4時）を返します。
-    static func serviceDayStart(for date: Date, calendar: Calendar = .current) -> Date? {
+    static func serviceDayStart(for date: Date, calendar: Calendar = AppCalendar.japan) -> Date? {
         guard let boundary = calendar.date(
             bySettingHour: serviceDayBoundaryHour,
             minute: 0,
@@ -175,7 +136,7 @@ enum BusNotificationTimeCalculator {
     static func nextDepartureDate(
         for departure: String,
         from now: Date,
-        calendar: Calendar = .current
+        calendar: Calendar = AppCalendar.japan
     ) -> Date? {
         for offset in 0...maximumDaysToFindServiceDay {
             guard let reference = calendar.date(byAdding: .day, value: offset, to: now),
@@ -202,7 +163,7 @@ enum BusNotificationTimeCalculator {
         for departure: String,
         minutesBefore: Int,
         from now: Date,
-        calendar: Calendar = .current
+        calendar: Calendar = AppCalendar.japan
     ) -> (departureDate: Date, notificationDate: Date)? {
         guard minutesBefore >= 0,
               let departureDate = nextDepartureDate(for: departure, from: now, calendar: calendar),
@@ -226,6 +187,8 @@ enum BusNotificationTimeCalculator {
         // 並べる要素だけを言語ごとに決め、実際の並びと区切りは端末に任せます。
         let formatter = DateFormatter()
         formatter.locale = locale
+        formatter.calendar = AppCalendar.japan
+        formatter.timeZone = AppCalendar.timeZone
         formatter.setLocalizedDateFormatFromTemplate(L10n.Notify.dateFormat)
         return formatter.string(from: date)
     }
