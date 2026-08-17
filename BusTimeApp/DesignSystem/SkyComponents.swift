@@ -142,13 +142,14 @@ extension View {
 
 /// 押している間だけわずかに縮む、影を使わないボタンスタイルです。
 struct SkyPressStyle: ButtonStyle {
+  @Environment(\.accessibilityReduceMotion) private var reduceMotion
   /// 押下時の縮小率です。
   private let pressedScale: CGFloat = 0.97
 
   func makeBody(configuration: Configuration) -> some View {
     configuration.label
       .scaleEffect(configuration.isPressed ? pressedScale : 1)
-      .animation(.easeOut(duration: 0.14), value: configuration.isPressed)
+      .animation(reduceMotion ? nil : .easeOut(duration: 0.14), value: configuration.isPressed)
   }
 }
 
@@ -167,7 +168,7 @@ struct SkyPrimaryButton: View {
     Button(action: action) {
       Label(title, systemImage: systemImage)
         .dynamicFont(size: 15, relativeTo: .subheadline, weight: .bold, design: .rounded)
-        .foregroundStyle(Color.white)
+        .foregroundStyle(sky.accentInk)
         .padding(.horizontal, 18)
         .frame(minHeight: SkyMetrics.minimumTapSize)
         .background(
@@ -226,7 +227,7 @@ struct SkyIconButton: View {
     Button(action: action) {
       Image(systemName: systemImage)
         .dynamicFont(size: 16, relativeTo: .body, weight: .semibold)
-        .foregroundStyle(isHighlighted ? Color.white : sky.ink)
+        .foregroundStyle(isHighlighted ? sky.accentInk : sky.ink)
         .scaledTapTarget()
         .background(
           Circle().fill(isHighlighted ? sky.accent : Color.clear)
@@ -259,7 +260,7 @@ struct SkyChip: View {
     Button(action: action) {
       Text(title)
         .dynamicFont(size: 14, relativeTo: .subheadline, weight: .bold, design: .rounded)
-        .foregroundStyle(isSelected ? Color.white : sky.inkSecondary)
+        .foregroundStyle(isSelected ? sky.accentInk : sky.ink)
         .frame(maxWidth: .infinity)
         .frame(minHeight: SkyMetrics.minimumTapSize)
         .background(
@@ -284,14 +285,16 @@ struct SkyChip: View {
 /// セクションの上に置く、字間を広げた小さな見出しです。
 struct SkySectionLabel: View {
   @Environment(\.sky) private var sky
+  @ScaledMetric(relativeTo: .caption) private var letterSpacing: CGFloat = 1.2
 
   let text: String
 
   var body: some View {
     Text(text)
-      .dynamicFont(size: 11, relativeTo: .caption2, weight: .bold, design: .rounded)
-      .tracking(1.6)
-      .foregroundStyle(sky.inkSecondary)
+      // 標準のテキストスタイルを直接使い、Dynamic Type監査でも追従を判定できるようにします。
+      .font(.system(.caption, design: .rounded, weight: .heavy))
+      .tracking(letterSpacing)
+      .foregroundStyle(sky.ink)
       .accessibilityAddTraits(.isHeader)
   }
 }
@@ -323,7 +326,8 @@ struct SkyNoticeRow: View {
         .foregroundStyle(isWarning ? sky.warning : sky.inkSecondary)
       Text(message)
         .dynamicFont(size: 12, relativeTo: .caption, weight: .medium)
-        .foregroundStyle(isWarning ? sky.warning : sky.inkSecondary)
+        // 注意状態はアイコンの形と文面で伝え、本文は常に高コントラスト色にします。
+        .foregroundStyle(isWarning ? sky.ink : sky.inkSecondary)
         .fixedSize(horizontal: false, vertical: true)
         .frame(maxWidth: .infinity, alignment: .leading)
     }

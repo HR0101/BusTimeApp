@@ -31,7 +31,7 @@ struct HomeHeaderBar: View {
     DynamicTypeStack(spacing: 10) {
       Image(systemName: "bus.fill")
         .dynamicFont(size: 17, relativeTo: .headline, weight: .bold)
-        .foregroundStyle(sky.accent)
+        .foregroundStyle(sky.accentReadable)
 
       Text(L10n.Home.brandName)
         .dynamicFont(size: 16, relativeTo: .headline, weight: .bold, design: .rounded)
@@ -105,14 +105,20 @@ struct NextDepartureHero: View {
         timeRow
         // 停留所名は固有名詞なので、そのまま並べます。
         Text(verbatim: "\(bus.originName) → \(bus.destinationName)")
-          .dynamicFont(size: 13, relativeTo: .footnote, weight: .medium)
-          .foregroundStyle(sky.inkSecondary)
+          .dynamicFont(size: 13, relativeTo: .footnote, weight: .bold)
+          .foregroundStyle(sky.ink)
           .fixedSize(horizontal: false, vertical: true)
+          .padding(.horizontal, 8)
+          .padding(.vertical, 5)
+          .background(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+              .fill(sky.surfaceOpaque)
+          )
 
         if let note = bus.note {
           Text(note)
             .dynamicFont(size: 11, relativeTo: .caption2, weight: .bold, design: .rounded)
-            .foregroundStyle(sky.accent)
+            .foregroundStyle(sky.accentReadable)
             .padding(.horizontal, 9)
             .padding(.vertical, 5)
             .background(Capsule().fill(sky.accentSoft))

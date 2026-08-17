@@ -4,6 +4,11 @@ struct TutorialView: View {
   @Environment(\.dismiss) private var dismiss
   @Environment(\.sky) private var sky
   @StateObject private var viewModel = TutorialViewModel()
+  let onComplete: () -> Void
+
+  init(onComplete: @escaping () -> Void = {}) {
+    self.onComplete = onComplete
+  }
 
   var body: some View {
     VStack(spacing: 0) {
@@ -24,7 +29,6 @@ struct TutorialView: View {
       advanceButton
     }
     .background(SkyBackground())
-    .preferredColorScheme(sky.isNight ? .dark : .light)
   }
 
   private var header: some View {
@@ -45,6 +49,7 @@ struct TutorialView: View {
   private var advanceButton: some View {
     Button {
       if viewModel.isLastPage {
+        onComplete()
         dismiss()
       } else {
         viewModel.nextPage()
@@ -56,7 +61,7 @@ struct TutorialView: View {
         Image(systemName: viewModel.isLastPage ? "checkmark" : "arrow.right")
       }
       .dynamicFont(size: 15, relativeTo: .subheadline, weight: .bold, design: .rounded)
-      .foregroundStyle(Color.white)
+      .foregroundStyle(sky.accentInk)
       .padding(.horizontal, 20)
       .frame(maxWidth: .infinity, minHeight: 52)
       .background(
@@ -90,7 +95,7 @@ struct TutorialPage: View {
 
         Image(systemName: systemName)
           .dynamicFont(size: iconSize, relativeTo: .largeTitle, weight: .light)
-          .foregroundStyle(sky.accent)
+          .foregroundStyle(sky.accentReadable)
 
         Text(title)
           .dynamicFont(size: 26, relativeTo: .title, weight: .bold, design: .rounded)

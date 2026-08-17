@@ -1997,7 +1997,7 @@ struct SkyCanvas: View {
       color: sky.celestialTint,
       opacity: 0.92,
       // 夜に近いほど月として扱い、実際の日付の満ち欠けで欠かします。
-      moonPhase: sky.nightness > 0.5 ? MoonPhase.phase(at: Date()) : nil
+      moonPhase: sky.nightness > 0.5 ? MoonPhase.phase(at: AppDate.now()) : nil
     )
   }
 
@@ -2069,7 +2069,7 @@ struct SkyCanvas: View {
   /// 夜へ近づくほど月の照らされている割合に従います。
   /// 新月では月が見えないため、光の道も消えます。
   private var reflectionStrength: Double {
-    let illuminated = (1 - cos(2 * .pi * MoonPhase.phase(at: Date()))) / 2
+    let illuminated = (1 - cos(2 * .pi * MoonPhase.phase(at: AppDate.now()))) / 2
     return 1 - sky.nightness * (1 - illuminated)
   }
 

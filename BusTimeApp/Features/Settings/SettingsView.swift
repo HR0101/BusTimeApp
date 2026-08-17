@@ -4,6 +4,7 @@ struct SettingsView: View {
   @Environment(\.dismiss) private var dismiss
   @Environment(\.sky) private var sky
   @ObservedObject var viewModel: SettingsViewModel
+  @ObservedObject var weatherViewModel: WeatherViewModel
 
   var body: some View {
     NavigationStack {
@@ -24,10 +25,9 @@ struct SettingsView: View {
         ToolbarItem(placement: .navigationBarTrailing) {
           Button(L10n.Common.done) { dismiss() }
             .fontWeight(.bold)
-            .foregroundStyle(sky.accent)
+            .foregroundStyle(sky.accentReadable)
         }
       }
-      .preferredColorScheme(sky.isNight ? .dark : .light)
       .onAppear {
         viewModel.refreshLiveActivityAvailability()
       }
@@ -51,15 +51,54 @@ struct SettingsView: View {
         .foregroundStyle(sky.inkSecondary)
         .fixedSize(horizontal: false, vertical: true)
 
+      Picker(
+        L10n.Settings.appearanceMode,
+        selection: Binding(
+          get: { viewModel.appearancePreference },
+          set: viewModel.setAppearancePreference
+        )
+      ) {
+        ForEach(AppearancePreference.allCases) { preference in
+          Text(preference.title).tag(preference)
+        }
+      }
+      .pickerStyle(.menu)
+      .tint(sky.accent)
+
       skyPreviewStrip
 
       SkyNoticeRow(
-        message: L10n.Settings.weatherNotice,
+        message: weatherStatusMessage,
         systemImage: "cloud.rain"
       )
+
+      Text(L10n.Settings.weatherNotice)
+        .dynamicFont(size: 11, relativeTo: .caption2, weight: .medium)
+        .foregroundStyle(sky.inkSecondary)
+        .fixedSize(horizontal: false, vertical: true)
     }
     .frame(maxWidth: .infinity, alignment: .leading)
     .skyCard()
+  }
+
+  private var weatherStatusMessage: String {
+    guard let lastUpdate = weatherViewModel.lastSuccessfulUpdate else {
+      return weatherViewModel.hasFailedRecently
+        ? L10n.Settings.weatherUnavailable
+        : L10n.Settings.weatherNotice
+    }
+
+    let formatter = DateFormatter()
+    formatter.calendar = AppCalendar.japan
+    formatter.timeZone = AppCalendar.timeZone
+    formatter.dateStyle = AppCalendar.japan.isDate(lastUpdate, inSameDayAs: AppDate.now())
+      ? .none
+      : .short
+    formatter.timeStyle = .short
+    let time = formatter.string(from: lastUpdate)
+    return weatherViewModel.hasFailedRecently
+      ? L10n.Settings.weatherCached(time)
+      : L10n.Settings.weatherUpdated(time)
   }
 
   /// 1日の色の移り変わりを小さな帯で示します。

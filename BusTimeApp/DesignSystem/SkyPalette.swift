@@ -27,6 +27,19 @@ private struct RGBComponents: Equatable {
   func color(opacity: Double = 1) -> Color {
     Color(red: red, green: green, blue: blue, opacity: opacity)
   }
+
+  private var relativeLuminance: Double {
+    func linear(_ value: Double) -> Double {
+      value <= 0.04045 ? value / 12.92 : pow((value + 0.055) / 1.055, 2.4)
+    }
+    return 0.2126 * linear(red) + 0.7152 * linear(green) + 0.0722 * linear(blue)
+  }
+
+  func contrastRatio(with other: RGBComponents) -> Double {
+    let lighter = max(relativeLuminance, other.relativeLuminance)
+    let darker = min(relativeLuminance, other.relativeLuminance)
+    return (lighter + 0.05) / (darker + 0.05)
+  }
 }
 
 /// 季節です。空の色と昼の長さを季節ごとに寄せるために使います。
@@ -136,8 +149,12 @@ struct SkyPalette: Equatable {
   let surfaceOpaque: Color
   /// カードの輪郭線の色です。
   let surfaceBorder: Color
-  /// 選択状態や強調に使う色です。この色の上には常に白文字を置きます。
+  /// 選択状態や強調に使う色です。上に置く文字色は`accentInk`を使います。
   let accent: Color
+  /// 強調色の上に置く文字色です。明るい夜の青では濃色を使ってコントラストを保ちます。
+  let accentInk: Color
+  /// カード上でアクセント相当の役割を担う、高コントラストの文字色です。
+  let accentReadable: Color
   /// 強調色の淡い背景です。バッジやチップの地に使います。
   let accentSoft: Color
   /// 注意を促すメッセージの色です。
@@ -241,14 +258,16 @@ struct SkyPalette: Equatable {
   private static let dayAccent = RGBComponents(red: 0.098, green: 0.361, blue: 0.761)
   /// 夜の強調色です。暗い背景でも沈まないよう、昼より明度を上げます。
   private static let nightAccent = RGBComponents(red: 0.278, green: 0.502, blue: 0.882)
+  private static let lightAccentInk = RGBComponents(red: 1, green: 1, blue: 1)
+  private static let darkAccentInk = RGBComponents(red: 0, green: 0, blue: 0)
   /// 昼の注意色です。
-  private static let dayWarning = RGBComponents(red: 0.729, green: 0.353, blue: 0.106)
+  private static let dayWarning = RGBComponents(red: 0.580, green: 0.230, blue: 0.030)
   /// 夜の注意色です。
-  private static let nightWarning = RGBComponents(red: 0.980, green: 0.678, blue: 0.365)
+  private static let nightWarning = RGBComponents(red: 1.000, green: 0.820, blue: 0.580)
   /// 昼の運行中表示の色です。
   private static let dayPositive = RGBComponents(red: 0.122, green: 0.478, blue: 0.361)
   /// 夜の運行中表示の色です。
-  private static let nightPositive = RGBComponents(red: 0.376, green: 0.804, blue: 0.647)
+  private static let nightPositive = RGBComponents(red: 0.580, green: 0.950, blue: 0.780)
   /// 太陽の色です。
   private static let sunTint = RGBComponents(red: 1.0, green: 0.973, blue: 0.867)
   /// 月の色です。海面に落ちる光を温かく見せるため、わずかに黄みを含ませます。
@@ -290,7 +309,7 @@ struct SkyPalette: Equatable {
   /// 夜のカード輪郭の不透明度です。
   private static let nightSurfaceBorderOpacity: Double = 0.16
   /// 副次的な文字の不透明度です。
-  private static let secondaryInkOpacity: Double = 0.66
+  private static let secondaryInkOpacity: Double = 0.90
   /// 最も控えめな要素の不透明度です。
   private static let faintInkOpacity: Double = 0.22
   /// 昼の強調色の淡い背景の不透明度です。
@@ -329,6 +348,10 @@ struct SkyPalette: Equatable {
     let nightness = previous.nightness + (next.nightness - previous.nightness) * ratio
 
     let accent = dayAccent.mixed(with: nightAccent, ratio: nightness)
+    let accentInk = accent.contrastRatio(with: lightAccentInk)
+      >= accent.contrastRatio(with: darkAccentInk)
+      ? lightAccentInk
+      : darkAccentInk
     let isNight = nightness > nightThreshold
     // 文字とカードの地は中間の値を持たせず、この境界で一度に入れ替えます。
     let ink = isNight ? nightInk : dayInk
@@ -356,11 +379,15 @@ struct SkyPalette: Equatable {
         interpolate(from: daySurfaceBorderOpacity, to: nightSurfaceBorderOpacity, ratio: surfaceTone)
       ),
       accent: accent.color(),
+      accentInk: accentInk.color(),
+      accentReadable: ink.color(),
       accentSoft: accent.color(
         opacity: interpolate(from: dayAccentSoftOpacity, to: nightAccentSoftOpacity, ratio: nightness)
       ),
-      warning: dayWarning.mixed(with: nightWarning, ratio: nightness).color(),
-      positive: dayPositive.mixed(with: nightPositive, ratio: nightness).color(),
+      // 状態色もカード地と同じ境界で切り替えます。補間すると夕方に
+      // カードと同程度の明るさを通過し、アイコンの輪郭が見えなくなるためです。
+      warning: (isNight ? nightWarning : dayWarning).color(),
+      positive: (isNight ? nightPositive : dayPositive).color(),
       celestialTint: sunTint.mixed(with: moonTint, ratio: nightness).color(),
       shore: dayShore
         .darkened(by: nightness * groundNightDarkening)
@@ -395,7 +422,10 @@ struct SkyPalette: Equatable {
     let components = calendar.dateComponents([.hour, .minute], from: date)
     let hour = Double(components.hour ?? 0)
     let minute = Double(components.minute ?? 0)
-    return at(hour: hour + minute / 60)
+    return at(
+      hour: hour + minute / 60,
+      season: Season.current(date: date, calendar: calendar)
+    )
   }
 
   /// 画面の縦位置に対応する空の色を返します。
@@ -499,7 +529,7 @@ final class SkyClock: ObservableObject {
   private let nowProvider: () -> Date
   private var timer: AnyCancellable?
 
-  init(nowProvider: @escaping () -> Date = Date.init) {
+  init(nowProvider: @escaping () -> Date = AppDate.now) {
     self.nowProvider = nowProvider
     self.palette = SkyPalette.at(date: nowProvider())
     startTimer()
@@ -513,11 +543,22 @@ final class SkyClock: ObservableObject {
   }
 
   private func startTimer() {
+    guard timer == nil else { return }
     timer = Timer.publish(every: Self.updateInterval, on: .main, in: .common)
       .autoconnect()
       .sink { [weak self] _ in
         self?.refresh()
       }
+  }
+
+  func setAutomaticUpdatesActive(_ isActive: Bool) {
+    if isActive {
+      refresh()
+      startTimer()
+    } else {
+      timer?.cancel()
+      timer = nil
+    }
   }
 }
 
