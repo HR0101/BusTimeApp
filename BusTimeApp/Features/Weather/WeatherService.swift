@@ -37,11 +37,18 @@ struct OpenMeteoWeatherService: WeatherFetching {
     do {
       (data, response) = try await session.data(for: request)
     } catch {
+      AppLogger.weather.error(
+        "Weather transport failed: \(error.localizedDescription, privacy: .public)"
+      )
       throw WeatherServiceError.requestFailed
     }
 
-    guard let httpResponse = response as? HTTPURLResponse,
-          (200..<300).contains(httpResponse.statusCode) else {
+    guard let httpResponse = response as? HTTPURLResponse else {
+      AppLogger.weather.error("Weather response was not HTTP")
+      throw WeatherServiceError.requestFailed
+    }
+    guard (200..<300).contains(httpResponse.statusCode) else {
+      AppLogger.weather.error("Weather HTTP status: \(httpResponse.statusCode)")
       throw WeatherServiceError.requestFailed
     }
 
@@ -54,6 +61,7 @@ struct OpenMeteoWeatherService: WeatherFetching {
         windSpeed: decoded.current.windSpeed
       )
     } catch {
+      AppLogger.weather.error("Weather response decoding failed")
       throw WeatherServiceError.invalidResponse
     }
   }
