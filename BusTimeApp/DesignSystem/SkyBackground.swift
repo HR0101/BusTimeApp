@@ -209,7 +209,7 @@ struct SkyCanvas: View {
   private static let busStopPoleWornOpacity: Double = 0.45
   /// バス停の足元に置く重石の高さです。セル数で指定します。
   private static let busStopBaseHeight = 4
-  /// 重石のいちばん広いところの幅です。セル数で指定します。奇数にして柱を中心に置きます。
+  /// 重石の幅です。セル数で指定します。奇数にして柱を中心に置きます。
   private static let busStopBaseWidth = 9
   /// 重石の濃さです。白い柱より暗くして、コンクリートらしくします。
   private static let busStopBaseOpacity: Double = 0.72
@@ -1838,31 +1838,22 @@ struct SkyCanvas: View {
     baseY: CGFloat
   ) {
     let cell = Self.cellSize
-    var path = Path()
+    let left = poleLeft - CGFloat(Self.busStopBaseWidth / 2) * cell
 
-    for row in 0..<Self.busStopBaseHeight {
-      // 上の段ほど細くして、下へ向かって広がる台形にします。
-      let narrowing = max(Self.busStopBaseHeight - 2 - row, 0) * 2
-      let width = Self.busStopBaseWidth - narrowing
-      let left = poleLeft - CGFloat(width / 2) * cell
-
-      path.addRect(
-        CGRect(
-          x: left,
-          y: baseY - CGFloat(Self.busStopBaseHeight - row) * cell,
-          width: CGFloat(width) * cell,
-          height: cell
-        )
-      )
-    }
-
-    context.fill(path, with: .color(sky.roadLine.opacity(Self.busStopBaseOpacity)))
+    // 角の落ちていない、四角い石をそのまま置いた形にします。
+    let block = CGRect(
+      x: left,
+      y: baseY - CGFloat(Self.busStopBaseHeight) * cell,
+      width: CGFloat(Self.busStopBaseWidth) * cell,
+      height: CGFloat(Self.busStopBaseHeight) * cell
+    )
+    context.fill(Path(block), with: .color(sky.roadLine.opacity(Self.busStopBaseOpacity)))
 
     // 地面との境目を暗くして、置かれているように見せます。
     context.fill(
       Path(
         CGRect(
-          x: poleLeft - CGFloat(Self.busStopBaseWidth / 2) * cell,
+          x: left,
           y: baseY - cell,
           width: CGFloat(Self.busStopBaseWidth) * cell,
           height: cell
