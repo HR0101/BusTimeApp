@@ -103,6 +103,12 @@ struct SkyCanvas: View {
   /// 星を描く空の暗さの下限です。これより明るいと星は見えません。
   /// 夕焼けの残る空に星が出ないよう、暗さがある程度進んでから現れるようにします。
   private static let starVisibilityThreshold: Double = 0.22
+  /// 明るい星を描く粒の細かさです。1マスをいくつに割るかで指定します。
+  private static let brightStarSubdivision = 4
+  /// 明るい星の大きさです。細かい粒いくつぶんかで指定します。
+  private static let brightStarRadius = 6
+  /// 明るい星の尖り具合です。1より小さいほど、腕が細く長く伸びます。
+  private static let brightStarSharpness: Double = 2.0 / 3.0
   /// 画面に散らす星の数です。1粒が小さいぶん、数を多めにします。
   private static let starCount = 230
   /// 星を散らす範囲の下限です。画面の上からこの割合までに収め、空を見上げた構図にします。
@@ -1832,7 +1838,7 @@ struct SkyCanvas: View {
       // 大半を非常に暗い星にし、明るい星をごく少数に絞ることで、
       // 均一な粒が降っているようには見えない奥行きを作ります。
       if brightness > 0.992 {
-        appendCross(to: &warmPath, x: originX, y: originY)
+        appendSparkle(to: &warmPath, x: originX, y: originY)
       } else if brightness > 0.94 {
         appendCell(to: &whitePath, x: originX, y: originY)
       } else if brightness > 0.80 {
@@ -1853,13 +1859,33 @@ struct SkyCanvas: View {
     path.addRect(CGRect(x: x, y: y, width: Self.cellSize, height: Self.cellSize))
   }
 
-  /// 明るい星を表す十字形です。中央と上下左右の5マスで構成します。
-  private func appendCross(to path: inout Path, x: CGFloat, y: CGFloat) {
-    appendCell(to: &path, x: x, y: y)
-    appendCell(to: &path, x: x - Self.cellSize, y: y)
-    appendCell(to: &path, x: x + Self.cellSize, y: y)
-    appendCell(to: &path, x: x, y: y - Self.cellSize)
-    appendCell(to: &path, x: x, y: y + Self.cellSize)
+  /// 明るい星です。四方へ細く尖った形にします。
+  ///
+  /// 風景と同じ1マスの粗さで十字を組むと、腕が太くて板を貼ったように見えます。
+  /// この星だけ細かい粒で描き、中心から先へ向かって細くなる形にします。
+  private func appendSparkle(to path: inout Path, x: CGFloat, y: CGFloat) {
+    let unit = Self.cellSize / CGFloat(Self.brightStarSubdivision)
+    let radius = Self.brightStarRadius
+    let limit = pow(Double(radius), Self.brightStarSharpness)
+
+    for dy in -radius...radius {
+      for dx in -radius...radius {
+        // 星形（アステロイド）の内側だけを残します。
+        // 縦横には長く伸び、斜めには短く収まるので、光がにじんだ形になります。
+        let horizontal = pow(abs(Double(dx)), Self.brightStarSharpness)
+        let vertical = pow(abs(Double(dy)), Self.brightStarSharpness)
+        guard horizontal + vertical <= limit else { continue }
+
+        path.addRect(
+          CGRect(
+            x: x + CGFloat(dx) * unit,
+            y: y + CGFloat(dy) * unit,
+            width: unit,
+            height: unit
+          )
+        )
+      }
+    }
   }
 
   // MARK: - 雲
