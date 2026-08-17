@@ -211,8 +211,18 @@ struct SkyCanvas: View {
   private static let busStopBaseHeight = 4
   /// 重石の幅です。セル数で指定します。奇数にして柱を中心に置きます。
   private static let busStopBaseWidth = 9
-  /// 重石の濃さです。白い柱より暗くして、コンクリートらしくします。
-  private static let busStopBaseOpacity: Double = 0.72
+  /// 重石の素地をどれだけ明るくするかです。アスファルトより明るい灰色にします。
+  private static let busStopBaseLightening: Double = 0.24
+  /// 重石の上面をさらに明るくする量です。光の当たる面として持ち上げます。
+  private static let busStopBaseTopHighlight: Double = 0.13
+  /// 上面として扱う段数です。細かい粒の数で指定します。
+  private static let busStopBaseTopRows = 2
+  /// 重石に散らす砂利の割合です。濃い粒と明るい粒に同じ割合で使います。
+  private static let busStopBaseSpeckleChance: Double = 0.13
+  /// 濃い砂利の濃さです。
+  private static let busStopBaseSpeckleInk: Double = 0.16
+  /// 明るい砂利の濃さです。
+  private static let busStopBaseSpeckleLight: Double = 0.17
   /// 重石の底に敷く影の濃さです。地面に置かれていることを示します。
   private static let busStopBaseShadowOpacity: Double = 0.26
   /// 重石を描く粒の細かさです。1マスをいくつに割るかで指定します。
@@ -1548,6 +1558,9 @@ struct SkyCanvas: View {
     let shadowRow = rowCount - subdivision
 
     var path = Path()
+    var topPath = Path()
+    var coarseSpeckPath = Path()
+    var fineSpeckPath = Path()
     var shadowPath = Path()
 
     for row in 0..<rowCount {
@@ -1565,17 +1578,35 @@ struct SkyCanvas: View {
           width: unit,
           height: unit
         )
+        path.addRect(rect)
 
+        // 上を向いた面です。光が当たるぶん明るくします。
+        if row < Self.busStopBaseTopRows {
+          topPath.addRect(rect)
+        }
+        // 地面と接する部分です。ここだけ暗くして、置かれているように見せます。
         if row >= shadowRow {
           shadowPath.addRect(rect)
-        } else {
-          path.addRect(rect)
+        }
+
+        // 混ぜ込まれた砂利です。濃い粒と明るい粒を散らし、
+        // 塗った面ではなく打ち込んだ面に見せます。
+        let noise = pseudoRandom(row &* 8_837 &+ column &* 149 &+ 17)
+        if noise < Self.busStopBaseSpeckleChance {
+          coarseSpeckPath.addRect(rect)
+        } else if noise > 1 - Self.busStopBaseSpeckleChance {
+          fineSpeckPath.addRect(rect)
         }
       }
     }
 
-    context.fill(path, with: .color(sky.roadLine.opacity(Self.busStopBaseOpacity)))
-    context.fill(shadowPath, with: .color(sky.roadLine.opacity(Self.busStopBaseOpacity)))
+    // 素地はアスファルトを明るくして作ります。
+    // 白線の色をそのまま使うと、塗装したような平らな白い面になってしまいます。
+    context.fill(path, with: .color(sky.road))
+    context.fill(path, with: .color(Color.white.opacity(Self.busStopBaseLightening)))
+    context.fill(topPath, with: .color(Color.white.opacity(Self.busStopBaseTopHighlight)))
+    context.fill(coarseSpeckPath, with: .color(Color.black.opacity(Self.busStopBaseSpeckleInk)))
+    context.fill(fineSpeckPath, with: .color(Color.white.opacity(Self.busStopBaseSpeckleLight)))
     context.fill(shadowPath, with: .color(Color.black.opacity(Self.busStopBaseShadowOpacity)))
   }
 
