@@ -167,6 +167,8 @@ jobs:
           xcodebuild test \
             -project BusTimeApp.xcodeproj \
             -scheme BusTimeApp \
+            -testLanguage ja \
+            -testRegion JP \
             -destination '${{ matrix.destination }}' \
             -derivedDataPath build/DerivedData \
             -resultBundlePath build/TestResults.xcresult \

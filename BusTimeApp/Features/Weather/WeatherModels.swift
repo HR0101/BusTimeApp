@@ -4,9 +4,9 @@ import Foundation
 ///
 /// 降っているもの・雲の量・霧・雷・風を別々に持ちます。
 /// 「雨か晴れか」の2択では、曇りや雪や風を表せないためです。
-struct SkyWeather: Codable, Equatable {
+struct SkyWeather: Codable, Equatable, Sendable {
   /// 降っているものです。
-  enum Precipitation: Codable, Equatable {
+  enum Precipitation: Codable, Equatable, Sendable {
     case none
     case rain(RainIntensity)
     case snow(RainIntensity)
@@ -58,7 +58,7 @@ struct SkyWeather: Codable, Equatable {
 }
 
 /// 雨の強さです。降水量から3段階に分けます。
-enum RainIntensity: Codable, Equatable {
+enum RainIntensity: Codable, Equatable, Sendable {
   case light
   case moderate
   case heavy

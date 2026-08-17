@@ -1,7 +1,7 @@
 import Foundation
 
 /// 現在の天気を取得する役割です。テストで差し替えられるようにプロトコルにしています。
-protocol WeatherFetching {
+protocol WeatherFetching: Sendable {
   func fetchCurrentWeather() async throws -> SkyWeather
 }
 
@@ -9,7 +9,7 @@ protocol WeatherFetching {
 ///
 /// APIキーが不要で、利用登録もいらないサービスです。
 /// 位置は駅の座標に固定しているため、端末の位置情報は使いません。
-struct OpenMeteoWeatherService: WeatherFetching {
+struct OpenMeteoWeatherService: WeatherFetching, @unchecked Sendable {
   /// 海浜幕張駅の緯度です。
   private static let latitude = 35.6485608
   /// 海浜幕張駅の経度です。

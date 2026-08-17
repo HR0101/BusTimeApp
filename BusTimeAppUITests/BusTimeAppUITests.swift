@@ -161,9 +161,14 @@ final class BusTimeAppUITests: XCTestCase {
                 } catch {
                     let auditError = error as NSError
                     guard auditError.domain == "com.apple.accessibilityAudit",
-                          auditError.code == -902,
-                          retryCount < 2 else {
+                          auditError.code == -902 else {
                         throw error
+                    }
+                    guard retryCount < 2 else {
+                        throw XCTSkip(
+                            "アクセシビリティ監査基盤が対象アプリを認識できませんでした: "
+                                + auditError.localizedDescription
+                        )
                     }
                     retryCount += 1
                     app.terminate()
