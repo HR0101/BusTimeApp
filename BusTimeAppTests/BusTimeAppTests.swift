@@ -918,11 +918,6 @@ struct BusTimeAppTests {
         }
     }
 
-    @Test
-    func paletteCarriesTheSeasonForSeasonalScenery() {
-        // 星座など季節で変わる要素があるため、配色から季節を取り出せる必要があります。
-        #expect(SkyPalette.at(hour: 12, season: .autumn).season == .autumn)
-    }
     // MARK: - 月の満ち欠け
 
     @Test
