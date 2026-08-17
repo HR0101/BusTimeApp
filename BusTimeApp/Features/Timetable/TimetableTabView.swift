@@ -172,7 +172,8 @@ struct TimetableTabView: View {
     let isCurrentHour = group.hour == currentHour
 
     return HStack(alignment: .top, spacing: hourLabelSpacing) {
-      Text("\(group.hour)")
+      // 時刻の数字そのものです。翻訳の対象ではないので verbatim で渡します。
+      Text(verbatim: "\(group.hour)")
         .dynamicFont(size: 17, relativeTo: .body, weight: .bold, design: .rounded)
         .monospacedDigit()
         .foregroundStyle(isCurrentHour ? sky.accent : sky.inkSecondary)

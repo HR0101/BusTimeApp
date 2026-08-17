@@ -16,6 +16,8 @@ public enum L10n {
     public static var close: String { String(localized: "common.close") }
     /// 完了
     public static var done: String { String(localized: "common.done") }
+    /// OK
+    public static var ok: String { String(localized: "common.ok") }
   }
 
   public enum Tab {
@@ -47,6 +49,10 @@ public enum L10n {
     public static var destinationLabel: String { String(localized: "route.destinationLabel") }
     /// 変更するには二回タップします
     public static var menuHint: String { String(localized: "route.menuHint") }
+    /// %1$@、%2$@
+    public static func stopAccessibility(_ arg0: String, _ arg1: String) -> String {
+      String(format: String(localized: "route.stopAccessibility"), arg0, arg1)
+    }
     /// 出発地と目的地を入れ替える
     public static var swapLabel: String { String(localized: "route.swapLabel") }
     /// 入れ替えます

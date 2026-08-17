@@ -16,6 +16,7 @@ ENTRIES = [
     # ---- 共通 ----
     ('common.close', '閉じる', 'Close', '关闭', []),
     ('common.done', '完了', 'Done', '完成', []),
+    ('common.ok', 'OK', 'OK', '好', []),
 
     # ---- タブ ----
     ('tab.home', 'ホーム', 'Home', '首页', []),
@@ -32,6 +33,7 @@ ENTRIES = [
     ('route.originLabel', '出発地', 'From', '出发地', []),
     ('route.destinationLabel', '目的地', 'To', '目的地', []),
     ('route.menuHint', '変更するには二回タップします', 'Double tap to change', '轻点两下即可更改', []),
+    ('route.stopAccessibility', '%1$@、%2$@', '%1$@, %2$@', '%1$@，%2$@', ['String', 'String']),
     ('route.swapLabel', '出発地と目的地を入れ替える', 'Swap origin and destination', '交换出发地和目的地', []),
     ('route.swapHintAvailable', '入れ替えます', 'Swaps them', '进行交换', []),
     ('route.swapHintUnavailable', '逆向きの便は本日終了しているため使えません', 'There is no return service left today', '反方向班次今日已结束', []),

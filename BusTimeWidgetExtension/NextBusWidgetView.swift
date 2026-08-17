@@ -81,6 +81,8 @@ private struct DepartureRow: View {
       Image(systemName: "arrow.right")
         .font(.caption2)
         .foregroundStyle(.secondary)
+        // 読み上げでは「右矢印」と読まれるだけなので、飾りとして飛ばします。
+        .accessibilityHidden(true)
 
       Text(departure.arrival)
         .font(isPrimary ? .body.weight(.medium) : .caption)
@@ -208,6 +210,8 @@ private struct RouteHeader: View {
       Image(systemName: isFromLocation ? "location.fill" : "bus.fill")
         .font(.caption2)
         .foregroundStyle(.tint)
+        // 経路名がすぐ隣にあるので、記号は読み上げから外します。
+        .accessibilityHidden(true)
 
       Text(route.rawValue)
         .font(.caption2)

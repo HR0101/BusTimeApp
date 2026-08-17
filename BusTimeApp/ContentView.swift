@@ -209,7 +209,7 @@ struct ContentView: View {
           get: { coordinator.isNotificationResultPresented },
           set: { if !$0 { coordinator.send(.dismiss) } }
         )) {
-          Button("OK") { coordinator.send(.dismiss) }
+          Button(L10n.Common.ok) { coordinator.send(.dismiss) }
         } message: {
           Text(coordinator.notificationMessage ?? "")
         }
@@ -228,7 +228,7 @@ struct ContentView: View {
             viewModel.liveActivityError = nil
             coordinator.send(.clearError)
           }
-          Button("OK") {
+          Button(L10n.Common.ok) {
             viewModel.liveActivityError = nil
             coordinator.send(.clearError)
           }

@@ -144,7 +144,7 @@ struct RouteHeaderCard: View {
       .frame(minHeight: SkyMetrics.minimumTapSize)
     }
     .disabled(options.isEmpty)
-    .accessibilityLabel("\(title)、\(selected.rawValue)")
+    .accessibilityLabel(L10n.Route.stopAccessibility(title, selected.rawValue))
     .accessibilityHint(L10n.Route.menuHint)
   }
 

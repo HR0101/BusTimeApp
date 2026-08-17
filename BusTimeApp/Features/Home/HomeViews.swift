@@ -103,7 +103,8 @@ struct NextDepartureHero: View {
 
       VStack(alignment: .leading, spacing: 6) {
         timeRow
-        Text("\(bus.originName) → \(bus.destinationName)")
+        // 停留所名は固有名詞なので、そのまま並べます。
+        Text(verbatim: "\(bus.originName) → \(bus.destinationName)")
           .dynamicFont(size: 13, relativeTo: .footnote, weight: .medium)
           .foregroundStyle(sky.inkSecondary)
           .fixedSize(horizontal: false, vertical: true)
@@ -179,7 +180,8 @@ struct NextDepartureHero: View {
 
   /// 残り時間の数字や発車時刻を、同じ大きさで表します。
   private func countdownText(_ text: String) -> some View {
-    Text(text)
+    // 数字や時刻そのものなので、翻訳の対象にはしません。
+    Text(verbatim: text)
       .dynamicFont(
         size: countdownNumberSize,
         relativeTo: .largeTitle,

@@ -13,6 +13,7 @@
 		A1B2C3D40000000000000004 /* NextBusWidgetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D40000000000000003 /* NextBusWidgetView.swift */; };
 		F23F59CFAD48CF77C21A5A42 /* BusTimeWidgetLiveActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7AB11326BFE4A44A45B93CE8 /* BusTimeWidgetLiveActivity.swift */; };
 		F851D3AEDE952495C1BA027E /* BusTimeWidgetBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32361D82DF72B28244F3BCEC /* BusTimeWidgetBundle.swift */; };
+		A1B2C3D40000000000000006 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = A1B2C3D40000000000000005 /* PrivacyInfo.xcprivacy */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -63,6 +64,7 @@
 		A1B2C3D40000000000000001 /* NextBusWidget.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = NextBusWidget.swift; sourceTree = "<group>"; };
 		A1B2C3D40000000000000003 /* NextBusWidgetView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = NextBusWidgetView.swift; sourceTree = "<group>"; };
 		F98EB8B4AC49FE191699CDD7 /* BusTimeWidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = BusTimeWidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		A1B2C3D40000000000000005 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -173,6 +175,7 @@
 				32361D82DF72B28244F3BCEC /* BusTimeWidgetBundle.swift */,
 				A1B2C3D40000000000000001 /* NextBusWidget.swift */,
 				A1B2C3D40000000000000003 /* NextBusWidgetView.swift */,
+				A1B2C3D40000000000000005 /* PrivacyInfo.xcprivacy */,
 			);
 			path = BusTimeWidgetExtension;
 			sourceTree = "<group>";
@@ -342,6 +345,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				A1B2C3D40000000000000006 /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
