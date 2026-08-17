@@ -207,6 +207,12 @@ struct SkyCanvas: View {
   private static let roadRatio: Double = 0.80
   /// 道路のセンターラインを引く位置です。
   private static let roadLineRatio: Double = 0.90
+  /// 道路の外側線を引く位置です。路面の上端から何セル下かで指定します。
+  /// 砂浜と路面の境目に沿わせ、道路の縁がどこかを示します。
+  private static let roadEdgeLineOffset = 2
+  /// 外側線が剥がれている割合です。
+  /// 実線として続いて見える必要があるため、センターラインより低くします。
+  private static let roadEdgeLineWearChance: Double = 0.14
   /// センターラインの一本の長さです。セル数で指定します。
   private static let roadDashLength = 7
   /// センターラインの間隔です。セル数で指定します。
@@ -281,12 +287,6 @@ struct SkyCanvas: View {
   private static let constellationStarOpacity: Double = 0.85
   /// 風が最も強いときに、鳥の飛ぶ速さが何倍になるかです。
   private static let birdWindSpeedBoost: Double = 1.8
-  /// ガードレールを立てる高さです。道路の海側の縁に置きます。
-  private static let guardrailRatio: Double = 0.795
-  /// ガードレールの支柱の間隔です。セル数で指定します。
-  private static let guardrailPostSpacing = 14
-  /// ガードレールの支柱の高さです。セル数で指定します。
-  private static let guardrailPostHeight = 5
   /// 電柱を立てる横位置です。等間隔に並べます。
   /// 電線のたるみは、この間隔がそのまま画面の外へ続くものとして描きます。
   private static let utilityPoleRatios: [Double] = [0.26, 0.96]
@@ -537,7 +537,6 @@ struct SkyCanvas: View {
     drawBirds(in: &context, size: size, tick: tick)
     // 街灯とバス停は海より手前です。静止した層に描くと、
     // 支柱の上半分が海に覆われて見えなくなります。
-    drawGuardrail(in: &context, size: size)
     drawUtilityPoles(in: &context, size: size)
     drawStreetLights(in: &context, size: size)
     drawBusStop(in: &context, size: size)
@@ -806,47 +805,6 @@ struct SkyCanvas: View {
         with: .color(Self.constellationStarColor.opacity(Self.constellationStarOpacity * strength))
       )
     }
-  }
-
-  /// 道路の海側に立つガードレールです。
-  ///
-  /// 道路と砂浜が地続きに見えていたので、境目に一本入れて region を分けます。
-  private func drawGuardrail(in context: inout GraphicsContext, size: CGSize) {
-    let cell = Self.cellSize
-    let columnCount = max(Int(ceil(size.width / cell)), 1)
-    let rowCount = max(Int(ceil(size.height / cell)), 1)
-    let railRow = Int(Self.guardrailRatio * Double(rowCount))
-    guard railRow > 0, railRow < rowCount else { return }
-
-    var path = Path()
-    // 横に伸びる帯を2本引きます。
-    for offset in [0, 2] {
-      path.addRect(
-        CGRect(
-          x: 0,
-          y: CGFloat(railRow + offset) * cell,
-          width: size.width,
-          height: cell
-        )
-      )
-    }
-
-    // 一定の間隔で支柱を立てます。
-    for column in stride(from: 0, to: columnCount, by: Self.guardrailPostSpacing) {
-      for offset in 0..<Self.guardrailPostHeight {
-        path.addRect(
-          CGRect(
-            x: CGFloat(column) * cell,
-            y: CGFloat(railRow + offset) * cell,
-            width: cell,
-            height: cell
-          )
-        )
-      }
-    }
-
-    context.fill(path, with: .color(sky.road))
-    context.fill(path, with: .color(Color.white.opacity(0.18)))
   }
 
   /// 道路沿いの電柱と電線です。
@@ -1654,7 +1612,34 @@ struct SkyCanvas: View {
     drawDitheredEdge(in: &context, size: size, top: roadTop, color: sky.road)
 
     drawRoadWear(in: &context, size: size, roadTop: roadTop)
+    drawRoadEdgeLine(in: &context, size: size, roadTop: roadTop)
     drawRoadCenterLine(in: &context, size: size)
+  }
+
+  /// 道路の海側に引く外側線です。
+  ///
+  /// 砂浜と路面が地続きに見えてしまうため、境目に沿って白線を1本敷きます。
+  /// センターラインと違って途切れない実線ですが、
+  /// 同じように所々剥がれさせて、引いたばかりの線に見えないようにします。
+  private func drawRoadEdgeLine(
+    in context: inout GraphicsContext,
+    size: CGSize,
+    roadTop: CGFloat
+  ) {
+    let cell = Self.cellSize
+    let columnCount = max(Int(ceil(size.width / cell)), 1)
+    let lineTop = roadTop + CGFloat(Self.roadEdgeLineOffset) * cell
+    guard lineTop < size.height else { return }
+
+    var path = Path()
+    for column in 0..<columnCount {
+      guard pseudoRandom(column &* 5_437 &+ 71) > Self.roadEdgeLineWearChance else { continue }
+      path.addRect(
+        CGRect(x: CGFloat(column) * cell, y: lineTop, width: cell, height: cell)
+      )
+    }
+
+    context.fill(path, with: .color(sky.roadLine.opacity(0.62)))
   }
 
   /// 道路の表面に、ひび割れと色あせを表す粒を散らします。
