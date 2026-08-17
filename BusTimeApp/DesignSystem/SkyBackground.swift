@@ -684,7 +684,6 @@ struct SkyCanvas: View {
   private var streetLightBulbOpacity: Double {
     Self.streetLightBulbFloor + (1 - Self.streetLightBulbFloor) * sky.nightness
   }
-
   /// 街灯から路面へ広がる光の筋です。
   ///
   /// 灯りと路面の光だまりだけでは、光が届いている空間が見えません。
@@ -929,7 +928,6 @@ struct SkyCanvas: View {
       with: .color(Color(red: 1.0, green: 0.55, blue: 0.5).opacity(0.9))
     )
   }
-
   /// 雨が海面に落ちた跳ねです。
   ///
   /// 実際の波紋は同心円ですが、この粗さでは輪を描いても点にしかなりません。

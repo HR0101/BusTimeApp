@@ -959,7 +959,6 @@ struct BusTimeAppTests {
             }
         }
     }
-
     // MARK: - 月の満ち欠け
 
     @Test
