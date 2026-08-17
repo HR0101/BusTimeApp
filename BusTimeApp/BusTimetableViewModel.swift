@@ -1,6 +1,6 @@
 import Foundation
 import Combine
-import ActivityKit
+@preconcurrency import ActivityKit
 import CoreLocation
 import UIKit
 
