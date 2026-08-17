@@ -25,13 +25,17 @@ final class BusTimeAppUITests: XCTestCase {
     ///
     /// 端末の言語や文字サイズをそのまま使うと、実行する環境によって結果が変わります。
     /// テストでは日本語と指定の文字サイズに固定し、どこで動かしても同じ判定になるようにします。
+    ///
+    /// 背景も静止させます。動き続ける層があるとアプリが静止状態にならず、
+    /// 画面の問い合わせが応答を待ち続けて時間切れになることがあるためです。
     @MainActor
     private func launchApp(contentSize: String = ContentSize.standard) -> XCUIApplication {
         let app = XCUIApplication()
         app.launchArguments += [
             "-AppleLanguages", "(ja)",
             "-AppleLocale", "ja_JP",
-            "-UIPreferredContentSizeCategoryName", contentSize
+            "-UIPreferredContentSizeCategoryName", contentSize,
+            "-SkyBackgroundStill"
         ]
         app.launch()
         dismissTutorialIfNeeded(in: app)

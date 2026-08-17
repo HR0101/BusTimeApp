@@ -29,6 +29,76 @@ private struct RGBComponents: Equatable {
   }
 }
 
+/// 季節です。空の色と昼の長さを季節ごとに寄せるために使います。
+enum Season: CaseIterable {
+  case spring
+  case summer
+  case autumn
+  case winter
+
+  /// その月の季節です。3〜5月を春、6〜8月を夏、9〜11月を秋、それ以外を冬とします。
+  static func from(month: Int) -> Season {
+    switch month {
+    case 3...5:
+      return .spring
+    case 6...8:
+      return .summer
+    case 9...11:
+      return .autumn
+    default:
+      return .winter
+    }
+  }
+
+  /// 今日の季節です。
+  static func current(date: Date = Date(), calendar: Calendar = .current) -> Season {
+    from(month: calendar.component(.month, from: date))
+  }
+
+  /// 昼の長さの伸び縮みです。
+  ///
+  /// 1より大きいほど、正午から離れた時刻が「より進んだ時刻」として扱われ、
+  /// 早く暗くなります。冬は昼が短く、夏は長くなります。
+  var daylightScale: Double {
+    switch self {
+    case .winter:
+      return 1.13
+    case .spring, .autumn:
+      return 1.0
+    case .summer:
+      return 0.90
+    }
+  }
+
+  /// 空に混ぜる季節の色です。
+  fileprivate var tint: RGBComponents {
+    switch self {
+    case .spring:
+      // 霞んだ淡い桃色です。
+      return RGBComponents(red: 0.98, green: 0.90, blue: 0.92)
+    case .summer:
+      // 濃く澄んだ青です。
+      return RGBComponents(red: 0.30, green: 0.55, blue: 0.95)
+    case .autumn:
+      // 夕暮れに寄せた橙です。
+      return RGBComponents(red: 0.95, green: 0.72, blue: 0.48)
+    case .winter:
+      // 冷たく白い青です。
+      return RGBComponents(red: 0.82, green: 0.88, blue: 0.97)
+    }
+  }
+
+  /// 季節の色をどれだけ混ぜるかです。強すぎると時刻ごとの変化が消えます。
+  var tintStrength: Double {
+    switch self {
+    case .spring, .autumn:
+      return 0.10
+    case .summer, .winter:
+      return 0.13
+    }
+  }
+}
+
 /// 1日の中の特定の時刻における空の色を定義します。
 private struct SkyKeyframe {
   /// 0時からの経過時間です。24時間表記の小数（例: 6.5は6時30分）で指定します。
@@ -86,9 +156,11 @@ struct SkyPalette: Equatable {
   let signboard: Color
   /// バス停の標識の縁と、板に引く線の色です。
   let signboardInk: Color
-  /// 太陽・月の水平位置です。0が画面左端、1が画面右端に対応します。
   /// この配色が表す時刻です。0以上24未満で持ちます。
   let hour: Double
+  /// この配色が表す季節です。星座など、季節で変わる要素が参照します。
+  let season: Season
+  /// 太陽・月の水平位置です。0が画面左端、1が画面右端に対応します。
   let celestialProgress: Double
   /// 太陽・月の軌道の高さです。0が地平線、1が天頂に対応します。
   let celestialAltitude: Double
@@ -241,13 +313,21 @@ struct SkyPalette: Equatable {
   private static let nightThreshold: Double = 0.78
 
   /// 指定した時刻の配色を作ります。
-  /// - Parameter hour: 0以上24未満の時刻です。範囲外の値は24時間周期に丸めます。
-  static func at(hour: Double) -> SkyPalette {
+  /// - Parameters:
+  ///   - hour: 0以上24未満の時刻です。範囲外の値は24時間周期に丸めます。
+  ///   - season: 季節です。省略すると今日の季節を使います。
+  static func at(hour: Double, season: Season = Season.current()) -> SkyPalette {
     let normalizedHour = normalize(hour: hour)
-    let (previous, next, ratio) = surroundingKeyframes(for: normalizedHour)
+    // 昼の長さを季節で伸び縮みさせます。
+    // 冬は同じ17時でも暗く、夏は明るく見えるようにするためです。
+    let daylightHour = normalize(hour: 12 + (normalizedHour - 12) * season.daylightScale)
+    let (previous, next, ratio) = surroundingKeyframes(for: daylightHour)
 
-    let skyTop = previous.skyTop.mixed(with: next.skyTop, ratio: ratio)
-    let skyBottom = previous.skyBottom.mixed(with: next.skyBottom, ratio: ratio)
+    let baseSkyTop = previous.skyTop.mixed(with: next.skyTop, ratio: ratio)
+    let baseSkyBottom = previous.skyBottom.mixed(with: next.skyBottom, ratio: ratio)
+    // 季節の色をうっすら混ぜます。夏は青く、秋は暖かく、冬は白っぽくなります。
+    let skyTop = baseSkyTop.mixed(with: season.tint, ratio: season.tintStrength)
+    let skyBottom = baseSkyBottom.mixed(with: season.tint, ratio: season.tintStrength * 0.6)
     let nightness = previous.nightness + (next.nightness - previous.nightness) * ratio
 
     let accent = dayAccent.mixed(with: nightAccent, ratio: nightness)
@@ -305,6 +385,7 @@ struct SkyPalette: Equatable {
         .mixed(with: skyBottom, ratio: groundAmbientBlend * 0.3)
         .color(),
       hour: normalizedHour,
+      season: season,
       celestialProgress: celestialProgress(at: normalizedHour),
       celestialAltitude: celestialAltitude(at: normalizedHour),
       nightness: nightness,
