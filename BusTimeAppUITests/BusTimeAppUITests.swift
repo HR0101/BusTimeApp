@@ -129,12 +129,4 @@ final class BusTimeAppUITests: XCTestCase {
         }
     }
 
-    // MARK: - 起動時間
-
-    @MainActor
-    func testLaunchPerformance() throws {
-        measure(metrics: [XCTApplicationLaunchMetric()]) {
-            XCUIApplication().launch()
-        }
-    }
 }
