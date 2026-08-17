@@ -278,8 +278,6 @@ struct SkyCanvas: View {
   private static let windWhitecapBoost: Double = 0.18
   /// 雲を空の色で染める強さです。
   private static let cloudTintStrength: Double = 0.42
-  /// 風が最も強いときに、鳥の飛ぶ速さが何倍になるかです。
-  private static let birdWindSpeedBoost: Double = 1.8
   /// 電柱を立てる横位置です。等間隔に並べます。
   /// 電線のたるみは、この間隔がそのまま画面の外へ続くものとして描きます。
   private static let utilityPoleRatios: [Double] = [0.26, 0.96]
@@ -348,14 +346,6 @@ struct SkyCanvas: View {
   private static let tideRangeCells = 2
   /// 潮が一巡する時間です。実際の潮汐に合わせて約12.4時間にします。
   private static let tidePeriodHours: Double = 12.4
-  /// 鳥が現れる空の暗さの範囲です。朝夕の薄明のときだけ飛びます。
-  private static let birdNightnessRange: ClosedRange<Double> = 0.18...0.72
-  /// 鳥の群れの数です。
-  private static let birdCount = 5
-  /// 鳥が画面を横切るのにかかる時間です。
-  private static let birdTravelSeconds: Double = 26
-  /// 鳥が羽ばたく周期です。描き直し何回ぶんで一往復するかを表します。
-  private static let birdFlapTicks = 3
   /// 船が現れる周期です。この間隔ごとに一度だけ通ります。
   private static let shipPeriod: Double = 190
   /// 船が水平線を渡りきるまでの時間です。
@@ -448,7 +438,6 @@ struct SkyCanvas: View {
     drawShoreEdge(in: &context, size: size)
     drawSurf(in: &context, size: size, tick: tick)
     drawShip(in: &context, size: size, elapsed: Double(tick) * Self.animationInterval)
-    drawBirds(in: &context, size: size, tick: tick)
     // 街灯とバス停は海より手前です。静止した層に描くと、
     // 支柱の上半分が海に覆われて見えなくなります。
     drawUtilityPoles(in: &context, size: size)
@@ -480,56 +469,6 @@ struct SkyCanvas: View {
   private var tideOffsetCells: Int {
     let phase = sin(sky.hour / Self.tidePeriodHours * 2 * .pi)
     return Int(phase * Double(Self.tideRangeCells))
-  }
-
-  /// 朝夕に横切る鳥の群れです。
-  ///
-  /// 空が明るいときも暗いときも出さず、薄明のあいだだけ飛ばします。
-  /// 一日のうち短い時間にしか会えないほうが、見かけたときの印象が残ります。
-  private func drawBirds(in context: inout GraphicsContext, size: CGSize, tick: Int) {
-    guard Self.birdNightnessRange.contains(sky.nightness) else { return }
-
-    let cell = Self.cellSize
-    let elapsed = Double(tick) * Self.animationInterval
-    // 風が強い日ほど速く飛びます。
-    let speed = 1 + windStrength * (Self.birdWindSpeedBoost - 1)
-    let travelSeconds = Self.birdTravelSeconds / speed
-    let rawProgress = (elapsed / travelSeconds).truncatingRemainder(dividingBy: 1)
-    // 風下へ向かって飛びます。風がないときは左から右へ渡ります。
-    let isTailwind = weather.windSpeed >= 0
-    let progress = isTailwind ? rawProgress : 1 - rawProgress
-    // 羽ばたきは上下2つの形を交互に出します。
-    let isFlapUp = (tick / Self.birdFlapTicks) % 2 == 0
-
-    var path = Path()
-    for index in 0..<Self.birdCount {
-      // 群れは少しずつ位置と高さをずらし、隊列に見えるようにします。
-      let lag = Double(index) * 0.035
-      let x = (progress - lag) * 1.2 - 0.1
-      guard x > -0.05, x < 1.05 else { continue }
-
-      let y = 0.18 + pseudoRandom(index * 19 + 7) * 0.12 + Double(index % 2) * 0.02
-      let column = Int(x * size.width / cell)
-      let row = Int(y * size.height / cell)
-
-      // 翼を「へ」の字で表します。
-      let wing = isFlapUp ? 1 : 0
-      for side in [-1, 1] {
-        path.addRect(
-          CGRect(
-            x: CGFloat(column + side) * cell,
-            y: CGFloat(row - wing) * cell,
-            width: cell,
-            height: cell
-          )
-        )
-      }
-      path.addRect(
-        CGRect(x: CGFloat(column) * cell, y: CGFloat(row) * cell, width: cell, height: cell)
-      )
-    }
-
-    context.fill(path, with: .color(sky.ink.opacity(0.45)))
   }
 
   /// 水平線を渡る船です。まれにしか通りません。
