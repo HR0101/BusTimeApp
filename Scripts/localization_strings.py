@@ -271,6 +271,11 @@ ENTRIES = [
     # ---- ウィジェット ----
     ('widget.untilDeparture', '出発まで', 'Until departure', '距出发', []),
     ('widget.departedShort', '出発済', 'Departed', '已出发', []),
+    ('widget.displayName', '次のバス', 'Next Bus', '下一班车', []),
+    ('widget.description', '次とその次のバスを表示します', 'Shows the next two departures', '显示接下来两班车', []),
+    ('widget.nextLabel', '次', 'Next', '下一班', []),
+    ('widget.followingLabel', 'その次', 'Then', '再下一班', []),
+    ('widget.noService', '便が見つかりません', 'No departures found', '未找到班次', []),
 
     # ---- バスの備考 ----
     ('busNote.shopping', 'お買い物便', 'Shopping service', '购物班次', []),

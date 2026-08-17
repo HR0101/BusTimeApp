@@ -55,10 +55,6 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
     private let nowProvider: () -> Date
     
     private let locationManager = CLLocationManager() // 位置情報取得用マネージャー
-    private let columbusCityLocation = CLLocation(latitude: 35.6589411, longitude: 140.0357708)
-    private let kaihinMakuhariStationLocation = CLLocation(latitude: 35.6485608, longitude: 140.0416924)
-    private let yokadoLocation = CLLocation(latitude: 35.6569440, longitude: 140.0510100)
-    private let maxAutoRouteDistance: CLLocationDistance = 1_500
     private let maxLocationAge: TimeInterval = 120
     private let maxLocationAccuracy: CLLocationAccuracy = 500
 
@@ -77,69 +73,10 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
 
     // MARK: - 選択肢を管理するための列挙型
     
-    enum Stop: String, CaseIterable, Identifiable {
-        case mansion = "コロンブスシティ"
-        case station = "海浜幕張駅"
-        case yokado = "ヨーカドー前"
-
-        var id: Self { self }
-
-        var systemName: String {
-            switch self {
-            case .mansion:
-                return "building.2.fill"
-            case .station:
-                return "tram.fill"
-            case .yokado:
-                return "cart.fill"
-            }
-        }
-    }
-
-    enum Route: String, CaseIterable {
-        case mansionToStation = "コロンブスシティ → 海浜幕張駅"
-        case stationToMansion = "海浜幕張駅 → コロンブスシティ"
-        case mansionToYokado = "コロンブスシティ → ヨーカドー前"
-        case stationToYokado = "海浜幕張駅 → ヨーカドー前"
-        case yokadoToMansion = "ヨーカドー前 → コロンブスシティ"
-
-        var origin: Stop {
-            switch self {
-            case .mansionToStation, .mansionToYokado:
-                return .mansion
-            case .stationToMansion, .stationToYokado:
-                return .station
-            case .yokadoToMansion:
-                return .yokado
-            }
-        }
-
-        var destination: Stop {
-            switch self {
-            case .mansionToStation:
-                return .station
-            case .stationToMansion, .yokadoToMansion:
-                return .mansion
-            case .mansionToYokado, .stationToYokado:
-                return .yokado
-            }
-        }
-
-        var guidance: String {
-            switch self {
-            case .stationToMansion:
-                return L10n.Route.guidanceViaYokado
-            case .mansionToYokado:
-                return L10n.Route.guidanceToYokado
-            default:
-                return L10n.Route.guidanceDefault
-            }
-        }
-
-        static func route(from origin: Stop, to destination: Stop) -> Route? {
-            allCases.first { $0.origin == origin && $0.destination == destination }
-        }
-    }
+    /// 停留所と経路は、ウィジェットとも共有するため `BusSchedule` 側に置いています。
+    /// 画面や既存のコードからは、これまでどおりの名前で参照できるようにします。
+    typealias Stop = BusStop
+    typealias Route = BusRoute
 
     /// 検索の対象にする運行日です。
     ///
@@ -241,6 +178,10 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
         super.init()
         setupTimetables() // 時刻表データを準備する
 
+        // 手動で選んだ経路はアプリを開き直すと解除されます。
+        // ウィジェットにだけ古い選択が残らないよう、同じところで消しておきます。
+        SharedAppData.manualRoute = nil
+
         // 位置情報の設定
         locationManager.delegate = self
         locationManager.desiredAccuracy = kCLLocationAccuracyHundredMeters
@@ -278,6 +219,8 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
     /// 手動で選んだ状態を解除してから、位置情報を取り直します。
     func useCurrentLocationForRoute() {
         hasManualRouteSelection = false
+        // ウィジェット側も現在地から決め直すようにします。
+        SharedAppData.manualRoute = nil
         checkLocationAndSetOrigin()
     }
     
@@ -305,16 +248,7 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
     }
     
     private func stopForCurrentLocation(_ location: CLLocation) -> Stop? {
-        let stopCandidates: [(distance: CLLocationDistance, stop: Stop)] = [
-            (location.distance(from: columbusCityLocation), .mansion),
-            (location.distance(from: kaihinMakuhariStationLocation), .station),
-            (location.distance(from: yokadoLocation), .yokado)
-        ]
-        guard let nearest = stopCandidates.min(by: { $0.distance < $1.distance }) else { return nil }
-        
-        guard nearest.distance <= maxAutoRouteDistance else { return nil }
-        
-        return nearest.stop
+        BusSchedule.nearestStop(to: location)
     }
 
     /// 現在地に最も近い停留所から、次に利用できるルートを自動選択します。
@@ -421,10 +355,12 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
     }
 
     /// 経路から行き先の好みを取り出して保存します。
+    /// ウィジェットも同じ行き先を使うので、共有の保存領域にも書きます。
     private func rememberPartnerStop(for route: Route) {
         let partner = route.origin == Self.homeStop ? route.destination : route.origin
         guard partner != Self.homeStop else { return }
         defaults.set(partner.rawValue, forKey: Self.preferredPartnerStopKey)
+        SharedAppData.preferredPartnerStop = partner
     }
 
     /// 与えられた経路のうち、次の発車が最も早いものを返します。
@@ -576,6 +512,8 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
         hasManualRouteSelection = true
         routeDecision = .manual
         rememberPartnerStop(for: selectedRoute)
+        // 自分で選んだ経路は、ウィジェットでも同じものを出します。
+        SharedAppData.manualRoute = selectedRoute
     }
 
     private func applyRoute(_ route: Route) {
@@ -584,158 +522,11 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
         selectedDestination = route.destination
     }
     
-    // 時刻表データをプログラム内に直接定義します。
+    // 時刻表はウィジェットとも共有するため、`BusSchedule` から受け取ります。
     private func setupTimetables() {
-        let columbusCity = "コロンブスシティ"
-        let station = "海浜幕張駅"
-        let yokado = "ヨーカドー前"
-        let shoppingNote = L10n.BusNote.shopping
-        let viaYokadoNote = L10n.BusNote.viaYokado
-        let viaStationNote = L10n.BusNote.viaStation
-        
-        let shoppingRows = [
-            (columbus: "9:30", station: "9:38", yokado: "9:46", columbusReturn: "9:53"),
-            (columbus: "10:30", station: "10:38", yokado: "10:46", columbusReturn: "10:53"),
-            (columbus: "11:30", station: "11:38", yokado: "11:46", columbusReturn: "11:53"),
-            (columbus: "13:30", station: "13:38", yokado: "13:46", columbusReturn: "13:53"),
-            (columbus: "14:30", station: "14:38", yokado: "14:46", columbusReturn: "14:53"),
-            (columbus: "15:30", station: "15:38", yokado: "15:46", columbusReturn: "15:53"),
-            (columbus: "16:30", station: "16:38", yokado: "16:46", columbusReturn: "16:53")
-        ]
-        
-        func directBus(_ departure: String, _ arrival: String, from origin: String, to destination: String, note: String? = nil) -> Bus {
-            Bus(departure: departure, arrival: arrival, originName: origin, destinationName: destination, note: note)
-        }
-        
-        func shoppingBusToStation(_ row: (columbus: String, station: String, yokado: String, columbusReturn: String)) -> Bus {
-            directBus(row.columbus, row.station, from: columbusCity, to: station, note: shoppingNote)
-        }
-        
-        func shoppingBusStationToMansion(_ row: (columbus: String, station: String, yokado: String, columbusReturn: String)) -> Bus {
-            Bus(stops: [
-                BusStopTime(name: station, time: row.station),
-                BusStopTime(name: yokado, time: row.yokado),
-                BusStopTime(name: columbusCity, time: row.columbusReturn)
-            ], note: viaYokadoNote)
-        }
-        
-        allTimetables[.mansionToStation] = [
-            directBus("6:03", "6:11", from: columbusCity, to: station),
-            directBus("6:30", "6:38", from: columbusCity, to: station),
-            directBus("6:40", "6:48", from: columbusCity, to: station),
-            directBus("6:50", "6:58", from: columbusCity, to: station),
-            directBus("7:00", "7:08", from: columbusCity, to: station),
-            directBus("7:10", "7:18", from: columbusCity, to: station),
-            directBus("7:20", "7:28", from: columbusCity, to: station),
-            directBus("7:30", "7:38", from: columbusCity, to: station),
-            directBus("7:40", "7:48", from: columbusCity, to: station),
-            directBus("7:50", "7:58", from: columbusCity, to: station),
-            directBus("8:00", "8:08", from: columbusCity, to: station),
-            directBus("8:10", "8:18", from: columbusCity, to: station),
-            directBus("8:20", "8:28", from: columbusCity, to: station),
-            directBus("8:30", "8:38", from: columbusCity, to: station),
-            directBus("8:40", "8:48", from: columbusCity, to: station),
-            directBus("9:00", "9:08", from: columbusCity, to: station),
-            shoppingBusToStation(shoppingRows[0]),
-            directBus("10:00", "10:08", from: columbusCity, to: station),
-            shoppingBusToStation(shoppingRows[1]),
-            directBus("11:00", "11:08", from: columbusCity, to: station),
-            shoppingBusToStation(shoppingRows[2]),
-            directBus("13:00", "13:08", from: columbusCity, to: station),
-            shoppingBusToStation(shoppingRows[3]),
-            directBus("14:00", "14:08", from: columbusCity, to: station),
-            shoppingBusToStation(shoppingRows[4]),
-            directBus("15:00", "15:08", from: columbusCity, to: station),
-            shoppingBusToStation(shoppingRows[5]),
-            directBus("16:00", "16:08", from: columbusCity, to: station),
-            shoppingBusToStation(shoppingRows[6]),
-            directBus("17:04", "17:11", from: columbusCity, to: station),
-            directBus("17:37", "17:44", from: columbusCity, to: station),
-            directBus("18:02", "18:09", from: columbusCity, to: station),
-            directBus("18:19", "18:26", from: columbusCity, to: station),
-            directBus("18:37", "18:44", from: columbusCity, to: station),
-            directBus("19:01", "19:08", from: columbusCity, to: station),
-            directBus("19:20", "19:27", from: columbusCity, to: station),
-            directBus("19:39", "19:46", from: columbusCity, to: station),
-            directBus("19:59", "20:06", from: columbusCity, to: station),
-            directBus("20:17", "20:24", from: columbusCity, to: station),
-            directBus("20:51", "20:58", from: columbusCity, to: station),
-            directBus("21:08", "21:15", from: columbusCity, to: station),
-            directBus("21:55", "22:02", from: columbusCity, to: station),
-            directBus("22:19", "22:26", from: columbusCity, to: station),
-            directBus("22:37", "22:44", from: columbusCity, to: station),
-            directBus("23:06", "23:13", from: columbusCity, to: station),
-            directBus("23:38", "23:45", from: columbusCity, to: station),
-            directBus("0:04", "0:11", from: columbusCity, to: station)
-        ]
-        
-        allTimetables[.stationToMansion] = [
-            directBus("6:11", "6:18", from: station, to: columbusCity),
-            directBus("6:38", "6:45", from: station, to: columbusCity),
-            directBus("6:48", "6:55", from: station, to: columbusCity),
-            directBus("6:58", "7:05", from: station, to: columbusCity),
-            directBus("7:08", "7:15", from: station, to: columbusCity),
-            directBus("7:18", "7:25", from: station, to: columbusCity),
-            directBus("7:28", "7:35", from: station, to: columbusCity),
-            directBus("7:38", "7:45", from: station, to: columbusCity),
-            directBus("7:48", "7:55", from: station, to: columbusCity),
-            directBus("7:58", "8:05", from: station, to: columbusCity),
-            directBus("8:08", "8:15", from: station, to: columbusCity),
-            directBus("8:18", "8:25", from: station, to: columbusCity),
-            directBus("8:28", "8:35", from: station, to: columbusCity),
-            directBus("8:48", "8:55", from: station, to: columbusCity),
-            shoppingBusStationToMansion(shoppingRows[0]),
-            directBus("10:08", "10:16", from: station, to: columbusCity),
-            shoppingBusStationToMansion(shoppingRows[1]),
-            directBus("11:08", "11:16", from: station, to: columbusCity),
-            shoppingBusStationToMansion(shoppingRows[2]),
-            directBus("13:08", "13:16", from: station, to: columbusCity),
-            shoppingBusStationToMansion(shoppingRows[3]),
-            directBus("14:08", "14:16", from: station, to: columbusCity),
-            shoppingBusStationToMansion(shoppingRows[4]),
-            directBus("15:08", "15:16", from: station, to: columbusCity),
-            shoppingBusStationToMansion(shoppingRows[5]),
-            directBus("16:08", "16:16", from: station, to: columbusCity),
-            shoppingBusStationToMansion(shoppingRows[6]),
-            directBus("17:12", "17:19", from: station, to: columbusCity),
-            directBus("17:46", "17:53", from: station, to: columbusCity),
-            directBus("18:11", "18:18", from: station, to: columbusCity),
-            directBus("18:28", "18:35", from: station, to: columbusCity),
-            directBus("18:46", "18:53", from: station, to: columbusCity),
-            directBus("19:10", "19:17", from: station, to: columbusCity),
-            directBus("19:29", "19:36", from: station, to: columbusCity),
-            directBus("19:48", "19:55", from: station, to: columbusCity),
-            directBus("20:08", "20:15", from: station, to: columbusCity),
-            directBus("20:26", "20:33", from: station, to: columbusCity),
-            directBus("20:43", "20:50", from: station, to: columbusCity),
-            directBus("21:00", "21:07", from: station, to: columbusCity),
-            directBus("21:17", "21:24", from: station, to: columbusCity),
-            directBus("21:39", "21:46", from: station, to: columbusCity),
-            directBus("22:04", "22:11", from: station, to: columbusCity),
-            directBus("22:28", "22:35", from: station, to: columbusCity),
-            directBus("22:46", "22:53", from: station, to: columbusCity),
-            directBus("23:15", "23:22", from: station, to: columbusCity),
-            directBus("23:47", "23:54", from: station, to: columbusCity),
-            directBus("0:13", "0:19", from: station, to: columbusCity)
-        ]
-        
-        allTimetables[.mansionToYokado] = shoppingRows.map { row in
-            Bus(stops: [
-                BusStopTime(name: columbusCity, time: row.columbus),
-                BusStopTime(name: station, time: row.station),
-                BusStopTime(name: yokado, time: row.yokado)
-            ], note: viaStationNote)
-        }
-        
-        allTimetables[.stationToYokado] = shoppingRows.map { row in
-            directBus(row.station, row.yokado, from: station, to: yokado, note: shoppingNote)
-        }
-        
-        allTimetables[.yokadoToMansion] = shoppingRows.map { row in
-            directBus(row.yokado, row.columbusReturn, from: yokado, to: columbusCity, note: shoppingNote)
-        }
+        allTimetables = BusSchedule.timetables
     }
-    
+
     // 1秒ごとにカウントダウンを更新するためのタイマーを開始します。
     private func startTimer() {
         // [weak self] は、メモリリークを防ぐためのおまじないです。

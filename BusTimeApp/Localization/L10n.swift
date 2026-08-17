@@ -558,6 +558,16 @@ public enum L10n {
     public static var untilDeparture: String { String(localized: "widget.untilDeparture") }
     /// 出発済
     public static var departedShort: String { String(localized: "widget.departedShort") }
+    /// 次のバス
+    public static var displayName: String { String(localized: "widget.displayName") }
+    /// 次とその次のバスを表示します
+    public static var description: String { String(localized: "widget.description") }
+    /// 次
+    public static var nextLabel: String { String(localized: "widget.nextLabel") }
+    /// その次
+    public static var followingLabel: String { String(localized: "widget.followingLabel") }
+    /// 便が見つかりません
+    public static var noService: String { String(localized: "widget.noService") }
   }
 
   public enum BusNote {

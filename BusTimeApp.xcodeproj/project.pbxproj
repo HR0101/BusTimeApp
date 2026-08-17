@@ -11,6 +11,8 @@
 		695518C71A6236A5268C2C21 /* BusTimeWidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = F98EB8B4AC49FE191699CDD7 /* BusTimeWidgetExtension.appex */; };
 		F23F59CFAD48CF77C21A5A42 /* BusTimeWidgetLiveActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7AB11326BFE4A44A45B93CE8 /* BusTimeWidgetLiveActivity.swift */; };
 		F851D3AEDE952495C1BA027E /* BusTimeWidgetBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32361D82DF72B28244F3BCEC /* BusTimeWidgetBundle.swift */; };
+		A1B2C3D40000000000000002 /* NextBusWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D40000000000000001 /* NextBusWidget.swift */; };
+		A1B2C3D40000000000000004 /* NextBusWidgetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D40000000000000003 /* NextBusWidgetView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -59,6 +61,8 @@
 		7934EB132DFBF98200C306D1 /* BusTimeAppUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = BusTimeAppUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		7AB11326BFE4A44A45B93CE8 /* BusTimeWidgetLiveActivity.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = BusTimeWidgetLiveActivity.swift; sourceTree = "<group>"; };
 		F98EB8B4AC49FE191699CDD7 /* BusTimeWidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = BusTimeWidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		A1B2C3D40000000000000001 /* NextBusWidget.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = NextBusWidget.swift; sourceTree = "<group>"; };
+		A1B2C3D40000000000000003 /* NextBusWidgetView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = NextBusWidgetView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -66,8 +70,12 @@
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				BusActivityAttributes.swift,
+				DataModels.swift,
+				Features/Notifications/NotificationModels.swift,
 				Localization/L10n.swift,
 				Localization/Localizable.xcstrings,
+				Shared/BusSchedule.swift,
+				Shared/SharedAppData.swift,
 			);
 			target = 9D06C45E8298F96D48921377 /* BusTimeWidgetExtension */;
 		};
@@ -163,6 +171,8 @@
 			children = (
 				7AB11326BFE4A44A45B93CE8 /* BusTimeWidgetLiveActivity.swift */,
 				32361D82DF72B28244F3BCEC /* BusTimeWidgetBundle.swift */,
+				A1B2C3D40000000000000001 /* NextBusWidget.swift */,
+				A1B2C3D40000000000000003 /* NextBusWidgetView.swift */,
 			);
 			path = BusTimeWidgetExtension;
 			sourceTree = "<group>";
@@ -344,6 +354,8 @@
 			files = (
 				F23F59CFAD48CF77C21A5A42 /* BusTimeWidgetLiveActivity.swift in Sources */,
 				F851D3AEDE952495C1BA027E /* BusTimeWidgetBundle.swift in Sources */,
+				A1B2C3D40000000000000002 /* NextBusWidget.swift in Sources */,
+				A1B2C3D40000000000000004 /* NextBusWidgetView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -405,6 +417,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
+				CODE_SIGN_ENTITLEMENTS = "BusTimeWidgetExtension/BusTimeWidgetExtension.entitlements";
 				PRODUCT_BUNDLE_IDENTIFIER = com.hara.BusTimeApp.BusTimeWidgetExtension;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
@@ -557,6 +570,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
+				CODE_SIGN_ENTITLEMENTS = "BusTimeApp/BusTimeApp.entitlements";
 				PRODUCT_BUNDLE_IDENTIFIER = com.hara.BusTimeApp;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -587,6 +601,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
+				CODE_SIGN_ENTITLEMENTS = "BusTimeApp/BusTimeApp.entitlements";
 				PRODUCT_BUNDLE_IDENTIFIER = com.hara.BusTimeApp;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -682,6 +697,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
+				CODE_SIGN_ENTITLEMENTS = "BusTimeWidgetExtension/BusTimeWidgetExtension.entitlements";
 				PRODUCT_BUNDLE_IDENTIFIER = com.hara.BusTimeApp.BusTimeWidgetExtension;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
