@@ -72,4 +72,38 @@ enum SharedAppData {
   static func reloadWidgets() {
     WidgetCenter.shared.reloadTimelines(ofKind: widgetKind)
   }
+
+  // MARK: - ウィジェットのタップ先
+
+  /// ウィジェットのタップでアプリを開くときの、URLの入れ物です。
+  private enum RouteLink {
+    static let scheme = "bustimeapp"
+    static let host = "route"
+  }
+
+  /// その経路を開くためのURLです。
+  ///
+  /// ウィジェットをタップしたときに、いま出している経路の画面へ着地させるために使います。
+  /// 経路が分からないままアプリだけが開くと、見ていた便を探し直すことになります。
+  static func routeLink(for route: BusRoute) -> URL? {
+    var components = URLComponents()
+    components.scheme = RouteLink.scheme
+    components.host = RouteLink.host
+    // 経路名は日本語を含むので、記号ではなく識別子で渡します。
+    components.path = "/" + routeIdentifier(for: route)
+    return components.url
+  }
+
+  /// URLから経路を読み取ります。このアプリ宛でなければnilを返します。
+  static func route(from url: URL) -> BusRoute? {
+    guard url.scheme == RouteLink.scheme, url.host == RouteLink.host else { return nil }
+
+    let identifier = url.path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+    return BusRoute.allCases.first { routeIdentifier(for: $0) == identifier }
+  }
+
+  /// URLに載せる、経路を表す短い識別子です。
+  private static func routeIdentifier(for route: BusRoute) -> String {
+    "\(route.origin.identifier)-\(route.destination.identifier)"
+  }
 }

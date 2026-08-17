@@ -8,6 +8,13 @@ struct NextBusWidgetView: View {
   let entry: NextBusEntry
 
   var body: some View {
+    content
+      // タップしたときに、いま出している経路の画面でアプリが開くようにします。
+      .widgetURL(SharedAppData.routeLink(for: entry.route))
+  }
+
+  @ViewBuilder
+  private var content: some View {
     switch family {
     case .accessoryRectangular:
       LockScreenView(entry: entry)

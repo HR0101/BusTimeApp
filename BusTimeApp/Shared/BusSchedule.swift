@@ -20,6 +20,18 @@ enum BusStop: String, CaseIterable, Identifiable {
     }
   }
 
+  /// URLなど、日本語を載せられないところで使う識別子です。
+  var identifier: String {
+    switch self {
+    case .mansion:
+      return "mansion"
+    case .station:
+      return "station"
+    case .yokado:
+      return "yokado"
+    }
+  }
+
   /// 停留所の位置です。現在地から最も近い停留所を選ぶために使います。
   var location: CLLocation {
     switch self {

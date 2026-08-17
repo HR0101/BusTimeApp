@@ -506,6 +506,27 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
         markManualRouteSelection()
     }
 
+    /// ウィジェットから開かれたときに、その経路へ合わせます。
+    ///
+    /// ウィジェットで見ていた便をそのまま確かめられるようにします。
+    /// 自分で選んだのと同じ扱いにするので、位置情報では上書きしません。
+    func selectRouteFromWidget(_ route: Route) {
+        guard selectableRoutes.contains(route) || routeHasRemainingService(route, at: now())
+        else {
+            // 本日その経路の便がもうない場合でも、経路自体は合わせます。
+            // ウィジェットが出していた内容と画面が食い違うほうが分かりにくいためです。
+            applyRoute(route)
+            markManualRouteSelection()
+            performSearch()
+            return
+        }
+
+        applyRoute(route)
+        routeAvailabilityMessage = nil
+        markManualRouteSelection()
+        performSearch()
+    }
+
     /// 利用者が自分で経路を選んだことを記録します。
     /// 以降は位置情報で上書きせず、行き先の好みを次回に引き継ぎます。
     private func markManualRouteSelection() {

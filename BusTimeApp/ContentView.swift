@@ -116,6 +116,13 @@ struct ContentView: View {
         .task {
           await weatherViewModel.refresh()
         }
+        .onOpenURL { url in
+          // ウィジェットのタップで開かれたときは、その経路に合わせます。
+          guard let route = SharedAppData.route(from: url) else { return }
+          viewModel.selectRouteFromWidget(route)
+          // 検索結果はホームタブにあるので、そちらへ寄せます。
+          selectedTab = .home
+        }
         .onChange(of: scenePhase) { newPhase in
           if newPhase == .active {
             skyClock.refresh()

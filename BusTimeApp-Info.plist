@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!--
+		ここに書いた項目は、Xcodeが自動で作る内容に足されます。
+		自動では作れない項目だけを置いています。
+	-->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<!-- ウィジェットのタップでアプリを開き、その経路へ合わせるために使います。 -->
+			<key>CFBundleURLName</key>
+			<string>com.hara.BusTimeApp.route</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>bustimeapp</string>
+			</array>
+		</dict>
+	</array>
+</dict>
+</plist>

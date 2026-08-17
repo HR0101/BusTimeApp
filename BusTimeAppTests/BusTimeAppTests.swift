@@ -940,6 +940,42 @@ struct BusTimeAppTests {
         }
     }
 
+    // MARK: - ウィジェットのタップ先
+
+    @Test
+    func widgetLinkCarriesTheRouteBothWays() {
+        // ウィジェットのタップでアプリを開いたとき、見ていた経路が伝わる必要があります。
+        for route in BusRoute.allCases {
+            let link = SharedAppData.routeLink(for: route)
+            #expect(link != nil)
+            #expect(SharedAppData.route(from: link!) == route)
+        }
+    }
+
+    @Test
+    func widgetLinkIgnoresOtherURLs() {
+        // 別のアプリ宛のURLや、経路の名前が違うURLは受け取りません。
+        #expect(SharedAppData.route(from: URL(string: "https://example.com/route/mansion-station")!) == nil)
+        #expect(SharedAppData.route(from: URL(string: "bustimeapp://settings/mansion-station")!) == nil)
+        #expect(SharedAppData.route(from: URL(string: "bustimeapp://route/unknown-stop")!) == nil)
+    }
+
+    @Test @MainActor
+    func openingFromTheWidgetSwitchesTheRoute() {
+        let viewModel = HomeViewModel(
+            nowProvider: { makeTestDate(hour: 10) },
+            defaults: makeIsolatedDefaults()
+        )
+
+        viewModel.selectRouteFromWidget(.yokadoToMansion)
+
+        #expect(viewModel.selectedRoute == .yokadoToMansion)
+        #expect(viewModel.selectedOrigin == .yokado)
+        #expect(viewModel.selectedDestination == .mansion)
+        // 自分で選んだのと同じ扱いなので、決め方は手動になります。
+        #expect(viewModel.routeDecision == .manual)
+    }
+
     // MARK: - 日時の表し方
 
     @Test
