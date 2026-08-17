@@ -205,8 +205,16 @@ struct SkyCanvas: View {
   private static let poleWearChance: Double = 0.16
   /// バス停の支柱の濃さです。白い柱として見えるところまで上げます。
   private static let busStopPoleOpacity: Double = 0.92
-  /// 支柱の影になる側の濃さです。丸みが出る程度にとどめます。
-  private static let busStopPoleShadeOpacity: Double = 0.22
+  /// 支柱の色あせた箇所の濃さです。抜けて見えない程度にとどめます。
+  private static let busStopPoleWornOpacity: Double = 0.45
+  /// バス停の足元に置く重石の高さです。セル数で指定します。
+  private static let busStopBaseHeight = 4
+  /// 重石のいちばん広いところの幅です。セル数で指定します。奇数にして柱を中心に置きます。
+  private static let busStopBaseWidth = 9
+  /// 重石の濃さです。白い柱より暗くして、コンクリートらしくします。
+  private static let busStopBaseOpacity: Double = 0.72
+  /// 重石の底に敷く影の濃さです。地面に置かれていることを示します。
+  private static let busStopBaseShadowOpacity: Double = 0.26
   /// 道路が始まる位置です。
   private static let roadRatio: Double = 0.80
   /// 道路のセンターラインを引く位置です。
@@ -382,7 +390,7 @@ struct SkyCanvas: View {
   /// バス停の支柱の高さです。セル数で指定します。
   private static let poleHeight = 14
   /// バス停の支柱の太さです。セル数で指定します。
-  private static let poleWidth = 2
+  private static let poleWidth = 1
 
   /// ドット絵の雲の形です。各行の(左端のセル位置, 幅のセル数)を上から順に並べます。
   private static let cloudRows: [(offsetX: Int, width: Int)] = [
@@ -1754,38 +1762,30 @@ struct SkyCanvas: View {
     let signLeft = snapped(CGFloat(Self.busStopRatio) * size.width)
     let poleLeft = signLeft + (signWidth - CGFloat(Self.poleWidth) * cell) / 2
 
-    // 支柱です。塗装が剥げた箇所を作るため、1マスずつ積み上げます。
-    // 実際のバス停と同じ白い柱にし、道路の白線と同じ色を使います。
+    // 支柱です。実際のバス停と同じ白い柱にし、道路の白線と同じ色を使います。
+    //
+    // 1マス幅なので、剥げた箇所を抜いてしまうと柱が途切れて見えます。
+    // 抜くかわりに薄くして、続いたまま色あせているように見せます。
     var polePath = Path()
-    var poleShadePath = Path()
+    var poleWornPath = Path()
     for offset in 0..<Self.poleHeight {
-      guard pseudoRandom(offset &* 7717 &+ 13) > Self.poleWearChance else { continue }
-
-      let y = poleTop + CGFloat(offset) * cell
-      polePath.addRect(
-        CGRect(
-          x: snapped(poleLeft),
-          y: y,
-          width: CGFloat(Self.poleWidth) * cell,
-          height: cell
-        )
+      let rect = CGRect(
+        x: snapped(poleLeft),
+        y: poleTop + CGFloat(offset) * cell,
+        width: CGFloat(Self.poleWidth) * cell,
+        height: cell
       )
 
-      // 右の1列だけ影にして、平らな板ではなく丸い柱に見せます。
-      poleShadePath.addRect(
-        CGRect(
-          x: snapped(poleLeft) + CGFloat(Self.poleWidth - 1) * cell,
-          y: y,
-          width: cell,
-          height: cell
-        )
-      )
+      if pseudoRandom(offset &* 7717 &+ 13) > Self.poleWearChance {
+        polePath.addRect(rect)
+      } else {
+        poleWornPath.addRect(rect)
+      }
     }
     context.fill(polePath, with: .color(sky.roadLine.opacity(Self.busStopPoleOpacity)))
-    context.fill(
-      poleShadePath,
-      with: .color(sky.signboardInk.opacity(Self.busStopPoleShadeOpacity))
-    )
+    context.fill(poleWornPath, with: .color(sky.roadLine.opacity(Self.busStopPoleWornOpacity)))
+
+    drawBusStopBase(in: &context, poleLeft: snapped(poleLeft), baseY: baseY)
 
     // 標識の板です。ドットで組んだ丸い板にします。
     let signRadius = Self.signSize / 2
@@ -1826,6 +1826,50 @@ struct SkyCanvas: View {
       CGRect(x: signOrigin.x + 3 * cell, y: signOrigin.y + 6 * cell, width: 5 * cell, height: cell)
     )
     context.fill(mark, with: .color(sky.signboardInk.opacity(0.78)))
+  }
+
+  /// バス停の足元に置く重石です。
+  ///
+  /// 柱だけだと地面から生えているように見えます。
+  /// 持ち運べる標識と同じように、足元へ台形の重石を置いて据わりをよくします。
+  private func drawBusStopBase(
+    in context: inout GraphicsContext,
+    poleLeft: CGFloat,
+    baseY: CGFloat
+  ) {
+    let cell = Self.cellSize
+    var path = Path()
+
+    for row in 0..<Self.busStopBaseHeight {
+      // 上の段ほど細くして、下へ向かって広がる台形にします。
+      let narrowing = max(Self.busStopBaseHeight - 2 - row, 0) * 2
+      let width = Self.busStopBaseWidth - narrowing
+      let left = poleLeft - CGFloat(width / 2) * cell
+
+      path.addRect(
+        CGRect(
+          x: left,
+          y: baseY - CGFloat(Self.busStopBaseHeight - row) * cell,
+          width: CGFloat(width) * cell,
+          height: cell
+        )
+      )
+    }
+
+    context.fill(path, with: .color(sky.roadLine.opacity(Self.busStopBaseOpacity)))
+
+    // 地面との境目を暗くして、置かれているように見せます。
+    context.fill(
+      Path(
+        CGRect(
+          x: poleLeft - CGFloat(Self.busStopBaseWidth / 2) * cell,
+          y: baseY - cell,
+          width: CGFloat(Self.busStopBaseWidth) * cell,
+          height: cell
+        )
+      ),
+      with: .color(Color.black.opacity(Self.busStopBaseShadowOpacity))
+    )
   }
 
   /// 標識の板に色あせの粒を散らし、長く風雨にさらされた面にします。
