@@ -203,6 +203,10 @@ struct SkyCanvas: View {
   private static let roadLineWearChance: Double = 0.34
   /// バス停の支柱が錆びて欠けている割合です。
   private static let poleWearChance: Double = 0.16
+  /// バス停の支柱の濃さです。白い柱として見えるところまで上げます。
+  private static let busStopPoleOpacity: Double = 0.92
+  /// 支柱の影になる側の濃さです。丸みが出る程度にとどめます。
+  private static let busStopPoleShadeOpacity: Double = 0.22
   /// 道路が始まる位置です。
   private static let roadRatio: Double = 0.80
   /// 道路のセンターラインを引く位置です。
@@ -1750,21 +1754,38 @@ struct SkyCanvas: View {
     let signLeft = snapped(CGFloat(Self.busStopRatio) * size.width)
     let poleLeft = signLeft + (signWidth - CGFloat(Self.poleWidth) * cell) / 2
 
-    // 支柱です。錆びて欠けた箇所を作るため、1マスずつ積み上げます。
+    // 支柱です。塗装が剥げた箇所を作るため、1マスずつ積み上げます。
+    // 実際のバス停と同じ白い柱にし、道路の白線と同じ色を使います。
     var polePath = Path()
+    var poleShadePath = Path()
     for offset in 0..<Self.poleHeight {
       guard pseudoRandom(offset &* 7717 &+ 13) > Self.poleWearChance else { continue }
 
+      let y = poleTop + CGFloat(offset) * cell
       polePath.addRect(
         CGRect(
           x: snapped(poleLeft),
-          y: poleTop + CGFloat(offset) * cell,
+          y: y,
           width: CGFloat(Self.poleWidth) * cell,
           height: cell
         )
       )
+
+      // 右の1列だけ影にして、平らな板ではなく丸い柱に見せます。
+      poleShadePath.addRect(
+        CGRect(
+          x: snapped(poleLeft) + CGFloat(Self.poleWidth - 1) * cell,
+          y: y,
+          width: cell,
+          height: cell
+        )
+      )
     }
-    context.fill(polePath, with: .color(sky.signboardInk.opacity(0.55)))
+    context.fill(polePath, with: .color(sky.roadLine.opacity(Self.busStopPoleOpacity)))
+    context.fill(
+      poleShadePath,
+      with: .color(sky.signboardInk.opacity(Self.busStopPoleShadeOpacity))
+    )
 
     // 標識の板です。ドットで組んだ丸い板にします。
     let signRadius = Self.signSize / 2
