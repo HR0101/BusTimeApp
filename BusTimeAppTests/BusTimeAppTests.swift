@@ -918,47 +918,6 @@ struct BusTimeAppTests {
         }
     }
 
-    @Test
-    func paletteCarriesTheSeasonForSeasonalScenery() {
-        // 星座は季節ごとに変わるため、配色から季節を取り出せる必要があります。
-        #expect(SkyPalette.at(hour: 12, season: .autumn).season == .autumn)
-    }
-
-    // MARK: - 星座
-
-    @Test
-    func everySeasonHasItsOwnConstellation() {
-        // どの季節に開いても、その季節の星座が1つは見えるようにします。
-        for season in Season.allCases {
-            let matched = SkyCanvas.constellations.filter { $0.season == season }
-            #expect(matched.count >= 1)
-        }
-    }
-
-    @Test
-    func constellationsStayInsideTheStarField() {
-        // 星座が画面からはみ出したり、文字の並ぶ下半分に降りてこないことを確かめます。
-        // 星の位置は縦横とも画面の幅を基準に置くので、縦の割合は画面比で換算します。
-        let aspectRatio = 2622.0 / 1206.0
-
-        for constellation in SkyCanvas.constellations {
-            for star in constellation.stars {
-                #expect(star.x >= 0 && star.x <= 1)
-                #expect(star.y >= 0 && star.y <= 1)
-
-                let x = constellation.origin.x + star.x * constellation.scale
-                let y = constellation.origin.y + star.y * constellation.scale / aspectRatio
-                #expect(x >= 0 && x <= 1)
-                #expect(y >= 0.03 && y <= 0.45)
-            }
-
-            // 結ぶ相手が実在する星であることを確かめます。
-            for link in constellation.links {
-                #expect(constellation.stars.indices.contains(link.0))
-                #expect(constellation.stars.indices.contains(link.1))
-            }
-        }
-    }
     // MARK: - 月の満ち欠け
 
     @Test

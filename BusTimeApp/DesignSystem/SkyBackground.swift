@@ -215,6 +215,10 @@ struct SkyCanvas: View {
   private static let busStopBaseOpacity: Double = 0.72
   /// 重石の底に敷く影の濃さです。地面に置かれていることを示します。
   private static let busStopBaseShadowOpacity: Double = 0.26
+  /// 重石を描く粒の細かさです。1マスをいくつに割るかで指定します。
+  private static let busStopBaseSubdivision = 4
+  /// 重石の角を丸める半径です。細かい粒いくつぶんかで指定します。
+  private static let busStopBaseCornerRadius = 6
   /// 道路が始まる位置です。
   private static let roadRatio: Double = 0.80
   /// 道路のセンターラインを引く位置です。
@@ -291,12 +295,6 @@ struct SkyCanvas: View {
   private static let rippleLifeTicks = 3
   /// 波紋の濃さです。
   private static let rippleOpacityValue: Double = 0.30
-  /// 星座の星の色です。まわりの星より明るく置きます。
-  private static let constellationStarColor = Color(red: 1.0, green: 0.98, blue: 0.92)
-  /// 星座を結ぶ線の濃さです。
-  private static let constellationLineOpacity: Double = 0.12
-  /// 星座の星の濃さです。
-  private static let constellationStarOpacity: Double = 0.85
   /// 風が最も強いときに、鳥の飛ぶ速さが何倍になるかです。
   private static let birdWindSpeedBoost: Double = 1.8
   /// 電柱を立てる横位置です。等間隔に並べます。
@@ -399,82 +397,6 @@ struct SkyCanvas: View {
     (0, 9)
   ]
 
-  /// 星座の定義です。星の位置は星座ごとの正方形の中の割合で持ちます。
-  struct Constellation {
-    /// この星座が見える季節です。
-    let season: Season
-    /// 画面上のどこに置くかです。左上を基準にした割合です。
-    let origin: CGPoint
-    /// 画面に対する大きさです。
-    let scale: Double
-    /// 星の位置です。
-    let stars: [CGPoint]
-    /// 結ぶ星の組です。
-    let links: [(Int, Int)]
-  }
-
-  /// 季節ごとの代表的な星座です。
-  static let constellations: [Constellation] = [
-    // 冬のオリオン座です。三つ星と四辺の star が特徴です。
-    Constellation(
-      season: .winter,
-      origin: CGPoint(x: 0.60, y: 0.08),
-      scale: 0.26,
-      stars: [
-        CGPoint(x: 0.00, y: 0.00),
-        CGPoint(x: 0.62, y: 0.06),
-        CGPoint(x: 0.26, y: 0.44),
-        CGPoint(x: 0.38, y: 0.50),
-        CGPoint(x: 0.50, y: 0.56),
-        CGPoint(x: 0.10, y: 0.96),
-        CGPoint(x: 0.70, y: 0.98)
-      ],
-      links: [(0, 2), (1, 4), (2, 3), (3, 4), (2, 5), (4, 6)]
-    ),
-    // 春の北斗七星です。ひしゃくの形に結びます。
-    Constellation(
-      season: .spring,
-      origin: CGPoint(x: 0.12, y: 0.07),
-      scale: 0.34,
-      stars: [
-        CGPoint(x: 0.00, y: 0.30),
-        CGPoint(x: 0.18, y: 0.10),
-        CGPoint(x: 0.40, y: 0.06),
-        CGPoint(x: 0.58, y: 0.20),
-        CGPoint(x: 0.72, y: 0.40),
-        CGPoint(x: 0.90, y: 0.50),
-        CGPoint(x: 1.00, y: 0.30)
-      ],
-      links: [(0, 1), (1, 2), (2, 3), (3, 4), (4, 5), (5, 6)]
-    ),
-    // 夏の大三角です。3つの明るい星だけを結びます。
-    Constellation(
-      season: .summer,
-      origin: CGPoint(x: 0.30, y: 0.06),
-      scale: 0.34,
-      stars: [
-        CGPoint(x: 0.00, y: 0.00),
-        CGPoint(x: 0.86, y: 0.26),
-        CGPoint(x: 0.30, y: 0.92)
-      ],
-      links: [(0, 1), (1, 2), (2, 0)]
-    ),
-    // 秋のカシオペヤ座です。Wの形に結びます。
-    Constellation(
-      season: .autumn,
-      origin: CGPoint(x: 0.18, y: 0.09),
-      scale: 0.30,
-      stars: [
-        CGPoint(x: 0.00, y: 0.00),
-        CGPoint(x: 0.22, y: 0.42),
-        CGPoint(x: 0.48, y: 0.10),
-        CGPoint(x: 0.74, y: 0.46),
-        CGPoint(x: 1.00, y: 0.06)
-      ],
-      links: [(0, 1), (1, 2), (2, 3), (3, 4)]
-    )
-  ]
-
   /// 雲を置く位置と大きさです。位置は画面に対する比率、大きさはセルの倍率です。
   private static let cloudLayout: [(x: Double, y: Double, scale: Int)] = [
     (0.06, 0.09, 4),
@@ -542,7 +464,6 @@ struct SkyCanvas: View {
     drawSwell(in: &context, size: size, tick: tick)
     drawReflectionPath(in: &context, size: size, tick: tick)
     drawStars(in: &context, size: size, tick: tick / Self.twinkleTicks)
-    drawConstellations(in: &context, size: size)
     drawShoreEdge(in: &context, size: size)
     drawSurf(in: &context, size: size, tick: tick)
     drawShip(in: &context, size: size, elapsed: Double(tick) * Self.animationInterval)
@@ -754,66 +675,6 @@ struct SkyCanvas: View {
         with: .color(
           Self.streetLightColor.opacity(sky.nightness * Self.streetLightBeamOpacity * verticalFade)
         )
-      )
-    }
-  }
-
-  /// その季節に見える星座です。
-  ///
-  /// 星は完全に散らばっているだけで、見上げても「知っている形」がありません。
-  /// 実在の星座をいくつか置くと、同じ空でも見覚えのある空になります。
-  /// 季節ごとに代表的なものを選び、その時期にだけ現れるようにします。
-  private func drawConstellations(in context: inout GraphicsContext, size: CGSize) {
-    guard sky.nightness > Self.starVisibilityThreshold else { return }
-
-    let cell = Self.cellSize
-    let strength = sky.nightness
-
-    for constellation in Self.constellations where constellation.season == sky.season {
-      var starPath = Path()
-      var linePath = Path()
-
-      // 星の位置です。縦横とも同じ長さを基準にし、星座の形が縦に伸びないようにします。
-      // 横長の画面では幅を基準にすると大きくなりすぎるので、短いほうの辺に合わせます。
-      let unit = min(size.width, size.height) * constellation.scale
-      func point(_ index: Int) -> CGPoint {
-        let star = constellation.stars[index]
-        return CGPoint(
-          x: constellation.origin.x * size.width + star.x * unit,
-          y: constellation.origin.y * size.height + star.y * unit
-        )
-      }
-
-      for index in constellation.stars.indices {
-        let position = point(index)
-        // まわりの明るい星と同じ十字形にして、星座だけ浮かないようにします。
-        appendCross(to: &starPath, x: snapped(position.x), y: snapped(position.y))
-      }
-
-      // 星どうしを結ぶ線です。細いドットの列で引きます。
-      for link in constellation.links {
-        let from = point(link.0)
-        let to = point(link.1)
-        let steps = Int(max(abs(to.x - from.x), abs(to.y - from.y)) / cell)
-        guard steps > 0 else { continue }
-
-        for step in 0...steps {
-          let ratio = Double(step) / Double(steps)
-          let x = from.x + (to.x - from.x) * ratio
-          let y = from.y + (to.y - from.y) * ratio
-          linePath.addRect(
-            CGRect(x: snapped(x), y: snapped(y), width: cell, height: cell)
-          )
-        }
-      }
-
-      context.fill(
-        linePath,
-        with: .color(Self.constellationStarColor.opacity(Self.constellationLineOpacity * strength))
-      )
-      context.fill(
-        starPath,
-        with: .color(Self.constellationStarColor.opacity(Self.constellationStarOpacity * strength))
       )
     }
   }
@@ -1839,28 +1700,70 @@ struct SkyCanvas: View {
   ) {
     let cell = Self.cellSize
     let left = poleLeft - CGFloat(Self.busStopBaseWidth / 2) * cell
+    let top = baseY - CGFloat(Self.busStopBaseHeight) * cell
 
-    // 角の落ちていない、四角い石をそのまま置いた形にします。
-    let block = CGRect(
-      x: left,
-      y: baseY - CGFloat(Self.busStopBaseHeight) * cell,
-      width: CGFloat(Self.busStopBaseWidth) * cell,
-      height: CGFloat(Self.busStopBaseHeight) * cell
-    )
-    context.fill(Path(block), with: .color(sky.roadLine.opacity(Self.busStopBaseOpacity)))
+    // 石だけは風景より細かい粒で描きます。
+    // 風景と同じ粗さのままだと、角の丸みが段になって出てしまうためです。
+    let subdivision = Self.busStopBaseSubdivision
+    let unit = cell / CGFloat(subdivision)
+    let columnCount = Self.busStopBaseWidth * subdivision
+    let rowCount = Self.busStopBaseHeight * subdivision
+    // 地面と接する部分です。ここだけ暗くして、置かれているように見せます。
+    let shadowRow = rowCount - subdivision
 
-    // 地面との境目を暗くして、置かれているように見せます。
-    context.fill(
-      Path(
-        CGRect(
-          x: left,
-          y: baseY - cell,
-          width: CGFloat(Self.busStopBaseWidth) * cell,
-          height: cell
+    var path = Path()
+    var shadowPath = Path()
+
+    for row in 0..<rowCount {
+      for column in 0..<columnCount {
+        guard isInsideRoundedBase(
+          column: column,
+          row: row,
+          columnCount: columnCount,
+          rowCount: rowCount
+        ) else { continue }
+
+        let rect = CGRect(
+          x: left + CGFloat(column) * unit,
+          y: top + CGFloat(row) * unit,
+          width: unit,
+          height: unit
         )
-      ),
-      with: .color(Color.black.opacity(Self.busStopBaseShadowOpacity))
-    )
+
+        if row >= shadowRow {
+          shadowPath.addRect(rect)
+        } else {
+          path.addRect(rect)
+        }
+      }
+    }
+
+    context.fill(path, with: .color(sky.roadLine.opacity(Self.busStopBaseOpacity)))
+    context.fill(shadowPath, with: .color(sky.roadLine.opacity(Self.busStopBaseOpacity)))
+    context.fill(shadowPath, with: .color(Color.black.opacity(Self.busStopBaseShadowOpacity)))
+  }
+
+  /// その粒が、角を丸めた石の内側にあるかどうかです。
+  ///
+  /// 四隅だけを円で削り、それ以外は四角のまま残します。
+  private func isInsideRoundedBase(
+    column: Int,
+    row: Int,
+    columnCount: Int,
+    rowCount: Int
+  ) -> Bool {
+    let radius = Double(Self.busStopBaseCornerRadius)
+    guard radius > 0 else { return true }
+
+    // 粒の中心で判定します。
+    let x = Double(column) + 0.5
+    let y = Double(row) + 0.5
+
+    // 角の円の中心からどれだけ離れているかです。辺の上では0になります。
+    let horizontal = max(radius - x, x - (Double(columnCount) - radius), 0)
+    let vertical = max(radius - y, y - (Double(rowCount) - radius), 0)
+
+    return horizontal * horizontal + vertical * vertical <= radius * radius
   }
 
   /// 標識の板に色あせの粒を散らし、長く風雨にさらされた面にします。
