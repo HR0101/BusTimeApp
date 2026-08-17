@@ -104,6 +104,9 @@ private struct DepartureRow: View {
 
 /// 場所が狭いので、次の便を大きく出し、その次は1行だけ添えます。
 private struct SmallView: View {
+  /// 次の便の時刻の大きさです。固定値にすると文字サイズ設定に追従しません。
+  @ScaledMetric(relativeTo: .largeTitle) private var departureSize: CGFloat = 34
+
   let entry: NextBusEntry
 
   var body: some View {
@@ -112,7 +115,7 @@ private struct SmallView: View {
 
       if let next = entry.next {
         Text(next.departure)
-          .font(.system(size: 34, weight: .bold, design: .rounded))
+          .font(.system(size: departureSize, weight: .bold, design: .rounded))
           .monospacedDigit()
           .lineLimit(1)
           .minimumScaleFactor(0.6)
