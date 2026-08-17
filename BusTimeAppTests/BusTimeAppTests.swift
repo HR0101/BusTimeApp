@@ -7,6 +7,8 @@
 
 import Foundation
 import CoreLocation
+import SwiftUI
+import UIKit
 import Testing
 @testable import BusTimeApp
 
@@ -276,19 +278,20 @@ struct BusTimeAppTests {
     @Test
     func skyPaletteSwitchesBetweenDayAndNight() {
         // 昼は明るい空なので暗い文字、夜は暗い空なので明るい文字になります。
-        #expect(SkyPalette.at(hour: 12).isNight == false)
-        #expect(SkyPalette.at(hour: 23).isNight == true)
-        #expect(SkyPalette.at(hour: 3).isNight == true)
-        #expect(SkyPalette.at(hour: 8).isNight == false)
+        // 昼の長さは季節で変わるので、季節を決めてから確かめます。
+        #expect(SkyPalette.at(hour: 12, season: .spring).isNight == false)
+        #expect(SkyPalette.at(hour: 23, season: .spring).isNight == true)
+        #expect(SkyPalette.at(hour: 3, season: .spring).isNight == true)
+        #expect(SkyPalette.at(hour: 8, season: .spring).isNight == false)
     }
 
     @Test
     func skyPaletteIsContinuousAcrossMidnight() {
         // 0時と24時は同じキーフレームなので、日付をまたいでも色が飛びません。
-        #expect(SkyPalette.at(hour: 0) == SkyPalette.at(hour: 24))
+        #expect(SkyPalette.at(hour: 0, season: .spring) == SkyPalette.at(hour: 24, season: .spring))
         // 範囲外の時刻は24時間周期に丸められます。
-        #expect(SkyPalette.at(hour: 25) == SkyPalette.at(hour: 1))
-        #expect(SkyPalette.at(hour: -1) == SkyPalette.at(hour: 23))
+        #expect(SkyPalette.at(hour: 25, season: .spring) == SkyPalette.at(hour: 1, season: .spring))
+        #expect(SkyPalette.at(hour: -1, season: .spring) == SkyPalette.at(hour: 23, season: .spring))
     }
 
     @Test
@@ -838,10 +841,124 @@ struct BusTimeAppTests {
         #expect(isEveningOrNight(2))
 
         // 朝6時は空が暗くても点けません。
-        #expect(SkyPalette.at(hour: 6).nightness > 0.22)
+        #expect(SkyPalette.at(hour: 6, season: .spring).nightness > 0.22)
         #expect(!isEveningOrNight(6))
     }
 
+    // MARK: - 文字の読みやすさ
+
+    @Test
+    func cardTextStaysReadableAtEveryHourAndSeason() {
+        // カードは「空 → 半透明の白 → 不透明の地」を重ねた上に文字を置きます。
+        // 季節で空の色を変えたことで、どこかの時刻で文字とカードが近づいていないかを確かめます。
+        // 判定は初期値の濃さで行います。設定で地をいちばん薄くすると
+        // カードはほぼ背景そのものになり、読みやすさより風景を優先した状態になります。
+        let coverage = SkyCardOpacity.coverage(for: SkyCardOpacity.standard, isDense: false)
+        var worst = (ratio: Double.infinity, season: Season.spring, hour: 0.0)
+
+        for season in Season.allCases {
+            for step in 0..<(24 * 4) {
+                let hour = Double(step) / 4
+                let palette = SkyPalette.at(hour: hour, season: season)
+
+                let background = components(of: palette.skyBottom)
+                let onSurface = blend(components(of: palette.surface), over: background)
+                let card = blend(
+                    components(of: palette.surfaceOpaque, alpha: coverage),
+                    over: onSurface
+                )
+                let text = blend(components(of: palette.ink), over: card)
+
+                let ratio = contrastRatio(text, card)
+                if ratio < worst.ratio {
+                    worst = (ratio, season, hour)
+                }
+            }
+        }
+
+        #expect(
+            worst.ratio >= 4.5,
+            "最も条件の悪い\(worst.season)の\(worst.hour)時でコントラスト比が\(worst.ratio)でした"
+        )
+    }
+
+    // MARK: - 季節
+
+    @Test
+    func seasonFollowsTheMonth() {
+        // 3〜5月が春、6〜8月が夏、9〜11月が秋、12〜2月が冬です。
+        #expect(Season.from(month: 3) == .spring)
+        #expect(Season.from(month: 5) == .spring)
+        #expect(Season.from(month: 6) == .summer)
+        #expect(Season.from(month: 8) == .summer)
+        #expect(Season.from(month: 9) == .autumn)
+        #expect(Season.from(month: 11) == .autumn)
+        #expect(Season.from(month: 12) == .winter)
+        #expect(Season.from(month: 1) == .winter)
+        #expect(Season.from(month: 2) == .winter)
+    }
+
+    @Test
+    func daylightLengthChangesWithTheSeason() {
+        // 同じ17時でも、冬は暗く夏は明るく見えるようにします。
+        let winter = SkyPalette.at(hour: 17, season: .winter).nightness
+        let spring = SkyPalette.at(hour: 17, season: .spring).nightness
+        let summer = SkyPalette.at(hour: 17, season: .summer).nightness
+
+        #expect(winter > spring)
+        #expect(spring > summer)
+    }
+
+    @Test
+    func noonStaysBrightInEverySeason() {
+        // 昼の長さを伸び縮みさせても、正午は必ず昼のままにします。
+        for season in Season.allCases {
+            #expect(SkyPalette.at(hour: 12, season: season).isNight == false)
+            #expect(SkyPalette.at(hour: 0, season: season).isNight == true)
+        }
+    }
+
+    @Test
+    func paletteCarriesTheSeasonForSeasonalScenery() {
+        // 星座は季節ごとに変わるため、配色から季節を取り出せる必要があります。
+        #expect(SkyPalette.at(hour: 12, season: .autumn).season == .autumn)
+    }
+
+    // MARK: - 星座
+
+    @Test
+    func everySeasonHasItsOwnConstellation() {
+        // どの季節に開いても、その季節の星座が1つは見えるようにします。
+        for season in Season.allCases {
+            let matched = SkyCanvas.constellations.filter { $0.season == season }
+            #expect(matched.count >= 1)
+        }
+    }
+
+    @Test
+    func constellationsStayInsideTheStarField() {
+        // 星座が画面からはみ出したり、文字の並ぶ下半分に降りてこないことを確かめます。
+        // 星の位置は縦横とも画面の幅を基準に置くので、縦の割合は画面比で換算します。
+        let aspectRatio = 2622.0 / 1206.0
+
+        for constellation in SkyCanvas.constellations {
+            for star in constellation.stars {
+                #expect(star.x >= 0 && star.x <= 1)
+                #expect(star.y >= 0 && star.y <= 1)
+
+                let x = constellation.origin.x + star.x * constellation.scale
+                let y = constellation.origin.y + star.y * constellation.scale / aspectRatio
+                #expect(x >= 0 && x <= 1)
+                #expect(y >= 0.03 && y <= 0.45)
+            }
+
+            // 結ぶ相手が実在する星であることを確かめます。
+            for link in constellation.links {
+                #expect(constellation.stars.indices.contains(link.0))
+                #expect(constellation.stars.indices.contains(link.1))
+            }
+        }
+    }
     // MARK: - 月の満ち欠け
 
     @Test
@@ -877,19 +994,19 @@ struct BusTimeAppTests {
     func inkSwitchesAtOnceInsteadOfFadingThroughGrey() {
         // 文字色に中間の値を持たせると、夕方にカードの地と同じ明るさに近づき、
         // どちらも灰色になって読めなくなります。昼と夜の2色だけを使います。
-        #expect(SkyPalette.at(hour: 18).ink == SkyPalette.at(hour: 12).ink)
-        #expect(SkyPalette.at(hour: 21).ink == SkyPalette.at(hour: 2).ink)
-        #expect(SkyPalette.at(hour: 12).ink != SkyPalette.at(hour: 2).ink)
+        #expect(SkyPalette.at(hour: 18, season: .spring).ink == SkyPalette.at(hour: 12, season: .spring).ink)
+        #expect(SkyPalette.at(hour: 21, season: .spring).ink == SkyPalette.at(hour: 2, season: .spring).ink)
+        #expect(SkyPalette.at(hour: 12, season: .spring).ink != SkyPalette.at(hour: 2, season: .spring).ink)
     }
 
     @Test
     func cardSurfaceSwitchesTogetherWithTheInk() {
         // 地と文字は同じ境界で入れ替わる必要があります。
         // 片方だけ先に変わると、その間だけ読みにくくなります。
-        #expect(SkyPalette.at(hour: 18).isNight == false)
-        #expect(SkyPalette.at(hour: 21).isNight == true)
-        #expect(SkyPalette.at(hour: 18).surface == SkyPalette.at(hour: 12).surface)
-        #expect(SkyPalette.at(hour: 21).surface == SkyPalette.at(hour: 2).surface)
+        #expect(SkyPalette.at(hour: 18, season: .spring).isNight == false)
+        #expect(SkyPalette.at(hour: 21, season: .spring).isNight == true)
+        #expect(SkyPalette.at(hour: 18, season: .spring).surface == SkyPalette.at(hour: 12, season: .spring).surface)
+        #expect(SkyPalette.at(hour: 21, season: .spring).surface == SkyPalette.at(hour: 2, season: .spring).surface)
     }
 
     // MARK: - 運行日の選択
@@ -1043,4 +1160,48 @@ private final class StubWeatherService: WeatherFetching, @unchecked Sendable {
     func fetchCurrentWeather() async throws -> SkyWeather {
         try result.get()
     }
+}
+
+
+// MARK: - 色の測り方
+
+/// 色を赤・緑・青と不透明度に分解します。
+private func components(of color: Color, alpha: Double? = nil) -> (r: Double, g: Double, b: Double, a: Double) {
+    var red: CGFloat = 0
+    var green: CGFloat = 0
+    var blue: CGFloat = 0
+    var opacity: CGFloat = 0
+    UIColor(color).getRed(&red, green: &green, blue: &blue, alpha: &opacity)
+    return (Double(red), Double(green), Double(blue), alpha ?? Double(opacity))
+}
+
+/// 半透明の色を下地に重ねた結果の色です。
+private func blend(
+    _ top: (r: Double, g: Double, b: Double, a: Double),
+    over bottom: (r: Double, g: Double, b: Double, a: Double)
+) -> (r: Double, g: Double, b: Double, a: Double) {
+    (
+        r: bottom.r + (top.r - bottom.r) * top.a,
+        g: bottom.g + (top.g - bottom.g) * top.a,
+        b: bottom.b + (top.b - bottom.b) * top.a,
+        a: 1
+    )
+}
+
+/// WCAGの相対輝度です。
+private func relativeLuminance(_ color: (r: Double, g: Double, b: Double, a: Double)) -> Double {
+    func channel(_ value: Double) -> Double {
+        value <= 0.03928 ? value / 12.92 : pow((value + 0.055) / 1.055, 2.4)
+    }
+    return 0.2126 * channel(color.r) + 0.7152 * channel(color.g) + 0.0722 * channel(color.b)
+}
+
+/// WCAGのコントラスト比です。1が同じ色、21が黒と白です。
+private func contrastRatio(
+    _ first: (r: Double, g: Double, b: Double, a: Double),
+    _ second: (r: Double, g: Double, b: Double, a: Double)
+) -> Double {
+    let a = relativeLuminance(first)
+    let b = relativeLuminance(second)
+    return (max(a, b) + 0.05) / (min(a, b) + 0.05)
 }
