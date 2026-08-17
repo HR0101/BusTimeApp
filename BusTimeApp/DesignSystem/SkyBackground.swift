@@ -47,6 +47,22 @@ struct SkyCanvas: View {
   /// オンのときは背景を動かさず、静止した一枚として描きます。
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
+  /// 背景を静止させるかどうかです。
+  ///
+  /// 「視差効果を減らす」設定に加えて、UIテストからの指定でも静止させます。
+  /// 動き続ける層があるとアプリが静止状態にならず、
+  /// UIテストの画面問い合わせが応答を待ち続けて失敗するためです。
+  private var isStill: Bool {
+    reduceMotion || Self.isStillBackgroundRequested
+  }
+
+  /// UIテストから背景の静止を指定されているかどうかです。
+  private static let isStillBackgroundRequested = ProcessInfo.processInfo
+    .arguments.contains(stillBackgroundArgument)
+
+  /// 背景を静止させるために、UIテストが起動時に渡す引数です。
+  static let stillBackgroundArgument = "-SkyBackgroundStill"
+
   // MARK: - 描画の基準値
 
   /// 1ドットとして扱う正方形の一辺です。この値がドット絵の粗さを決めます。
@@ -213,10 +229,9 @@ struct SkyCanvas: View {
   private static let distantLightColor = Color(red: 1.0, green: 0.898, blue: 0.647)
   /// 街灯を吊る電柱です。`utilityPoleRatios` の何本目かで指定します。
   ///
-  /// 実際の道路でも、街灯はすべての電柱ではなく1本おきに付いています。
   /// 傘は支柱の左へ伸びるので、照らしたいものより右の電柱を選びます。
-  /// 1本目はバス停を照らし、3本目は道路の先を照らします。
-  private static let lightedPoleIndices: Set<Int> = [0, 2]
+  /// 1本目はバス停を照らし、2本目は道路の先を照らします。
+  private static let lightedPoleIndices: Set<Int> = [0, 1]
   /// 電柱のどの高さに街灯を吊るかです。路面からのセル数で指定します。
   /// バス停は支柱14セルに標識11セルで約25セルあるため、
   /// 街灯はそれよりはっきり高くして、道路の照明らしく見せます。
@@ -269,7 +284,7 @@ struct SkyCanvas: View {
   private static let guardrailPostHeight = 5
   /// 電柱を立てる横位置です。等間隔に並べます。
   /// 電線のたるみは、この間隔がそのまま画面の外へ続くものとして描きます。
-  private static let utilityPoleRatios: [Double] = [0.26, 0.61, 0.96]
+  private static let utilityPoleRatios: [Double] = [0.26, 0.96]
   /// 電柱の高さです。セル数で指定します。街灯より高くします。
   private static let utilityPoleHeight = 72
   /// 電柱の腕木の幅です。セル数で指定します。
@@ -286,8 +301,6 @@ struct SkyCanvas: View {
   private static let utilityPoleInkOpacity: Double = 0.55
   /// 電線の濃さです。電柱より細い線なので、薄めにして柵に見えないようにします。
   private static let powerLineInkOpacity: Double = 0.42
-  /// バス停で待つ人の身長です。セル数で指定します。
-  private static let waitingPersonHeight = 12
   /// 飛行機が現れる周期です。
   private static let airplanePeriod: Double = 240
   /// 飛行機が渡りきるまでの時間です。
@@ -489,7 +502,7 @@ struct SkyCanvas: View {
   /// 風景そのものは残したまま、絶え間なく動くことによる負担だけを取り除きます。
   @ViewBuilder
   private var animatedLayer: some View {
-    if reduceMotion {
+    if isStill {
       Canvas { context, size in
         drawSeaScene(in: &context, size: size, tick: Self.stillTick)
       }
@@ -523,7 +536,6 @@ struct SkyCanvas: View {
     drawUtilityPoles(in: &context, size: size)
     drawStreetLights(in: &context, size: size)
     drawBusStop(in: &context, size: size)
-    drawWaitingPerson(in: &context, size: size)
     drawAirplane(in: &context, size: size, elapsed: Double(tick) * Self.animationInterval)
     // 雨が海面を叩く跳ねです。海の描画のあとに重ねます。
     drawRainRipples(in: &context, size: size, tick: tick)
@@ -931,66 +943,6 @@ struct SkyCanvas: View {
     return Int(position * Double(Self.powerLineSag))
   }
 
-  /// バス停で待つ人です。
-  ///
-  /// 誰もいない停留所は寂しく見えます。人影がひとつあるだけで、
-  /// この場所が使われていることが伝わります。
-  private func drawWaitingPerson(in context: inout GraphicsContext, size: CGSize) {
-    let cell = Self.cellSize
-    let rowCount = max(Int(ceil(size.height / cell)), 1)
-    let baseRow = Int(Self.roadRatio * Double(rowCount))
-    // バス停の少し右に立たせます。
-    let column = Int(Self.busStopRatio * size.width / cell) + 5
-
-    var path = Path()
-    let headRow = baseRow - Self.waitingPersonHeight
-
-    // 頭です。
-    for dy in 0..<3 {
-      for dx in 0..<3 {
-        path.addRect(
-          CGRect(
-            x: CGFloat(column + dx) * cell,
-            y: CGFloat(headRow + dy) * cell,
-            width: cell,
-            height: cell
-          )
-        )
-      }
-    }
-
-    // 胴です。肩幅を1マス広げます。
-    for dy in 4..<9 {
-      for dx in -1..<4 {
-        path.addRect(
-          CGRect(
-            x: CGFloat(column + dx) * cell,
-            y: CGFloat(headRow + dy) * cell,
-            width: cell,
-            height: cell
-          )
-        )
-      }
-    }
-
-    // 脚です。2本に分けます。
-    for dy in 9..<Self.waitingPersonHeight {
-      for dx in [0, 2] {
-        path.addRect(
-          CGRect(
-            x: CGFloat(column + dx) * cell,
-            y: CGFloat(headRow + dy) * cell,
-            width: cell,
-            height: cell
-          )
-        )
-      }
-    }
-
-    context.fill(path, with: .color(sky.skyBottom))
-    context.fill(path, with: .color(Color.black.opacity(0.55)))
-  }
-
   /// 夜空をゆっくり横切る飛行機です。
   ///
   /// 機体は見えず、点滅する灯りだけが動きます。
@@ -1143,7 +1095,7 @@ struct SkyCanvas: View {
   /// 「視差効果を減らす」設定がオンのときは出しません。
   @ViewBuilder
   private var shootingStarLayer: some View {
-    if !reduceMotion, sky.nightness > Self.starVisibilityThreshold {
+    if !isStill, sky.nightness > Self.starVisibilityThreshold {
       TimelineView(.periodic(from: Self.animationEpoch, by: Self.shootingStarInterval)) { timeline in
         let elapsed = timeline.date.timeIntervalSinceReferenceDate
 
@@ -1221,7 +1173,7 @@ struct SkyCanvas: View {
   @ViewBuilder
   private var rainLayer: some View {
     if weather.isRaining || weather.isSnowing || weather.hasThunder {
-      if reduceMotion {
+      if isStill {
         Canvas { context, size in
           drawPrecipitation(in: &context, size: size, frame: Self.stillTick, elapsed: 0)
         }
