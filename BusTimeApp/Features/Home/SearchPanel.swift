@@ -163,7 +163,11 @@ struct RouteHeaderCard: View {
   }
 
   private var swapButton: some View {
-    Button(action: viewModel.swapEndpoints) {
+    Button {
+      // 向きが入れ替わったことが一瞬で終わるので、手応えを添えます。
+      SkyHaptics.tap()
+      viewModel.swapEndpoints()
+    } label: {
       Image(systemName: "arrow.left.arrow.right")
         .dynamicFont(size: 14, relativeTo: .body, weight: .bold)
         .foregroundStyle(viewModel.canSwapEndpoints ? sky.accent : sky.inkFaint)
@@ -202,7 +206,10 @@ struct RouteHeaderCard: View {
   }
 
   private var locationButton: some View {
-    Button(action: locationAction) {
+    Button {
+      SkyHaptics.tap()
+      locationAction()
+    } label: {
       Label(L10n.Route.useCurrentLocation, systemImage: "location.fill")
         .dynamicFont(size: 12, relativeTo: .caption, weight: .bold, design: .rounded)
         .foregroundStyle(sky.accent)

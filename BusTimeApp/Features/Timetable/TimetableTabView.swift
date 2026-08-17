@@ -95,6 +95,9 @@ struct TimetableTabView: View {
       .padding(.horizontal, horizontalPadding)
       .padding(.top, 10)
       .padding(.bottom, 28)
+      // 横に広い画面では、1行が長くなりすぎないところで幅を止めて中央に置きます。
+      .frame(maxWidth: SkyMetrics.contentMaxWidth)
+      .frame(maxWidth: .infinity)
     }
   }
 

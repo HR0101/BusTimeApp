@@ -16,6 +16,11 @@ enum SkyMetrics {
   static let minimumTapSize: CGFloat = 44
   /// カード輪郭線の太さです。
   static let borderWidth: CGFloat = 1
+  /// 本文の横幅の上限です。
+  ///
+  /// iPadのように横に広い画面では、1列のまま画面いっぱいに広げると
+  /// 1行が長くなりすぎて目で追いにくくなります。読みやすい幅で止めます。
+  static let contentMaxWidth: CGFloat = 520
 }
 
 // MARK: - カード

@@ -244,6 +244,7 @@ struct ContentView: View {
         }
         .onChange(of: viewModel.liveActivityError) { errorMessage in
           if let errorMessage {
+            SkyHaptics.failure()
             coordinator.send(.liveActivityFailed(errorMessage))
             viewModel.liveActivityError = nil
           }
@@ -351,6 +352,9 @@ struct ContentView: View {
       .padding(.horizontal, horizontalPadding)
       .padding(.top, 10)
       .padding(.bottom, 28)
+      // 横に広い画面では、1行が長くなりすぎないところで幅を止めて中央に置きます。
+      .frame(maxWidth: SkyMetrics.contentMaxWidth)
+      .frame(maxWidth: .infinity)
     }
   }
 
@@ -467,6 +471,8 @@ struct ContentView: View {
           for: bus,
           shouldStart: shouldStartLiveActivity
         )
+        // 通知の登録は結果が文字でしか分からないので、成否を手応えでも返します。
+        SkyHaptics.success()
         coordinator.send(.notificationScheduled(
           L10n.Notify.scheduledMessage(
             item.busDescription,
@@ -475,6 +481,7 @@ struct ContentView: View {
           )
         ))
       case let .failure(error):
+        SkyHaptics.failure()
         coordinator.send(.notificationScheduled(error.localizedDescription))
       }
     }
