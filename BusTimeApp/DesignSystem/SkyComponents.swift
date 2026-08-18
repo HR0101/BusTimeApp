@@ -16,6 +16,12 @@ enum SkyMetrics {
   static let minimumTapSize: CGFloat = 44
   /// カード輪郭線の太さです。
   static let borderWidth: CGFloat = 1
+  /// 一覧の下に空ける余白です。
+  ///
+  /// iOS 26のタブバーは中身の上に浮かんで重なります。
+  /// 最後の行がその下に潜り込むと、半透明の帯ごしに読むことになるので、
+  /// 帯をよけられるだけの余白を下に確保します。
+  static let scrollBottomInset: CGFloat = 72
   /// 本文の横幅の上限です。
   ///
   /// iPadのように横に広い画面では、1列のまま画面いっぱいに広げると
