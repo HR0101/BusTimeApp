@@ -293,6 +293,33 @@ struct BusTimeAppTests {
     }
 
     @Test
+    func accentKeepsItsLabelReadable() {
+        // 選んだチップや主要なボタンは、強調色の上に文字を置きます。
+        // 昼と夜の中間で白と黒のどちらを置いても足りない明るさになりやすいので、
+        // どの時刻・季節でも余裕を持って読めることを確かめます。
+        var worst = (ratio: Double.infinity, season: Season.spring, hour: 0.0)
+
+        for season in Season.allCases {
+            for step in 0..<(24 * 4) {
+                let hour = Double(step) / 4
+                let palette = SkyPalette.at(hour: hour, season: season)
+                let background = components(of: palette.accent)
+                let label = blend(components(of: palette.accentInk), over: background)
+                let ratio = contrastRatio(label, background)
+                if ratio < worst.ratio {
+                    worst = (ratio, season, hour)
+                }
+            }
+        }
+
+        // 4.5ちょうどでは、実際の描画のわずかな差で下回ります。余裕を持たせます。
+        #expect(
+            worst.ratio >= 5.0,
+            "強調色の上の文字が最も読みにくいのは\(worst.season)の\(worst.hour)時で、比は\(worst.ratio)でした"
+        )
+    }
+
+    @Test
     func reduceTransparencyHidesTheSceneBehindCards() {
         // 「透明度を下げる」がオンのときは、濃さの設定にかかわらず地を敷き切ります。
         // 背景の風景が透けること自体が、この設定で避けたいことだからです。
@@ -1058,6 +1085,7 @@ struct BusTimeAppTests {
         // カードはほぼ背景そのものになり、読みやすさより風景を優先した状態になります。
         let coverage = SkyCardOpacity.coverage(for: SkyCardOpacity.standard, isDense: false)
         var worst = (ratio: Double.infinity, season: Season.spring, hour: 0.0)
+        var worstSecondary = (ratio: Double.infinity, season: Season.spring, hour: 0.0)
 
         for season in Season.allCases {
             for step in 0..<(24 * 4) {
@@ -1076,12 +1104,24 @@ struct BusTimeAppTests {
                 if ratio < worst.ratio {
                     worst = (ratio, season, hour)
                 }
+
+                // 補足の文字も同じ地の上に置きます。チップの見出しや経路の控えめな
+                // 表示に使うので、本文と同じ基準で読めることを求めます。
+                let secondary = blend(components(of: palette.inkSecondary), over: card)
+                let secondaryRatio = contrastRatio(secondary, card)
+                if secondaryRatio < worstSecondary.ratio {
+                    worstSecondary = (secondaryRatio, season, hour)
+                }
             }
         }
 
         #expect(
             worst.ratio >= 4.5,
-            "最も条件の悪い\(worst.season)の\(worst.hour)時でコントラスト比が\(worst.ratio)でした"
+            "主な文字が最も読みにくいのは\(worst.season)の\(worst.hour)時で、比は\(worst.ratio)でした"
+        )
+        #expect(
+            worstSecondary.ratio >= 4.5,
+            "補足の文字が最も読みにくいのは\(worstSecondary.season)の\(worstSecondary.hour)時で、比は\(worstSecondary.ratio)でした"
         )
     }
 

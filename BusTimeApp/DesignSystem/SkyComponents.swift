@@ -291,9 +291,7 @@ struct SkyChip: View {
         .foregroundStyle(isSelected ? sky.accentInk : sky.ink)
         .frame(maxWidth: .infinity)
         .frame(minHeight: SkyMetrics.minimumTapSize)
-        .background(
-          Capsule().fill(isSelected ? sky.accent : Color.clear)
-        )
+        .background(chipBackground)
         .overlay(
           Capsule().stroke(
             isSelected
@@ -305,6 +303,19 @@ struct SkyChip: View {
     }
     .buttonStyle(SkyPressStyle())
     .accessibilityAddTraits(isSelected ? .isSelected : [])
+  }
+
+  /// チップの地です。
+  ///
+  /// 選んでいない側にも地を敷きます。地がないとカードごしに風景が透け、
+  /// うしろの明るさによって文字の読みやすさが変わってしまうためです。
+  @ViewBuilder
+  private var chipBackground: some View {
+    if isSelected {
+      Capsule().fill(sky.accent)
+    } else {
+      Color.clear.skyCardFill(Capsule(), isDense: true)
+    }
   }
 }
 
