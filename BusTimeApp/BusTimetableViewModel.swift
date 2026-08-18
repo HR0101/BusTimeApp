@@ -1,6 +1,6 @@
 import Foundation
 import Combine
-import ActivityKit
+@preconcurrency import ActivityKit
 import CoreLocation
 import UIKit
 
@@ -34,6 +34,7 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
     @Published private(set) var availabilityReferenceDate: Date
     /// 経路がどうやって決まったかです。画面に理由を出すために持ちます。
     @Published private(set) var routeDecision: RouteDecision = .timeOfDay
+    @Published private(set) var locationAuthorizationStatus: CLAuthorizationStatus = .notDetermined
     /// 検索結果が次の運行日の便かどうかです。
     /// 深夜など、その運行日の便が終わったあとに翌朝の便を出している状態を表します。
     @Published private(set) var showsNextServiceDay = false
@@ -41,24 +42,15 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
     // MARK: - 内部でだけ使うプロパティ
     
     private var allTimetables: [Route: [Bus]] = [:] // 全ルートの時刻表データ
-    private let publicHolidays = [                  // 祝日リスト
-        "2025-01-01", "2025-01-13", "2025-02-11", "2025-02-23", "2025-03-20",
-        "2025-04-29", "2025-05-03", "2025-05-04", "2025-05-05", "2025-07-21",
-        "2025-08-11", "2025-09-15", "2025-09-23", "2025-10-13", "2025-11-03",
-        "2025-11-23", "2025-12-23"
-    ]
     private var timer: AnyCancellable?              // カウントダウン用のタイマー
     
     private var currentActivity: Activity<BusActivityAttributes>? = nil
     private var lastActivityRemainingMinutes: Int? = nil // Live Activityへの過剰な更新を防ぐためのキャッシュ
     private var stateMachine = HomeStateMachine()
     private let nowProvider: () -> Date
+    private let calendar: Calendar
     
     private let locationManager = CLLocationManager() // 位置情報取得用マネージャー
-    private let columbusCityLocation = CLLocation(latitude: 35.6589411, longitude: 140.0357708)
-    private let kaihinMakuhariStationLocation = CLLocation(latitude: 35.6485608, longitude: 140.0416924)
-    private let yokadoLocation = CLLocation(latitude: 35.6569440, longitude: 140.0510100)
-    private let maxAutoRouteDistance: CLLocationDistance = 1_500
     private let maxLocationAge: TimeInterval = 120
     private let maxLocationAccuracy: CLLocationAccuracy = 500
 
@@ -67,6 +59,9 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
     private static let outboundEndHour = 12
     /// 前回使った、自宅ではない側の停留所を覚えておくキーです。
     private static let preferredPartnerStopKey = "preferredPartnerStop"
+    private static let serviceDayPreferenceKey = "home.serviceDay"
+    private static let searchTypePreferenceKey = "home.searchType"
+    private static let searchTimePreferenceKey = "home.searchTime"
     /// 自宅にあたる停留所です。向きの判定はこの停留所を基準にします。
     private static let homeStop: Stop = .mansion
 
@@ -77,69 +72,10 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
 
     // MARK: - 選択肢を管理するための列挙型
     
-    enum Stop: String, CaseIterable, Identifiable {
-        case mansion = "コロンブスシティ"
-        case station = "海浜幕張駅"
-        case yokado = "ヨーカドー前"
-
-        var id: Self { self }
-
-        var systemName: String {
-            switch self {
-            case .mansion:
-                return "building.2.fill"
-            case .station:
-                return "tram.fill"
-            case .yokado:
-                return "cart.fill"
-            }
-        }
-    }
-
-    enum Route: String, CaseIterable {
-        case mansionToStation = "コロンブスシティ → 海浜幕張駅"
-        case stationToMansion = "海浜幕張駅 → コロンブスシティ"
-        case mansionToYokado = "コロンブスシティ → ヨーカドー前"
-        case stationToYokado = "海浜幕張駅 → ヨーカドー前"
-        case yokadoToMansion = "ヨーカドー前 → コロンブスシティ"
-
-        var origin: Stop {
-            switch self {
-            case .mansionToStation, .mansionToYokado:
-                return .mansion
-            case .stationToMansion, .stationToYokado:
-                return .station
-            case .yokadoToMansion:
-                return .yokado
-            }
-        }
-
-        var destination: Stop {
-            switch self {
-            case .mansionToStation:
-                return .station
-            case .stationToMansion, .yokadoToMansion:
-                return .mansion
-            case .mansionToYokado, .stationToYokado:
-                return .yokado
-            }
-        }
-
-        var guidance: String {
-            switch self {
-            case .stationToMansion:
-                return L10n.Route.guidanceViaYokado
-            case .mansionToYokado:
-                return L10n.Route.guidanceToYokado
-            default:
-                return L10n.Route.guidanceDefault
-            }
-        }
-
-        static func route(from origin: Stop, to destination: Stop) -> Route? {
-            allCases.first { $0.origin == origin && $0.destination == destination }
-        }
-    }
+    /// 停留所と経路は、ウィジェットとも共有するため `BusSchedule` 側に置いています。
+    /// 画面や既存のコードからは、これまでどおりの名前で参照できるようにします。
+    typealias Stop = BusStop
+    typealias Route = BusRoute
 
     /// 検索の対象にする運行日です。
     ///
@@ -232,18 +168,25 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
     // MARK: - 初期化処理
     
     init(
-        nowProvider: @escaping () -> Date = Date.init,
-        defaults: UserDefaults = .standard
+        nowProvider: @escaping () -> Date = AppDate.now,
+        defaults: UserDefaults = .standard,
+        calendar: Calendar = AppCalendar.japan
     ) {
         self.nowProvider = nowProvider
         self.defaults = defaults
+        self.calendar = calendar
         self.availabilityReferenceDate = nowProvider()
         super.init()
         setupTimetables() // 時刻表データを準備する
 
+        // 手動で選んだ経路はアプリを開き直すと解除されます。
+        // ウィジェットにだけ古い選択が残らないよう、同じところで消しておきます。
+        SharedAppData.manualRoute = nil
+
         // 位置情報の設定
         locationManager.delegate = self
         locationManager.desiredAccuracy = kCLLocationAccuracyHundredMeters
+        locationAuthorizationStatus = locationManager.authorizationStatus
 
         checkHoliday()    // 休日かどうかをチェックする
         refreshRouteAvailability(at: availabilityReferenceDate)
@@ -251,7 +194,7 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
         applyRouteFromTimeOfDay(at: availabilityReferenceDate)
         // 最初の描画で完成した内容を出します。表示してから結果を差し込むと、
         // 画面の高さが伸びてスクロール位置がずれてしまうためです。
-        searchTime = availabilityReferenceDate
+        restoreSearchPreferences()
         performSearch()
         startTimer()      // カウントダウン用のタイマーを開始する
         restoreLiveActivity()
@@ -261,10 +204,15 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
     
     /// 現在地から経路を決め直します。
     /// 位置情報が使えないときは、時間帯と前回の行き先から決めます。
-    func checkLocationAndSetOrigin() {
+    func checkLocationAndSetOrigin(requestPermission: Bool = false) {
+        locationAuthorizationStatus = locationManager.authorizationStatus
         switch locationManager.authorizationStatus {
         case .notDetermined:
-            locationManager.requestWhenInUseAuthorization()
+            if requestPermission {
+                locationManager.requestWhenInUseAuthorization()
+            } else {
+                applyRouteFromTimeOfDay()
+            }
         case .authorizedWhenInUse, .authorizedAlways:
             locationManager.requestLocation()
         case .denied, .restricted:
@@ -278,12 +226,21 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
     /// 手動で選んだ状態を解除してから、位置情報を取り直します。
     func useCurrentLocationForRoute() {
         hasManualRouteSelection = false
-        checkLocationAndSetOrigin()
+        // ウィジェット側も現在地から決め直すようにします。
+        SharedAppData.manualRoute = nil
+        checkLocationAndSetOrigin(requestPermission: true)
+    }
+
+    var isLocationPermissionDenied: Bool {
+        locationAuthorizationStatus == .denied || locationAuthorizationStatus == .restricted
     }
     
     func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
+        locationAuthorizationStatus = manager.authorizationStatus
         if manager.authorizationStatus == .authorizedWhenInUse || manager.authorizationStatus == .authorizedAlways {
             manager.requestLocation()
+        } else if manager.authorizationStatus == .denied || manager.authorizationStatus == .restricted {
+            applyRouteFromTimeOfDay()
         }
     }
     
@@ -299,22 +256,15 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
     }
     
     func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
-        print("位置情報取得エラー: \(error.localizedDescription)")
+        AppLogger.location.error(
+            "Location request failed: \(error.localizedDescription, privacy: .public)"
+        )
         // 取れなかった場合でも経路が決まるよう、時間帯から選び直します。
         applyRouteFromTimeOfDay()
     }
     
     private func stopForCurrentLocation(_ location: CLLocation) -> Stop? {
-        let stopCandidates: [(distance: CLLocationDistance, stop: Stop)] = [
-            (location.distance(from: columbusCityLocation), .mansion),
-            (location.distance(from: kaihinMakuhariStationLocation), .station),
-            (location.distance(from: yokadoLocation), .yokado)
-        ]
-        guard let nearest = stopCandidates.min(by: { $0.distance < $1.distance }) else { return nil }
-        
-        guard nearest.distance <= maxAutoRouteDistance else { return nil }
-        
-        return nearest.stop
+        BusSchedule.nearestStop(to: location)
     }
 
     /// 現在地に最も近い停留所から、次に利用できるルートを自動選択します。
@@ -377,7 +327,7 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
     /// 半分の場面で外れます。そこで向きは時刻から決め、
     /// 「駅とヨーカドーのどちらを使うか」だけを前回から引き継ぎます。
     func routeFromTimeOfDay(at referenceDate: Date) -> Route? {
-        let hour = Calendar.current.component(.hour, from: referenceDate)
+        let hour = calendar.component(.hour, from: referenceDate)
         let isOutbound = hour < Self.outboundEndHour
         let partner = preferredPartnerStop
 
@@ -421,10 +371,12 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
     }
 
     /// 経路から行き先の好みを取り出して保存します。
+    /// ウィジェットも同じ行き先を使うので、共有の保存領域にも書きます。
     private func rememberPartnerStop(for route: Route) {
         let partner = route.origin == Self.homeStop ? route.destination : route.origin
         guard partner != Self.homeStop else { return }
         defaults.set(partner.rawValue, forKey: Self.preferredPartnerStopKey)
+        SharedAppData.preferredPartnerStop = partner
     }
 
     /// 与えられた経路のうち、次の発車が最も早いものを返します。
@@ -455,7 +407,8 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
         return timetable.compactMap { bus in
             BusNotificationTimeCalculator.departureDateForCurrentServiceDay(
                 for: bus.departure,
-                from: referenceDate
+                from: referenceDate,
+                calendar: calendar
             )
         }
         .filter { $0 > referenceDate }
@@ -493,7 +446,6 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
     }
 
     private func serviceDayStart(for date: Date) -> Date? {
-        let calendar = Calendar.current
         guard let boundary = calendar.date(
             bySettingHour: BusNotificationTimeCalculator.serviceDayBoundaryHour,
             minute: 0,
@@ -570,12 +522,35 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
         markManualRouteSelection()
     }
 
+    /// ウィジェットから開かれたときに、その経路へ合わせます。
+    ///
+    /// ウィジェットで見ていた便をそのまま確かめられるようにします。
+    /// 自分で選んだのと同じ扱いにするので、位置情報では上書きしません。
+    func selectRouteFromWidget(_ route: Route) {
+        guard selectableRoutes.contains(route) || routeHasRemainingService(route, at: now())
+        else {
+            // 本日その経路の便がもうない場合でも、経路自体は合わせます。
+            // ウィジェットが出していた内容と画面が食い違うほうが分かりにくいためです。
+            applyRoute(route)
+            markManualRouteSelection()
+            performSearch()
+            return
+        }
+
+        applyRoute(route)
+        routeAvailabilityMessage = nil
+        markManualRouteSelection()
+        performSearch()
+    }
+
     /// 利用者が自分で経路を選んだことを記録します。
     /// 以降は位置情報で上書きせず、行き先の好みを次回に引き継ぎます。
     private func markManualRouteSelection() {
         hasManualRouteSelection = true
         routeDecision = .manual
         rememberPartnerStop(for: selectedRoute)
+        // 自分で選んだ経路は、ウィジェットでも同じものを出します。
+        SharedAppData.manualRoute = selectedRoute
     }
 
     private func applyRoute(_ route: Route) {
@@ -584,165 +559,18 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
         selectedDestination = route.destination
     }
     
-    // 時刻表データをプログラム内に直接定義します。
+    // 時刻表はウィジェットとも共有するため、`BusSchedule` から受け取ります。
     private func setupTimetables() {
-        let columbusCity = "コロンブスシティ"
-        let station = "海浜幕張駅"
-        let yokado = "ヨーカドー前"
-        let shoppingNote = L10n.BusNote.shopping
-        let viaYokadoNote = L10n.BusNote.viaYokado
-        let viaStationNote = L10n.BusNote.viaStation
-        
-        let shoppingRows = [
-            (columbus: "9:30", station: "9:38", yokado: "9:46", columbusReturn: "9:53"),
-            (columbus: "10:30", station: "10:38", yokado: "10:46", columbusReturn: "10:53"),
-            (columbus: "11:30", station: "11:38", yokado: "11:46", columbusReturn: "11:53"),
-            (columbus: "13:30", station: "13:38", yokado: "13:46", columbusReturn: "13:53"),
-            (columbus: "14:30", station: "14:38", yokado: "14:46", columbusReturn: "14:53"),
-            (columbus: "15:30", station: "15:38", yokado: "15:46", columbusReturn: "15:53"),
-            (columbus: "16:30", station: "16:38", yokado: "16:46", columbusReturn: "16:53")
-        ]
-        
-        func directBus(_ departure: String, _ arrival: String, from origin: String, to destination: String, note: String? = nil) -> Bus {
-            Bus(departure: departure, arrival: arrival, originName: origin, destinationName: destination, note: note)
-        }
-        
-        func shoppingBusToStation(_ row: (columbus: String, station: String, yokado: String, columbusReturn: String)) -> Bus {
-            directBus(row.columbus, row.station, from: columbusCity, to: station, note: shoppingNote)
-        }
-        
-        func shoppingBusStationToMansion(_ row: (columbus: String, station: String, yokado: String, columbusReturn: String)) -> Bus {
-            Bus(stops: [
-                BusStopTime(name: station, time: row.station),
-                BusStopTime(name: yokado, time: row.yokado),
-                BusStopTime(name: columbusCity, time: row.columbusReturn)
-            ], note: viaYokadoNote)
-        }
-        
-        allTimetables[.mansionToStation] = [
-            directBus("6:03", "6:11", from: columbusCity, to: station),
-            directBus("6:30", "6:38", from: columbusCity, to: station),
-            directBus("6:40", "6:48", from: columbusCity, to: station),
-            directBus("6:50", "6:58", from: columbusCity, to: station),
-            directBus("7:00", "7:08", from: columbusCity, to: station),
-            directBus("7:10", "7:18", from: columbusCity, to: station),
-            directBus("7:20", "7:28", from: columbusCity, to: station),
-            directBus("7:30", "7:38", from: columbusCity, to: station),
-            directBus("7:40", "7:48", from: columbusCity, to: station),
-            directBus("7:50", "7:58", from: columbusCity, to: station),
-            directBus("8:00", "8:08", from: columbusCity, to: station),
-            directBus("8:10", "8:18", from: columbusCity, to: station),
-            directBus("8:20", "8:28", from: columbusCity, to: station),
-            directBus("8:30", "8:38", from: columbusCity, to: station),
-            directBus("8:40", "8:48", from: columbusCity, to: station),
-            directBus("9:00", "9:08", from: columbusCity, to: station),
-            shoppingBusToStation(shoppingRows[0]),
-            directBus("10:00", "10:08", from: columbusCity, to: station),
-            shoppingBusToStation(shoppingRows[1]),
-            directBus("11:00", "11:08", from: columbusCity, to: station),
-            shoppingBusToStation(shoppingRows[2]),
-            directBus("13:00", "13:08", from: columbusCity, to: station),
-            shoppingBusToStation(shoppingRows[3]),
-            directBus("14:00", "14:08", from: columbusCity, to: station),
-            shoppingBusToStation(shoppingRows[4]),
-            directBus("15:00", "15:08", from: columbusCity, to: station),
-            shoppingBusToStation(shoppingRows[5]),
-            directBus("16:00", "16:08", from: columbusCity, to: station),
-            shoppingBusToStation(shoppingRows[6]),
-            directBus("17:04", "17:11", from: columbusCity, to: station),
-            directBus("17:37", "17:44", from: columbusCity, to: station),
-            directBus("18:02", "18:09", from: columbusCity, to: station),
-            directBus("18:19", "18:26", from: columbusCity, to: station),
-            directBus("18:37", "18:44", from: columbusCity, to: station),
-            directBus("19:01", "19:08", from: columbusCity, to: station),
-            directBus("19:20", "19:27", from: columbusCity, to: station),
-            directBus("19:39", "19:46", from: columbusCity, to: station),
-            directBus("19:59", "20:06", from: columbusCity, to: station),
-            directBus("20:17", "20:24", from: columbusCity, to: station),
-            directBus("20:51", "20:58", from: columbusCity, to: station),
-            directBus("21:08", "21:15", from: columbusCity, to: station),
-            directBus("21:55", "22:02", from: columbusCity, to: station),
-            directBus("22:19", "22:26", from: columbusCity, to: station),
-            directBus("22:37", "22:44", from: columbusCity, to: station),
-            directBus("23:06", "23:13", from: columbusCity, to: station),
-            directBus("23:38", "23:45", from: columbusCity, to: station),
-            directBus("0:04", "0:11", from: columbusCity, to: station)
-        ]
-        
-        allTimetables[.stationToMansion] = [
-            directBus("6:11", "6:18", from: station, to: columbusCity),
-            directBus("6:38", "6:45", from: station, to: columbusCity),
-            directBus("6:48", "6:55", from: station, to: columbusCity),
-            directBus("6:58", "7:05", from: station, to: columbusCity),
-            directBus("7:08", "7:15", from: station, to: columbusCity),
-            directBus("7:18", "7:25", from: station, to: columbusCity),
-            directBus("7:28", "7:35", from: station, to: columbusCity),
-            directBus("7:38", "7:45", from: station, to: columbusCity),
-            directBus("7:48", "7:55", from: station, to: columbusCity),
-            directBus("7:58", "8:05", from: station, to: columbusCity),
-            directBus("8:08", "8:15", from: station, to: columbusCity),
-            directBus("8:18", "8:25", from: station, to: columbusCity),
-            directBus("8:28", "8:35", from: station, to: columbusCity),
-            directBus("8:48", "8:55", from: station, to: columbusCity),
-            shoppingBusStationToMansion(shoppingRows[0]),
-            directBus("10:08", "10:16", from: station, to: columbusCity),
-            shoppingBusStationToMansion(shoppingRows[1]),
-            directBus("11:08", "11:16", from: station, to: columbusCity),
-            shoppingBusStationToMansion(shoppingRows[2]),
-            directBus("13:08", "13:16", from: station, to: columbusCity),
-            shoppingBusStationToMansion(shoppingRows[3]),
-            directBus("14:08", "14:16", from: station, to: columbusCity),
-            shoppingBusStationToMansion(shoppingRows[4]),
-            directBus("15:08", "15:16", from: station, to: columbusCity),
-            shoppingBusStationToMansion(shoppingRows[5]),
-            directBus("16:08", "16:16", from: station, to: columbusCity),
-            shoppingBusStationToMansion(shoppingRows[6]),
-            directBus("17:12", "17:19", from: station, to: columbusCity),
-            directBus("17:46", "17:53", from: station, to: columbusCity),
-            directBus("18:11", "18:18", from: station, to: columbusCity),
-            directBus("18:28", "18:35", from: station, to: columbusCity),
-            directBus("18:46", "18:53", from: station, to: columbusCity),
-            directBus("19:10", "19:17", from: station, to: columbusCity),
-            directBus("19:29", "19:36", from: station, to: columbusCity),
-            directBus("19:48", "19:55", from: station, to: columbusCity),
-            directBus("20:08", "20:15", from: station, to: columbusCity),
-            directBus("20:26", "20:33", from: station, to: columbusCity),
-            directBus("20:43", "20:50", from: station, to: columbusCity),
-            directBus("21:00", "21:07", from: station, to: columbusCity),
-            directBus("21:17", "21:24", from: station, to: columbusCity),
-            directBus("21:39", "21:46", from: station, to: columbusCity),
-            directBus("22:04", "22:11", from: station, to: columbusCity),
-            directBus("22:28", "22:35", from: station, to: columbusCity),
-            directBus("22:46", "22:53", from: station, to: columbusCity),
-            directBus("23:15", "23:22", from: station, to: columbusCity),
-            directBus("23:47", "23:54", from: station, to: columbusCity),
-            directBus("0:13", "0:19", from: station, to: columbusCity)
-        ]
-        
-        allTimetables[.mansionToYokado] = shoppingRows.map { row in
-            Bus(stops: [
-                BusStopTime(name: columbusCity, time: row.columbus),
-                BusStopTime(name: station, time: row.station),
-                BusStopTime(name: yokado, time: row.yokado)
-            ], note: viaStationNote)
-        }
-        
-        allTimetables[.stationToYokado] = shoppingRows.map { row in
-            directBus(row.station, row.yokado, from: station, to: yokado, note: shoppingNote)
-        }
-        
-        allTimetables[.yokadoToMansion] = shoppingRows.map { row in
-            directBus(row.yokado, row.columbusReturn, from: yokado, to: columbusCity, note: shoppingNote)
-        }
+        allTimetables = BusSchedule.timetables
     }
-    
-    // 1秒ごとにカウントダウンを更新するためのタイマーを開始します。
+
+    // 秒単位の表示はないため、30秒ごとにカウントダウンを更新します。
     private func startTimer() {
-        // [weak self] は、メモリリークを防ぐためのおまじないです。
-        timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect().sink { [weak self] _ in
+        guard timer == nil else { return }
+        timer = Timer.publish(every: 30, on: .main, in: .common).autoconnect().sink { [weak self] _ in
             guard let self else { return }
             let currentDate = self.now()
-            if !Calendar.current.isDate(
+            if !self.calendar.isDate(
                 currentDate,
                 equalTo: self.availabilityReferenceDate,
                 toGranularity: .minute
@@ -750,6 +578,16 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
                 self.refreshRouteAvailability(at: currentDate)
             }
             self.updateCountdown(at: currentDate)
+        }
+    }
+
+    func setAutomaticUpdatesActive(_ isActive: Bool) {
+        if isActive {
+            startTimer()
+            updateCountdown(at: now())
+        } else {
+            timer?.cancel()
+            timer = nil
         }
     }
 
@@ -762,7 +600,6 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
     
     // "HH:mm"形式の文字列を、日付情報を持たない純粋な「時刻」のDateオブジェクトに変換します。
     private func timeStringToDate(_ timeString: String) -> Date? {
-        let calendar = Calendar.current
         let components = timeString.split(separator: ":").map { Int($0) ?? 0 }
         guard components.count == 2 else { return nil }
         return calendar.date(from: DateComponents(hour: components[0], minute: components[1]))
@@ -770,7 +607,6 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
     
     // Dateオブジェクトから、その日の0時からの経過分数を計算します。(例: 1:30 -> 90)
     private func timeToMinutes(_ date: Date) -> Int {
-        let calendar = Calendar.current
         let components = calendar.dateComponents([.hour, .minute], from: date)
         return (components.hour ?? 0) * 60 + (components.minute ?? 0)
     }
@@ -795,6 +631,29 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
             searchTime = currentDate
         }
         performSearch()
+    }
+
+    func persistSearchPreferences() {
+        defaults.set(serviceDay.rawValue, forKey: Self.serviceDayPreferenceKey)
+        defaults.set(searchType.rawValue, forKey: Self.searchTypePreferenceKey)
+        defaults.set(searchTime, forKey: Self.searchTimePreferenceKey)
+    }
+
+    private func restoreSearchPreferences() {
+        if let value = defaults.string(forKey: Self.serviceDayPreferenceKey),
+           let restored = ServiceDay(rawValue: value) {
+            serviceDay = restored
+        }
+        if let value = defaults.string(forKey: Self.searchTypePreferenceKey),
+           let restored = SearchType(rawValue: value) {
+            searchType = restored
+        }
+        if let restored = defaults.object(forKey: Self.searchTimePreferenceKey) as? Date,
+           restored >= availabilityReferenceDate {
+            searchTime = restored
+        } else {
+            searchTime = availabilityReferenceDate
+        }
     }
 
     /// 本日が運休かどうかです。運休日でも時刻は調べられますが、
@@ -898,9 +757,13 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
     
     // UIに表示する検索条件の説明文を更新します。
     func updateSearchCriteriaDescription() {
+        // 書式を固定すると、12時間制の地域でも24時間表記のままになります。
+        // 端末の言語と時刻表示の設定に従わせます。
         let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "ja_JP")
-        formatter.dateFormat = "HH:mm"
+        formatter.calendar = calendar
+        formatter.timeZone = calendar.timeZone
+        formatter.timeStyle = .short
+        formatter.dateStyle = .none
         let time = formatter.string(from: searchTime)
         if searchType == .arrival {
             searchCriteriaDescription = L10n.Search.criteriaArrival(
@@ -926,18 +789,7 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
     
     /// その日が運休になる理由です。運行日であればnilを返します。
     private func suspensionReason(for date: Date) -> String? {
-        let calendar = Calendar.current
-        let weekday = calendar.component(.weekday, from: date) // 1が日曜, 7が土曜
-        if weekday == 1 || weekday == 7 {
-            return L10n.Holiday.weekend
-        }
-
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd"
-        if publicHolidays.contains(formatter.string(from: date)) {
-            return L10n.Holiday.publicHoliday
-        }
-        return nil
+        BusServiceCalendar.suspensionReason(for: date, calendar: calendar)
     }
 
     /// 深夜0〜3時台に、暦の上での今日の始発から探し直すべきかどうかです。
@@ -947,11 +799,14 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
     /// 暦の上での今日に運行があるなら、その日の始発から探すのが利用者の期待に合います。
     private var shouldSkipToTodaysService: Bool {
         let currentDate = now()
-        guard let serviceDay = BusNotificationTimeCalculator.serviceDayStart(for: currentDate) else {
+        guard let serviceDay = BusNotificationTimeCalculator.serviceDayStart(
+            for: currentDate,
+            calendar: calendar
+        ) else {
             return false
         }
-        return !BusServiceCalendar.isServiceDay(serviceDay)
-            && BusServiceCalendar.isServiceDay(currentDate)
+        return !BusServiceCalendar.isServiceDay(serviceDay, calendar: calendar)
+            && BusServiceCalendar.isServiceDay(currentDate, calendar: calendar)
     }
 
     // 運休かどうかをチェックし、メッセージを設定します。
@@ -964,7 +819,10 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
 
         // 暦の日付ではなく運行日で判定します。
         // 土曜の0時台はまだ金曜の運行日なので、深夜便は走ります。
-        let referenceDate = BusNotificationTimeCalculator.serviceDayStart(for: now()) ?? now()
+        let referenceDate = BusNotificationTimeCalculator.serviceDayStart(
+            for: now(),
+            calendar: calendar
+        ) ?? now()
         if let reason = suspensionReason(for: referenceDate) {
             holidayMessage = L10n.Holiday.message(reason)
         } else {
@@ -976,7 +834,7 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
     /// 深夜に前の運行日が運休だった場合は、今日の始発（午前4時）から探します。
     private var departureSearchReference: Date {
         guard shouldSkipToTodaysService,
-              let todaysServiceStart = Calendar.current.date(
+              let todaysServiceStart = calendar.date(
                 bySettingHour: BusNotificationTimeCalculator.serviceDayBoundaryHour,
                 minute: 0,
                 second: 0,
@@ -1002,7 +860,6 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
 
     /// 明日から順に見て、最初に見つかった運行日を返します。
     private func nextServiceDate() -> Date {
-        let calendar = Calendar.current
         let today = now()
 
         for offset in 1...Self.maximumDaysToFindNextServiceDay {
@@ -1075,11 +932,16 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
     /// 翌朝の便を出しているときだけ、実際に次に走る日時を使います。
     private func departureDateForCountdown(of bus: Bus, from now: Date) -> Date? {
         if showsNextServiceDay {
-            return BusNotificationTimeCalculator.nextDepartureDate(for: bus.departure, from: now)
+            return BusNotificationTimeCalculator.nextDepartureDate(
+                for: bus.departure,
+                from: now,
+                calendar: calendar
+            )
         }
         return BusNotificationTimeCalculator.departureDateForCurrentServiceDay(
             for: bus.departure,
-            from: now
+            from: now,
+            calendar: calendar
         )
     }
 
@@ -1182,16 +1044,17 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
             return
         }
 
-        let now = Date()
+        let currentDate = now()
         guard let departureDate = BusNotificationTimeCalculator.departureDateForCurrentServiceDay(
             for: bus.departure,
-            from: now
+            from: currentDate,
+            calendar: calendar
         ) else {
             liveActivityError = L10n.LiveActivity.noDepartureTime
             return
         }
 
-        guard departureDate > now else {
+        guard departureDate > currentDate else {
             liveActivityError = L10n.LiveActivity.alreadyDeparted
             return
         }
@@ -1206,7 +1069,7 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
             routeName: selectedRoute.rawValue
         )
 
-        let remaining = max(0, Int(ceil(departureDate.timeIntervalSince(now) / 60)))
+        let remaining = max(0, Int(ceil(departureDate.timeIntervalSince(currentDate) / 60)))
         let contentState = BusActivityAttributes.ContentState(remainingMinutes: remaining, isDeparted: false)
         let activityContent = ActivityContent(state: contentState, staleDate: departureDate)
 

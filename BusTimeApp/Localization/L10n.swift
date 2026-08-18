@@ -11,11 +11,30 @@ import Foundation
 ///
 /// このファイルは Scripts/generate_l10n.py が作ります。直接編集しないでください。
 public enum L10n {
+  public enum Shortcut {
+    /// 次のバスを調べる
+    public static var nextBusTitle: String { String(localized: "shortcut.nextBusTitle") }
+    /// 次に出るバスの時刻と、出発までの時間を答えます。
+    public static var nextBusDescription: String { String(localized: "shortcut.nextBusDescription") }
+    /// %@で次のバス
+    public static func phrase(_ arg0: String) -> String {
+      String.localizedStringWithFormat(String(localized: "shortcut.phrase"), arg0)
+    }
+    /// %1$@は%2$@発、%3$@着です。%4$@。
+    public static func answer(_ arg0: String, _ arg1: String, _ arg2: String, _ arg3: String) -> String {
+      String.localizedStringWithFormat(String(localized: "shortcut.answer"), arg0, arg1, arg2, arg3)
+    }
+    /// 次に出るバスが見つかりませんでした。
+    public static var noService: String { String(localized: "shortcut.noService") }
+  }
+
   public enum Common {
     /// 閉じる
     public static var close: String { String(localized: "common.close") }
     /// 完了
     public static var done: String { String(localized: "common.done") }
+    /// OK
+    public static var ok: String { String(localized: "common.ok") }
   }
 
   public enum Tab {
@@ -47,6 +66,10 @@ public enum L10n {
     public static var destinationLabel: String { String(localized: "route.destinationLabel") }
     /// 変更するには二回タップします
     public static var menuHint: String { String(localized: "route.menuHint") }
+    /// %1$@、%2$@
+    public static func stopAccessibility(_ arg0: String, _ arg1: String) -> String {
+      String.localizedStringWithFormat(String(localized: "route.stopAccessibility"), arg0, arg1)
+    }
     /// 出発地と目的地を入れ替える
     public static var swapLabel: String { String(localized: "route.swapLabel") }
     /// 入れ替えます
@@ -55,6 +78,10 @@ public enum L10n {
     public static var swapHintUnavailable: String { String(localized: "route.swapHintUnavailable") }
     /// 現在地に合わせる
     public static var useCurrentLocation: String { String(localized: "route.useCurrentLocation") }
+    /// 現在地を使うには、iPhoneの設定で位置情報を許可してください。
+    public static var locationPermissionDenied: String { String(localized: "route.locationPermissionDenied") }
+    /// 位置情報の設定を開く
+    public static var openLocationSettings: String { String(localized: "route.openLocationSettings") }
     /// 現在地から自動で選びました
     public static var decisionAutomatic: String { String(localized: "route.decisionAutomatic") }
     /// 時間帯と前回の行き先から選びました
@@ -141,23 +168,23 @@ public enum L10n {
     public static var a11yLeavingSoon: String { String(localized: "result.a11yLeavingSoon") }
     /// あと%lld分で出発します
     public static func a11yMinutes(_ arg0: Int) -> String {
-      String(format: String(localized: "result.a11yMinutes"), arg0)
+      String.localizedStringWithFormat(String(localized: "result.a11yMinutes"), arg0)
     }
     /// あと%lld時間で出発します
     public static func a11yHours(_ arg0: Int) -> String {
-      String(format: String(localized: "result.a11yHours"), arg0)
+      String.localizedStringWithFormat(String(localized: "result.a11yHours"), arg0)
     }
     /// あと%1$lld時間%2$lld分で出発します
     public static func a11yHoursMinutes(_ arg0: Int, _ arg1: Int) -> String {
-      String(format: String(localized: "result.a11yHoursMinutes"), arg0, arg1)
+      String.localizedStringWithFormat(String(localized: "result.a11yHoursMinutes"), arg0, arg1)
     }
     /// %1$@、%2$@発です
     public static func a11yScheduledDeparture(_ arg0: String, _ arg1: String) -> String {
-      String(format: String(localized: "result.a11yScheduledDeparture"), arg0, arg1)
+      String.localizedStringWithFormat(String(localized: "result.a11yScheduledDeparture"), arg0, arg1)
     }
     /// %1$@発、%2$@着
     public static func a11yTimeRow(_ arg0: String, _ arg1: String) -> String {
-      String(format: String(localized: "result.a11yTimeRow"), arg0, arg1)
+      String.localizedStringWithFormat(String(localized: "result.a11yTimeRow"), arg0, arg1)
     }
     /// 通知を設定済み
     public static var notifyScheduled: String { String(localized: "result.notifyScheduled") }
@@ -169,7 +196,7 @@ public enum L10n {
     public static var notifyHint: String { String(localized: "result.notifyHint") }
     /// %1$@発 %2$@着
     public static func rowLabel(_ arg0: String, _ arg1: String) -> String {
-      String(format: String(localized: "result.rowLabel"), arg0, arg1)
+      String.localizedStringWithFormat(String(localized: "result.rowLabel"), arg0, arg1)
     }
     /// 、通知設定済み
     public static var rowLabelScheduled: String { String(localized: "result.rowLabelScheduled") }
@@ -198,29 +225,29 @@ public enum L10n {
     public static var noResults: String { String(localized: "search.noResults") }
     /// %lld便見つかりました。運休日のため平日ダイヤの時刻です
     public static func resultCountSuspended(_ arg0: Int) -> String {
-      String(format: String(localized: "search.resultCountSuspended"), arg0)
+      String.localizedStringWithFormat(String(localized: "search.resultCountSuspended"), arg0)
     }
     /// %1$lld便見つかりました。%2$@
     public static func resultCount(_ arg0: Int, _ arg1: String) -> String {
-      String(format: String(localized: "search.resultCount"), arg0, arg1)
+      String.localizedStringWithFormat(String(localized: "search.resultCount"), arg0, arg1)
     }
     /// %1$@ → %2$@｜%3$@までに到着
     public static func criteriaArrival(_ arg0: String, _ arg1: String, _ arg2: String) -> String {
-      String(format: String(localized: "search.criteriaArrival"), arg0, arg1, arg2)
+      String.localizedStringWithFormat(String(localized: "search.criteriaArrival"), arg0, arg1, arg2)
     }
     /// %1$@ → %2$@｜%3$@以降に出発
     public static func criteriaDeparture(_ arg0: String, _ arg1: String, _ arg2: String) -> String {
-      String(format: String(localized: "search.criteriaDeparture"), arg0, arg1, arg2)
+      String.localizedStringWithFormat(String(localized: "search.criteriaDeparture"), arg0, arg1, arg2)
     }
     /// 選択された路線の時刻表を読み込めませんでした。
     public static var timetableLoadFailed: String { String(localized: "search.timetableLoadFailed") }
     /// %@到着・希望時刻までに到着
     public static func reasonArrival(_ arg0: String) -> String {
-      String(format: String(localized: "search.reasonArrival"), arg0)
+      String.localizedStringWithFormat(String(localized: "search.reasonArrival"), arg0)
     }
     /// %@出発・指定時刻以降
     public static func reasonDeparture(_ arg0: String) -> String {
-      String(format: String(localized: "search.reasonDeparture"), arg0)
+      String.localizedStringWithFormat(String(localized: "search.reasonDeparture"), arg0)
     }
   }
 
@@ -231,11 +258,11 @@ public enum L10n {
     public static var publicHoliday: String { String(localized: "holiday.publicHoliday") }
     /// 本日は%@のため運休です。
     public static func message(_ arg0: String) -> String {
-      String(format: String(localized: "holiday.message"), arg0)
+      String.localizedStringWithFormat(String(localized: "holiday.message"), arg0)
     }
     /// 本日は%@のため運休です。以下は平日ダイヤの時刻です。
     public static func serviceDayNotice(_ arg0: String) -> String {
-      String(format: String(localized: "holiday.serviceDayNotice"), arg0)
+      String.localizedStringWithFormat(String(localized: "holiday.serviceDayNotice"), arg0)
     }
   }
 
@@ -248,7 +275,7 @@ public enum L10n {
     public static var resultTitle: String { String(localized: "notify.resultTitle") }
     /// 通知を設定しました。\n\n%1$@\n%2$@にお知らせします。%3$@\n\n※時刻表の予定です。遅延・運休は反映されません。
     public static func scheduledMessage(_ arg0: String, _ arg1: String, _ arg2: String) -> String {
-      String(format: String(localized: "notify.scheduledMessage"), arg0, arg1, arg2)
+      String.localizedStringWithFormat(String(localized: "notify.scheduledMessage"), arg0, arg1, arg2)
     }
     /// \nLive Activityも表示中です。
     public static var alsoLiveActivity: String { String(localized: "notify.alsoLiveActivity") }
@@ -262,17 +289,17 @@ public enum L10n {
     public static var pushTitle: String { String(localized: "notify.pushTitle") }
     /// %1$@が、あと%2$lld分で出発します。\n※時刻表の予定です。遅延・運休は反映されません。
     public static func pushBody(_ arg0: String, _ arg1: Int) -> String {
-      String(format: String(localized: "notify.pushBody"), arg0, arg1)
+      String.localizedStringWithFormat(String(localized: "notify.pushBody"), arg0, arg1)
     }
     /// %1$@発｜%2$@
     public static func busDescription(_ arg0: String, _ arg1: String) -> String {
-      String(format: String(localized: "notify.busDescription"), arg0, arg1)
+      String.localizedStringWithFormat(String(localized: "notify.busDescription"), arg0, arg1)
     }
     /// %1$lld分前（%2$@）
     public static func minutesBefore(_ arg0: Int, _ arg1: String) -> String {
-      String(format: String(localized: "notify.minutesBefore"), arg0, arg1)
+      String.localizedStringWithFormat(String(localized: "notify.minutesBefore"), arg0, arg1)
     }
-    /// M月d日(E) H:mm
+    /// MdEjmm
     public static var dateFormat: String { String(localized: "notify.dateFormat") }
   }
 
@@ -283,15 +310,15 @@ public enum L10n {
     public static var leavingSoon: String { String(localized: "countdown.leavingSoon") }
     /// あと%d時間
     public static func hours(_ arg0: Int) -> String {
-      String(format: String(localized: "countdown.hours"), arg0)
+      String.localizedStringWithFormat(String(localized: "countdown.hours"), arg0)
     }
     /// あと%1$d時間%2$d分
     public static func hoursMinutes(_ arg0: Int, _ arg1: Int) -> String {
-      String(format: String(localized: "countdown.hoursMinutes"), arg0, arg1)
+      String.localizedStringWithFormat(String(localized: "countdown.hoursMinutes"), arg0, arg1)
     }
     /// あと%d分
     public static func minutes(_ arg0: Int) -> String {
-      String(format: String(localized: "countdown.minutes"), arg0)
+      String.localizedStringWithFormat(String(localized: "countdown.minutes"), arg0)
     }
   }
 
@@ -357,7 +384,7 @@ public enum L10n {
     public static var empty: String { String(localized: "manage.empty") }
     /// 通知：%@
     public static func notificationRow(_ arg0: String) -> String {
-      String(format: String(localized: "manage.notificationRow"), arg0)
+      String.localizedStringWithFormat(String(localized: "manage.notificationRow"), arg0)
     }
     /// この通知を解除
     public static var cancelOne: String { String(localized: "manage.cancelOne") }
@@ -370,13 +397,13 @@ public enum L10n {
     public static var targetSection: String { String(localized: "options.targetSection") }
     /// 途中停車：%@
     public static func intermediateStops(_ arg0: String) -> String {
-      String(format: String(localized: "options.intermediateStops"), arg0)
+      String.localizedStringWithFormat(String(localized: "options.intermediateStops"), arg0)
     }
     /// 通常の通知
     public static var standardSection: String { String(localized: "options.standardSection") }
     /// 現在の設定：%@
     public static func currentSetting(_ arg0: String) -> String {
-      String(format: String(localized: "options.currentSetting"), arg0)
+      String.localizedStringWithFormat(String(localized: "options.currentSetting"), arg0)
     }
     /// 同じ便の通知は1件だけ設定できます。選び直すと通知時刻が変更されます。
     public static var onlyOnePerBus: String { String(localized: "options.onlyOnePerBus") }
@@ -388,11 +415,11 @@ public enum L10n {
     public static var timetableCaveat: String { String(localized: "options.timetableCaveat") }
     /// %lld分前に通知
     public static func minutesBefore(_ arg0: Int) -> String {
-      String(format: String(localized: "options.minutesBefore"), arg0)
+      String.localizedStringWithFormat(String(localized: "options.minutesBefore"), arg0)
     }
     /// 通知時刻：%@
     public static func notificationTime(_ arg0: String) -> String {
-      String(format: String(localized: "options.notificationTime"), arg0)
+      String.localizedStringWithFormat(String(localized: "options.notificationTime"), arg0)
     }
     /// この便では設定できません
     public static var notAvailable: String { String(localized: "options.notAvailable") }
@@ -404,7 +431,7 @@ public enum L10n {
     public static var autoStartOff: String { String(localized: "options.autoStartOff") }
     /// 設定済みの%lld分前通知も、そのまま届きます。
     public static func existingAlertKept(_ arg0: Int) -> String {
-      String(format: String(localized: "options.existingAlertKept"), arg0)
+      String.localizedStringWithFormat(String(localized: "options.existingAlertKept"), arg0)
     }
     /// 通常の通知を設定すると、Live Activityも自動で開始します。下のボタンから始める場合は5分前通知も一緒に設定します。
     public static var autoStartDescription: String { String(localized: "options.autoStartDescription") }
@@ -429,7 +456,7 @@ public enum L10n {
     public static var emptyMessage: String { String(localized: "timetable.emptyMessage") }
     /// %lld便
     public static func serviceCount(_ arg0: Int) -> String {
-      String(format: String(localized: "timetable.serviceCount"), arg0)
+      String.localizedStringWithFormat(String(localized: "timetable.serviceCount"), arg0)
     }
     /// 経路を変えるときは、ホームタブで出発地と目的地を選んでください
     public static var routeHint: String { String(localized: "timetable.routeHint") }
@@ -439,7 +466,7 @@ public enum L10n {
     public static var notificationHintBody: String { String(localized: "timetable.notificationHintBody") }
     /// %lld時台
     public static func hourAccessibility(_ arg0: Int) -> String {
-      String(format: String(localized: "timetable.hourAccessibility"), arg0)
+      String.localizedStringWithFormat(String(localized: "timetable.hourAccessibility"), arg0)
     }
     /// 色のついた時刻は通知を設定済みです
     public static var legendScheduled: String { String(localized: "timetable.legendScheduled") }
@@ -447,7 +474,7 @@ public enum L10n {
     public static var legendNote: String { String(localized: "timetable.legendNote") }
     /// %1$@発、%2$@着
     public static func cellAccessibility(_ arg0: String, _ arg1: String) -> String {
-      String(format: String(localized: "timetable.cellAccessibility"), arg0, arg1)
+      String.localizedStringWithFormat(String(localized: "timetable.cellAccessibility"), arg0, arg1)
     }
     /// 、通知設定済み
     public static var cellScheduled: String { String(localized: "timetable.cellScheduled") }
@@ -470,8 +497,28 @@ public enum L10n {
     public static var appearanceTitle: String { String(localized: "settings.appearanceTitle") }
     /// 朝は明るい空、夕方は夕焼け、夜は星空へと背景がゆっくり変化します。太陽と月の位置も現在時刻に合わせて動きます。
     public static var appearanceDescription: String { String(localized: "settings.appearanceDescription") }
+    /// 表示モード
+    public static var appearanceMode: String { String(localized: "settings.appearanceMode") }
+    /// 時刻に合わせる
+    public static var appearanceAutomatic: String { String(localized: "settings.appearanceAutomatic") }
+    /// システム設定
+    public static var appearanceSystem: String { String(localized: "settings.appearanceSystem") }
+    /// ライト
+    public static var appearanceLight: String { String(localized: "settings.appearanceLight") }
+    /// ダーク
+    public static var appearanceDark: String { String(localized: "settings.appearanceDark") }
     /// 海浜幕張駅の周辺で雨が降っているときは、背景にも雨が降ります。天気の情報は Open-Meteo から取得しています。
     public static var weatherNotice: String { String(localized: "settings.weatherNotice") }
+    /// 天気は%@に更新しました
+    public static func weatherUpdated(_ arg0: String) -> String {
+      String.localizedStringWithFormat(String(localized: "settings.weatherUpdated"), arg0)
+    }
+    /// 現在は更新できないため、%@に取得した天気を表示しています。
+    public static func weatherCached(_ arg0: String) -> String {
+      String.localizedStringWithFormat(String(localized: "settings.weatherCached"), arg0)
+    }
+    /// 天気を取得できません。通信状態を確認すると自動で再試行します。
+    public static var weatherUnavailable: String { String(localized: "settings.weatherUnavailable") }
     /// 朝
     public static var previewMorning: String { String(localized: "settings.previewMorning") }
     /// 昼
@@ -541,15 +588,15 @@ public enum L10n {
     public static var lessThanMinute: String { String(localized: "remaining.lessThanMinute") }
     /// %lld分
     public static func minutes(_ arg0: Int) -> String {
-      String(format: String(localized: "remaining.minutes"), arg0)
+      String.localizedStringWithFormat(String(localized: "remaining.minutes"), arg0)
     }
     /// %lld時間
     public static func hours(_ arg0: Int) -> String {
-      String(format: String(localized: "remaining.hours"), arg0)
+      String.localizedStringWithFormat(String(localized: "remaining.hours"), arg0)
     }
     /// %1$lld時間%2$lld分
     public static func hoursMinutes(_ arg0: Int, _ arg1: Int) -> String {
-      String(format: String(localized: "remaining.hoursMinutes"), arg0, arg1)
+      String.localizedStringWithFormat(String(localized: "remaining.hoursMinutes"), arg0, arg1)
     }
   }
 
@@ -558,6 +605,16 @@ public enum L10n {
     public static var untilDeparture: String { String(localized: "widget.untilDeparture") }
     /// 出発済
     public static var departedShort: String { String(localized: "widget.departedShort") }
+    /// 次のバス
+    public static var displayName: String { String(localized: "widget.displayName") }
+    /// 次とその次のバスを表示します
+    public static var description: String { String(localized: "widget.description") }
+    /// 次
+    public static var nextLabel: String { String(localized: "widget.nextLabel") }
+    /// その次
+    public static var followingLabel: String { String(localized: "widget.followingLabel") }
+    /// 便が見つかりません
+    public static var noService: String { String(localized: "widget.noService") }
   }
 
   public enum BusNote {

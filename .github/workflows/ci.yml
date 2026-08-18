@@ -134,6 +134,7 @@ jobs:
             CODE_SIGN_IDENTITY="" \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGNING_ALLOWED=NO \
+            SWIFT_TREAT_WARNINGS_AS_ERRORS=YES \
             ONLY_ACTIVE_ARCH=YES \
             | tee build/build_debug.log | tail -20
           echo "✅ Debug ビルド成功"
@@ -152,6 +153,7 @@ jobs:
             CODE_SIGN_IDENTITY="" \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGNING_ALLOWED=NO \
+            SWIFT_TREAT_WARNINGS_AS_ERRORS=YES \
             ONLY_ACTIVE_ARCH=YES \
             | tee build/build_release.log | tail -20
           echo "✅ Release ビルド成功"
@@ -159,23 +161,30 @@ jobs:
       # ── テスト ──
       - name: "🧪 テスト実行"
         if: matrix.ios_version != 'latest'
-        continue-on-error: true
         run: |
           mkdir -p build
           set -o pipefail
           xcodebuild test \
             -project BusTimeApp.xcodeproj \
             -scheme BusTimeApp \
+            -testLanguage ja \
+            -testRegion JP \
             -destination '${{ matrix.destination }}' \
             -derivedDataPath build/DerivedData \
             -resultBundlePath build/TestResults.xcresult \
             CODE_SIGN_IDENTITY="" \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGNING_ALLOWED=NO \
+            SWIFT_TREAT_WARNINGS_AS_ERRORS=YES \
+            -enableCodeCoverage YES \
             -parallel-testing-enabled NO \
             -maximum-concurrent-test-simulator-destinations 1 \
             | tee build/test.log | tail -30
           echo "✅ テスト完了"
+
+      - name: "📈 テストカバレッジを記録"
+        if: matrix.ios_version != 'latest'
+        run: xcrun xccov view --report build/TestResults.xcresult
 
       # ── Warnings 解析 ──
       - name: "⚠️ コンパイラ警告を検出"
@@ -245,6 +254,7 @@ jobs:
             CODE_SIGN_IDENTITY="" \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGNING_ALLOWED=NO \
+            SWIFT_TREAT_WARNINGS_AS_ERRORS=YES \
             | tee build/widget_build.log | tail -20
           echo "✅ Widget Extension ビルド成功"
 
@@ -276,6 +286,21 @@ jobs:
           find BusTimeApp BusTimeWidgetExtension -name '*.swift' | sort >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
 
+      - name: "🌐 翻訳生成物を検証"
+        run: python3 Scripts/generate_l10n.py --check
+
+      - name: "🔬 Xcode静的解析"
+        run: |
+          set -o pipefail
+          xcodebuild analyze \
+            -project BusTimeApp.xcodeproj \
+            -scheme BusTimeApp \
+            -configuration Debug \
+            -destination 'generic/platform=iOS Simulator' \
+            CODE_SIGNING_ALLOWED=NO \
+            SWIFT_TREAT_WARNINGS_AS_ERRORS=YES \
+            | tee build_analyze.log | tail -30
+
       # ── TODO / FIXME の検出 ──
       - name: "📌 TODO / FIXME を検出"
         run: |
@@ -287,17 +312,6 @@ jobs:
             echo '```' >> $GITHUB_STEP_SUMMARY
           else
             echo "✅ TODO / FIXME は見つかりませんでした" >> $GITHUB_STEP_SUMMARY
-          fi
-
-      # ── SwiftLint (インストールされている場合) ──
-      - name: "🔍 SwiftLint 実行"
-        continue-on-error: true
-        run: |
-          if command -v swiftlint &> /dev/null; then
-            swiftlint lint --reporter github-actions-logging
-          else
-            echo "::notice::SwiftLint がインストールされていません。スキップします。"
-            echo "SwiftLint をプロジェクトに導入する場合は .swiftlint.yml を追加してください。"
           fi
 
   # ---------------------------------------------------------------------------

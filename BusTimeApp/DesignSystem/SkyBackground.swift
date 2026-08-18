@@ -29,6 +29,9 @@ struct SkyBackground: View {
     SkyCanvas()
       .ignoresSafeArea()
       .accessibilityHidden(true)
+      // 「色を反転」は文字を読みやすくするための設定です。
+      // 風景まで反転させると、夜空が白くなるなど意図しない絵になるので外します。
+      .accessibilityIgnoresInvertColors()
   }
 }
 
@@ -203,6 +206,32 @@ struct SkyCanvas: View {
   private static let roadLineWearChance: Double = 0.34
   /// バス停の支柱が錆びて欠けている割合です。
   private static let poleWearChance: Double = 0.16
+  /// バス停の支柱の濃さです。白い柱として見えるところまで上げます。
+  private static let busStopPoleOpacity: Double = 0.92
+  /// 支柱の色あせた箇所の濃さです。抜けて見えない程度にとどめます。
+  private static let busStopPoleWornOpacity: Double = 0.45
+  /// バス停の足元に置く重石の高さです。セル数で指定します。
+  private static let busStopBaseHeight = 4
+  /// 重石の幅です。セル数で指定します。奇数にして柱を中心に置きます。
+  private static let busStopBaseWidth = 9
+  /// 重石の素地をどれだけ明るくするかです。アスファルトより明るい灰色にします。
+  private static let busStopBaseLightening: Double = 0.24
+  /// 重石の上面をさらに明るくする量です。光の当たる面として持ち上げます。
+  private static let busStopBaseTopHighlight: Double = 0.13
+  /// 上面として扱う段数です。細かい粒の数で指定します。
+  private static let busStopBaseTopRows = 2
+  /// 重石に散らす砂利の割合です。濃い粒と明るい粒に同じ割合で使います。
+  private static let busStopBaseSpeckleChance: Double = 0.13
+  /// 濃い砂利の濃さです。
+  private static let busStopBaseSpeckleInk: Double = 0.16
+  /// 明るい砂利の濃さです。
+  private static let busStopBaseSpeckleLight: Double = 0.17
+  /// 重石の底に敷く影の濃さです。地面に置かれていることを示します。
+  private static let busStopBaseShadowOpacity: Double = 0.26
+  /// 重石を描く粒の細かさです。1マスをいくつに割るかで指定します。
+  private static let busStopBaseSubdivision = 4
+  /// 重石の角を丸める半径です。細かい粒いくつぶんかで指定します。
+  private static let busStopBaseCornerRadius = 6
   /// 道路が始まる位置です。
   private static let roadRatio: Double = 0.80
   /// 道路のセンターラインを引く位置です。
@@ -262,31 +291,6 @@ struct SkyCanvas: View {
   private static let windWhitecapBoost: Double = 0.18
   /// 雲を空の色で染める強さです。
   private static let cloudTintStrength: Double = 0.42
-  /// 波紋の粒の細かさです。風景の何分の1の大きさで描くかを指定します。
-  /// 風景と同じ粗さでは輪が点に潰れてしまうため、ここだけ細かくして
-  /// 広がっていく輪として見えるようにします。
-  private static let rippleSubdivision = 2
-  /// 波紋の輪が広がりきる半径です。細かい粒の数で指定します。
-  private static let rippleMaxRadius = 4
-  /// 手前の海面での、輪の縦の潰れ具合です。横の半径に対する割合で指定します。
-  /// 水面を斜めから見ているので、輪は真円ではなく横長の楕円に見えます。
-  private static let rippleFlattenNear: Double = 0.55
-  /// 水平線近くでの、輪の縦の潰れ具合です。遠いほど水面を浅い角度で見るため、より潰れます。
-  private static let rippleFlattenFar: Double = 0.22
-  /// 同時に見えている波紋の数です。雨の強さに応じて増えます。
-  private static let rippleCountPerIntensity = 90
-  /// 波紋が現れてから消えるまでのコマ数です。
-  private static let rippleLifeTicks = 3
-  /// 波紋の濃さです。
-  private static let rippleOpacityValue: Double = 0.30
-  /// 星座の星の色です。まわりの星より明るく置きます。
-  private static let constellationStarColor = Color(red: 1.0, green: 0.98, blue: 0.92)
-  /// 星座を結ぶ線の濃さです。
-  private static let constellationLineOpacity: Double = 0.12
-  /// 星座の星の濃さです。
-  private static let constellationStarOpacity: Double = 0.85
-  /// 風が最も強いときに、鳥の飛ぶ速さが何倍になるかです。
-  private static let birdWindSpeedBoost: Double = 1.8
   /// 電柱を立てる横位置です。等間隔に並べます。
   /// 電線のたるみは、この間隔がそのまま画面の外へ続くものとして描きます。
   private static let utilityPoleRatios: [Double] = [0.26, 0.96]
@@ -306,12 +310,6 @@ struct SkyCanvas: View {
   private static let utilityPoleInkOpacity: Double = 0.55
   /// 電線の濃さです。電柱より細い線なので、薄めにして柵に見えないようにします。
   private static let powerLineInkOpacity: Double = 0.42
-  /// 飛行機が現れる周期です。
-  private static let airplanePeriod: Double = 240
-  /// 飛行機が渡りきるまでの時間です。
-  private static let airplaneDuration: Double = 46
-  /// 飛行機の灯りが点滅する周期です。描き直し何回ぶんかで指定します。
-  private static let airplaneBlinkTicks = 4
   /// 積もった雪の濃さです。降り続けても路面が完全には埋まらない濃さにします。
   private static let snowCoverOpacity: Double = 0.44
   /// 積雪をひとかたまりとして扱う大きさです。マス数で指定します。
@@ -361,106 +359,26 @@ struct SkyCanvas: View {
   private static let tideRangeCells = 2
   /// 潮が一巡する時間です。実際の潮汐に合わせて約12.4時間にします。
   private static let tidePeriodHours: Double = 12.4
-  /// 鳥が現れる空の暗さの範囲です。朝夕の薄明のときだけ飛びます。
-  private static let birdNightnessRange: ClosedRange<Double> = 0.18...0.72
-  /// 鳥の群れの数です。
-  private static let birdCount = 5
-  /// 鳥が画面を横切るのにかかる時間です。
-  private static let birdTravelSeconds: Double = 26
-  /// 鳥が羽ばたく周期です。描き直し何回ぶんで一往復するかを表します。
-  private static let birdFlapTicks = 3
   /// 船が現れる周期です。この間隔ごとに一度だけ通ります。
   private static let shipPeriod: Double = 190
   /// 船が水平線を渡りきるまでの時間です。
   private static let shipDuration: Double = 70
+  /// 船体の長さです。セル数で指定します。
+  private static let shipHullWidth = 6
+  /// 船の濃さです。明るい海面の上でも影として見えるところまで落とします。
+  private static let shipDarkening: Double = 0.5
   /// バス停の標識の一辺です。セル数で指定します。
   private static let signSize = 11
   /// バス停の支柱の高さです。セル数で指定します。
   private static let poleHeight = 14
   /// バス停の支柱の太さです。セル数で指定します。
-  private static let poleWidth = 2
+  private static let poleWidth = 1
 
   /// ドット絵の雲の形です。各行の(左端のセル位置, 幅のセル数)を上から順に並べます。
   private static let cloudRows: [(offsetX: Int, width: Int)] = [
     (2, 3),
     (1, 6),
     (0, 9)
-  ]
-
-  /// 星座の定義です。星の位置は星座ごとの正方形の中の割合で持ちます。
-  struct Constellation {
-    /// この星座が見える季節です。
-    let season: Season
-    /// 画面上のどこに置くかです。左上を基準にした割合です。
-    let origin: CGPoint
-    /// 画面に対する大きさです。
-    let scale: Double
-    /// 星の位置です。
-    let stars: [CGPoint]
-    /// 結ぶ星の組です。
-    let links: [(Int, Int)]
-  }
-
-  /// 季節ごとの代表的な星座です。
-  static let constellations: [Constellation] = [
-    // 冬のオリオン座です。三つ星と四辺の star が特徴です。
-    Constellation(
-      season: .winter,
-      origin: CGPoint(x: 0.60, y: 0.08),
-      scale: 0.26,
-      stars: [
-        CGPoint(x: 0.00, y: 0.00),
-        CGPoint(x: 0.62, y: 0.06),
-        CGPoint(x: 0.26, y: 0.44),
-        CGPoint(x: 0.38, y: 0.50),
-        CGPoint(x: 0.50, y: 0.56),
-        CGPoint(x: 0.10, y: 0.96),
-        CGPoint(x: 0.70, y: 0.98)
-      ],
-      links: [(0, 2), (1, 4), (2, 3), (3, 4), (2, 5), (4, 6)]
-    ),
-    // 春の北斗七星です。ひしゃくの形に結びます。
-    Constellation(
-      season: .spring,
-      origin: CGPoint(x: 0.12, y: 0.07),
-      scale: 0.34,
-      stars: [
-        CGPoint(x: 0.00, y: 0.30),
-        CGPoint(x: 0.18, y: 0.10),
-        CGPoint(x: 0.40, y: 0.06),
-        CGPoint(x: 0.58, y: 0.20),
-        CGPoint(x: 0.72, y: 0.40),
-        CGPoint(x: 0.90, y: 0.50),
-        CGPoint(x: 1.00, y: 0.30)
-      ],
-      links: [(0, 1), (1, 2), (2, 3), (3, 4), (4, 5), (5, 6)]
-    ),
-    // 夏の大三角です。3つの明るい星だけを結びます。
-    Constellation(
-      season: .summer,
-      origin: CGPoint(x: 0.30, y: 0.06),
-      scale: 0.34,
-      stars: [
-        CGPoint(x: 0.00, y: 0.00),
-        CGPoint(x: 0.86, y: 0.26),
-        CGPoint(x: 0.30, y: 0.92)
-      ],
-      links: [(0, 1), (1, 2), (2, 0)]
-    ),
-    // 秋のカシオペヤ座です。Wの形に結びます。
-    Constellation(
-      season: .autumn,
-      origin: CGPoint(x: 0.18, y: 0.09),
-      scale: 0.30,
-      stars: [
-        CGPoint(x: 0.00, y: 0.00),
-        CGPoint(x: 0.22, y: 0.42),
-        CGPoint(x: 0.48, y: 0.10),
-        CGPoint(x: 0.74, y: 0.46),
-        CGPoint(x: 1.00, y: 0.06)
-      ],
-      links: [(0, 1), (1, 2), (2, 3), (3, 4)]
-    )
   ]
 
   /// 雲を置く位置と大きさです。位置は画面に対する比率、大きさはセルの倍率です。
@@ -530,19 +448,14 @@ struct SkyCanvas: View {
     drawSwell(in: &context, size: size, tick: tick)
     drawReflectionPath(in: &context, size: size, tick: tick)
     drawStars(in: &context, size: size, tick: tick / Self.twinkleTicks)
-    drawConstellations(in: &context, size: size)
     drawShoreEdge(in: &context, size: size)
     drawSurf(in: &context, size: size, tick: tick)
     drawShip(in: &context, size: size, elapsed: Double(tick) * Self.animationInterval)
-    drawBirds(in: &context, size: size, tick: tick)
     // 街灯とバス停は海より手前です。静止した層に描くと、
     // 支柱の上半分が海に覆われて見えなくなります。
     drawUtilityPoles(in: &context, size: size)
     drawStreetLights(in: &context, size: size)
     drawBusStop(in: &context, size: size)
-    drawAirplane(in: &context, size: size, elapsed: Double(tick) * Self.animationInterval)
-    // 雨が海面を叩く跳ねです。海の描画のあとに重ねます。
-    drawRainRipples(in: &context, size: size, tick: tick)
     // 積もった雪は地面の上、霧の下に重ねます。
     drawSnowCover(in: &context, size: size)
     // 霧はいちばん最後に重ね、遠くのものほど霞ませます。
@@ -571,56 +484,6 @@ struct SkyCanvas: View {
     return Int(phase * Double(Self.tideRangeCells))
   }
 
-  /// 朝夕に横切る鳥の群れです。
-  ///
-  /// 空が明るいときも暗いときも出さず、薄明のあいだだけ飛ばします。
-  /// 一日のうち短い時間にしか会えないほうが、見かけたときの印象が残ります。
-  private func drawBirds(in context: inout GraphicsContext, size: CGSize, tick: Int) {
-    guard Self.birdNightnessRange.contains(sky.nightness) else { return }
-
-    let cell = Self.cellSize
-    let elapsed = Double(tick) * Self.animationInterval
-    // 風が強い日ほど速く飛びます。
-    let speed = 1 + windStrength * (Self.birdWindSpeedBoost - 1)
-    let travelSeconds = Self.birdTravelSeconds / speed
-    let rawProgress = (elapsed / travelSeconds).truncatingRemainder(dividingBy: 1)
-    // 風下へ向かって飛びます。風がないときは左から右へ渡ります。
-    let isTailwind = weather.windSpeed >= 0
-    let progress = isTailwind ? rawProgress : 1 - rawProgress
-    // 羽ばたきは上下2つの形を交互に出します。
-    let isFlapUp = (tick / Self.birdFlapTicks) % 2 == 0
-
-    var path = Path()
-    for index in 0..<Self.birdCount {
-      // 群れは少しずつ位置と高さをずらし、隊列に見えるようにします。
-      let lag = Double(index) * 0.035
-      let x = (progress - lag) * 1.2 - 0.1
-      guard x > -0.05, x < 1.05 else { continue }
-
-      let y = 0.18 + pseudoRandom(index * 19 + 7) * 0.12 + Double(index % 2) * 0.02
-      let column = Int(x * size.width / cell)
-      let row = Int(y * size.height / cell)
-
-      // 翼を「へ」の字で表します。
-      let wing = isFlapUp ? 1 : 0
-      for side in [-1, 1] {
-        path.addRect(
-          CGRect(
-            x: CGFloat(column + side) * cell,
-            y: CGFloat(row - wing) * cell,
-            width: cell,
-            height: cell
-          )
-        )
-      }
-      path.addRect(
-        CGRect(x: CGFloat(column) * cell, y: CGFloat(row) * cell, width: cell, height: cell)
-      )
-    }
-
-    context.fill(path, with: .color(sky.ink.opacity(0.45)))
-  }
-
   /// 水平線を渡る船です。まれにしか通りません。
   private func drawShip(in context: inout GraphicsContext, size: CGSize, elapsed: Double) {
     let phase = elapsed.truncatingRemainder(dividingBy: Self.shipPeriod)
@@ -633,29 +496,32 @@ struct SkyCanvas: View {
     let column = Int((1 - progress) * size.width / cell)
 
     var path = Path()
-    // 船体です。水平線のすぐ上に置きます。
-    for offset in 0..<5 {
+    // 船体です。水平線のすぐ下、海の上に浮かべます。
+    //
+    // 水平線より上は対岸の街の影と同じ帯なので、そこに置くと影の中に紛れます。
+    // 海側へ1マス下ろし、明るい海面に対する影として見えるようにします。
+    for offset in 0..<Self.shipHullWidth {
       path.addRect(
         CGRect(
           x: CGFloat(column + offset) * cell,
-          y: CGFloat(horizonRow - 1) * cell,
+          y: CGFloat(horizonRow + 1) * cell,
           width: cell,
           height: cell
         )
       )
     }
-    // 船橋です。
+    // 船橋です。船体の中ほどに1段だけ載せます。
     path.addRect(
       CGRect(
-        x: CGFloat(column + 2) * cell,
-        y: CGFloat(horizonRow - 2) * cell,
-        width: cell,
+        x: CGFloat(column + Self.shipHullWidth / 2 - 1) * cell,
+        y: CGFloat(horizonRow) * cell,
+        width: cell * 2,
         height: cell
       )
     )
 
     context.fill(path, with: .color(sky.skyBottom))
-    context.fill(path, with: .color(Color.black.opacity(Self.distantShoreDarkening)))
+    context.fill(path, with: .color(Color.black.opacity(Self.shipDarkening)))
   }
 
   /// 濡れた路面で光がどれだけ強く映るかです。
@@ -742,66 +608,6 @@ struct SkyCanvas: View {
         with: .color(
           Self.streetLightColor.opacity(sky.nightness * Self.streetLightBeamOpacity * verticalFade)
         )
-      )
-    }
-  }
-
-  /// その季節に見える星座です。
-  ///
-  /// 星は完全に散らばっているだけで、見上げても「知っている形」がありません。
-  /// 実在の星座をいくつか置くと、同じ空でも見覚えのある空になります。
-  /// 季節ごとに代表的なものを選び、その時期にだけ現れるようにします。
-  private func drawConstellations(in context: inout GraphicsContext, size: CGSize) {
-    guard sky.nightness > Self.starVisibilityThreshold else { return }
-
-    let cell = Self.cellSize
-    let strength = sky.nightness
-
-    for constellation in Self.constellations where constellation.season == sky.season {
-      var starPath = Path()
-      var linePath = Path()
-
-      // 星の位置です。縦横とも同じ長さを基準にし、星座の形が縦に伸びないようにします。
-      // 横長の画面では幅を基準にすると大きくなりすぎるので、短いほうの辺に合わせます。
-      let unit = min(size.width, size.height) * constellation.scale
-      func point(_ index: Int) -> CGPoint {
-        let star = constellation.stars[index]
-        return CGPoint(
-          x: constellation.origin.x * size.width + star.x * unit,
-          y: constellation.origin.y * size.height + star.y * unit
-        )
-      }
-
-      for index in constellation.stars.indices {
-        let position = point(index)
-        // まわりの明るい星と同じ十字形にして、星座だけ浮かないようにします。
-        appendCross(to: &starPath, x: snapped(position.x), y: snapped(position.y))
-      }
-
-      // 星どうしを結ぶ線です。細いドットの列で引きます。
-      for link in constellation.links {
-        let from = point(link.0)
-        let to = point(link.1)
-        let steps = Int(max(abs(to.x - from.x), abs(to.y - from.y)) / cell)
-        guard steps > 0 else { continue }
-
-        for step in 0...steps {
-          let ratio = Double(step) / Double(steps)
-          let x = from.x + (to.x - from.x) * ratio
-          let y = from.y + (to.y - from.y) * ratio
-          linePath.addRect(
-            CGRect(x: snapped(x), y: snapped(y), width: cell, height: cell)
-          )
-        }
-      }
-
-      context.fill(
-        linePath,
-        with: .color(Self.constellationStarColor.opacity(Self.constellationLineOpacity * strength))
-      )
-      context.fill(
-        starPath,
-        with: .color(Self.constellationStarColor.opacity(Self.constellationStarOpacity * strength))
       )
     }
   }
@@ -903,90 +709,6 @@ struct SkyCanvas: View {
     let position = 1 - abs(local - 0.5) * 2
 
     return Int(position * Double(Self.powerLineSag))
-  }
-
-  /// 夜空をゆっくり横切る飛行機です。
-  ///
-  /// 機体は見えず、点滅する灯りだけが動きます。
-  private func drawAirplane(in context: inout GraphicsContext, size: CGSize, elapsed: Double) {
-    guard sky.nightness > Self.starVisibilityThreshold else { return }
-
-    let phase = elapsed.truncatingRemainder(dividingBy: Self.airplanePeriod)
-    guard phase < Self.airplaneDuration else { return }
-
-    let cell = Self.cellSize
-    let progress = phase / Self.airplaneDuration
-    let column = Int(progress * size.width / cell)
-    let row = Int(0.10 * size.height / cell)
-
-    // 点滅しているあいだだけ灯ります。
-    let isBlinkOn = (Int(elapsed / Self.animationInterval) / Self.airplaneBlinkTicks) % 2 == 0
-    guard isBlinkOn else { return }
-
-    context.fill(
-      Path(CGRect(x: CGFloat(column) * cell, y: CGFloat(row) * cell, width: cell, height: cell)),
-      with: .color(Color(red: 1.0, green: 0.55, blue: 0.5).opacity(0.9))
-    )
-  }
-  /// 雨が海面に落ちた跳ねです。
-  ///
-  /// 実際の波紋は同心円ですが、この粗さでは輪を描いても点にしかなりません。
-  /// そこで粒をあえて大きくし、短い横棒として水面のきらめきだけを表します。
-  private func drawRainRipples(in context: inout GraphicsContext, size: CGSize, tick: Int) {
-    guard let intensity = weather.rainIntensity else { return }
-
-    let cell = Self.cellSize / CGFloat(Self.rippleSubdivision)
-    let columnCount = max(Int(size.width / cell), 1)
-    let allRowCount = max(Int(ceil(size.height / Self.cellSize)), 1)
-    let horizonRow = Int(Self.horizonRatio * Double(allRowCount))
-    let waterEndRow = tidalShoreRow(rowCount: allRowCount)
-    guard waterEndRow > horizonRow else { return }
-
-    let topY = CGFloat(horizonRow) * Self.cellSize
-    let bandHeight = CGFloat(waterEndRow - horizonRow) * Self.cellSize
-    let rowCount = max(Int(bandHeight / cell), 1)
-    let count = Int(Double(Self.rippleCountPerIntensity) * Self.snowDensity(for: intensity))
-
-    var path = Path()
-    for index in 0..<count {
-      // 波紋ごとに現れる時期をずらし、ばらばらに跳ねているように見せます。
-      let phase = (tick + Int(pseudoRandom(index &* 31 &+ 5) * 40)) % 40
-      guard phase < Self.rippleLifeTicks else { continue }
-
-      // 現れるたびに位置を変えます。
-      let seed = index &* 97 &+ (tick / 40) &* 13
-      let column = Int(pseudoRandom(seed &+ 1) * Double(columnCount))
-      let row = Int(pseudoRandom(seed &+ 2) * Double(rowCount))
-      // 輪は落ちた瞬間が最も小さく、消えるまでに広がります。
-      let radiusX = 1 + phase * (Self.rippleMaxRadius - 1) / max(Self.rippleLifeTicks - 1, 1)
-
-      // 水平線に近いほど水面を浅い角度で見るため、縦により潰れます。
-      let depth = Double(row) / Double(max(rowCount - 1, 1))
-      let flatten = Self.rippleFlattenFar
-        + (Self.rippleFlattenNear - Self.rippleFlattenFar) * depth
-      let radiusY = max(Int((Double(radiusX) * flatten).rounded()), 1)
-
-      for dy in -radiusY...radiusY {
-        for dx in -radiusX...radiusX {
-          // 楕円の縁に乗る粒だけを置きます。
-          let normalizedX = Double(dx) / Double(radiusX)
-          let normalizedY = Double(dy) / Double(radiusY)
-          let distance = (normalizedX * normalizedX + normalizedY * normalizedY).squareRoot()
-          guard abs(distance - 1) < 0.34 else { continue }
-
-          path.addRect(
-            CGRect(
-              x: CGFloat(column + dx) * cell,
-              y: topY + CGFloat(row + dy) * cell,
-              width: cell,
-              height: cell
-            )
-          )
-        }
-      }
-    }
-
-    context.fill(path, with: .color(Self.rainColor.opacity(Self.rippleOpacityValue)))
   }
 
   /// 砂浜と道路に積もった雪です。
@@ -1750,21 +1472,30 @@ struct SkyCanvas: View {
     let signLeft = snapped(CGFloat(Self.busStopRatio) * size.width)
     let poleLeft = signLeft + (signWidth - CGFloat(Self.poleWidth) * cell) / 2
 
-    // 支柱です。錆びて欠けた箇所を作るため、1マスずつ積み上げます。
+    // 支柱です。実際のバス停と同じ白い柱にし、道路の白線と同じ色を使います。
+    //
+    // 1マス幅なので、剥げた箇所を抜いてしまうと柱が途切れて見えます。
+    // 抜くかわりに薄くして、続いたまま色あせているように見せます。
     var polePath = Path()
+    var poleWornPath = Path()
     for offset in 0..<Self.poleHeight {
-      guard pseudoRandom(offset &* 7717 &+ 13) > Self.poleWearChance else { continue }
-
-      polePath.addRect(
-        CGRect(
-          x: snapped(poleLeft),
-          y: poleTop + CGFloat(offset) * cell,
-          width: CGFloat(Self.poleWidth) * cell,
-          height: cell
-        )
+      let rect = CGRect(
+        x: snapped(poleLeft),
+        y: poleTop + CGFloat(offset) * cell,
+        width: CGFloat(Self.poleWidth) * cell,
+        height: cell
       )
+
+      if pseudoRandom(offset &* 7717 &+ 13) > Self.poleWearChance {
+        polePath.addRect(rect)
+      } else {
+        poleWornPath.addRect(rect)
+      }
     }
-    context.fill(polePath, with: .color(sky.signboardInk.opacity(0.55)))
+    context.fill(polePath, with: .color(sky.roadLine.opacity(Self.busStopPoleOpacity)))
+    context.fill(poleWornPath, with: .color(sky.roadLine.opacity(Self.busStopPoleWornOpacity)))
+
+    drawBusStopBase(in: &context, poleLeft: snapped(poleLeft), baseY: baseY)
 
     // 標識の板です。ドットで組んだ丸い板にします。
     let signRadius = Self.signSize / 2
@@ -1805,6 +1536,104 @@ struct SkyCanvas: View {
       CGRect(x: signOrigin.x + 3 * cell, y: signOrigin.y + 6 * cell, width: 5 * cell, height: cell)
     )
     context.fill(mark, with: .color(sky.signboardInk.opacity(0.78)))
+  }
+
+  /// バス停の足元に置く重石です。
+  ///
+  /// 柱だけだと地面から生えているように見えます。
+  /// 持ち運べる標識と同じように、足元へ台形の重石を置いて据わりをよくします。
+  private func drawBusStopBase(
+    in context: inout GraphicsContext,
+    poleLeft: CGFloat,
+    baseY: CGFloat
+  ) {
+    let cell = Self.cellSize
+    let left = poleLeft - CGFloat(Self.busStopBaseWidth / 2) * cell
+    let top = baseY - CGFloat(Self.busStopBaseHeight) * cell
+
+    // 石だけは風景より細かい粒で描きます。
+    // 風景と同じ粗さのままだと、角の丸みが段になって出てしまうためです。
+    let subdivision = Self.busStopBaseSubdivision
+    let unit = cell / CGFloat(subdivision)
+    let columnCount = Self.busStopBaseWidth * subdivision
+    let rowCount = Self.busStopBaseHeight * subdivision
+    // 地面と接する部分です。ここだけ暗くして、置かれているように見せます。
+    let shadowRow = rowCount - subdivision
+
+    var path = Path()
+    var topPath = Path()
+    var coarseSpeckPath = Path()
+    var fineSpeckPath = Path()
+    var shadowPath = Path()
+
+    for row in 0..<rowCount {
+      for column in 0..<columnCount {
+        guard isInsideRoundedBase(
+          column: column,
+          row: row,
+          columnCount: columnCount,
+          rowCount: rowCount
+        ) else { continue }
+
+        let rect = CGRect(
+          x: left + CGFloat(column) * unit,
+          y: top + CGFloat(row) * unit,
+          width: unit,
+          height: unit
+        )
+        path.addRect(rect)
+
+        // 上を向いた面です。光が当たるぶん明るくします。
+        if row < Self.busStopBaseTopRows {
+          topPath.addRect(rect)
+        }
+        // 地面と接する部分です。ここだけ暗くして、置かれているように見せます。
+        if row >= shadowRow {
+          shadowPath.addRect(rect)
+        }
+
+        // 混ぜ込まれた砂利です。濃い粒と明るい粒を散らし、
+        // 塗った面ではなく打ち込んだ面に見せます。
+        let noise = pseudoRandom(row &* 8_837 &+ column &* 149 &+ 17)
+        if noise < Self.busStopBaseSpeckleChance {
+          coarseSpeckPath.addRect(rect)
+        } else if noise > 1 - Self.busStopBaseSpeckleChance {
+          fineSpeckPath.addRect(rect)
+        }
+      }
+    }
+
+    // 素地はアスファルトを明るくして作ります。
+    // 白線の色をそのまま使うと、塗装したような平らな白い面になってしまいます。
+    context.fill(path, with: .color(sky.road))
+    context.fill(path, with: .color(Color.white.opacity(Self.busStopBaseLightening)))
+    context.fill(topPath, with: .color(Color.white.opacity(Self.busStopBaseTopHighlight)))
+    context.fill(coarseSpeckPath, with: .color(Color.black.opacity(Self.busStopBaseSpeckleInk)))
+    context.fill(fineSpeckPath, with: .color(Color.white.opacity(Self.busStopBaseSpeckleLight)))
+    context.fill(shadowPath, with: .color(Color.black.opacity(Self.busStopBaseShadowOpacity)))
+  }
+
+  /// その粒が、角を丸めた石の内側にあるかどうかです。
+  ///
+  /// 四隅だけを円で削り、それ以外は四角のまま残します。
+  private func isInsideRoundedBase(
+    column: Int,
+    row: Int,
+    columnCount: Int,
+    rowCount: Int
+  ) -> Bool {
+    let radius = Double(Self.busStopBaseCornerRadius)
+    guard radius > 0 else { return true }
+
+    // 粒の中心で判定します。
+    let x = Double(column) + 0.5
+    let y = Double(row) + 0.5
+
+    // 角の円の中心からどれだけ離れているかです。辺の上では0になります。
+    let horizontal = max(radius - x, x - (Double(columnCount) - radius), 0)
+    let vertical = max(radius - y, y - (Double(rowCount) - radius), 0)
+
+    return horizontal * horizontal + vertical * vertical <= radius * radius
   }
 
   /// 標識の板に色あせの粒を散らし、長く風雨にさらされた面にします。
@@ -1872,8 +1701,9 @@ struct SkyCanvas: View {
 
       // 大半を非常に暗い星にし、明るい星をごく少数に絞ることで、
       // 均一な粒が降っているようには見えない奥行きを作ります。
+      // 大きさは変えず、色と濃さだけで明るさの差を表します。
       if brightness > 0.992 {
-        appendCross(to: &warmPath, x: originX, y: originY)
+        appendCell(to: &warmPath, x: originX, y: originY)
       } else if brightness > 0.94 {
         appendCell(to: &whitePath, x: originX, y: originY)
       } else if brightness > 0.80 {
@@ -1892,15 +1722,6 @@ struct SkyCanvas: View {
   /// 1マスの星です。
   private func appendCell(to path: inout Path, x: CGFloat, y: CGFloat) {
     path.addRect(CGRect(x: x, y: y, width: Self.cellSize, height: Self.cellSize))
-  }
-
-  /// 明るい星を表す十字形です。中央と上下左右の5マスで構成します。
-  private func appendCross(to path: inout Path, x: CGFloat, y: CGFloat) {
-    appendCell(to: &path, x: x, y: y)
-    appendCell(to: &path, x: x - Self.cellSize, y: y)
-    appendCell(to: &path, x: x + Self.cellSize, y: y)
-    appendCell(to: &path, x: x, y: y - Self.cellSize)
-    appendCell(to: &path, x: x, y: y + Self.cellSize)
   }
 
   // MARK: - 雲
@@ -2176,7 +1997,7 @@ struct SkyCanvas: View {
       color: sky.celestialTint,
       opacity: 0.92,
       // 夜に近いほど月として扱い、実際の日付の満ち欠けで欠かします。
-      moonPhase: sky.nightness > 0.5 ? MoonPhase.phase(at: Date()) : nil
+      moonPhase: sky.nightness > 0.5 ? MoonPhase.phase(at: AppDate.now()) : nil
     )
   }
 
@@ -2248,7 +2069,7 @@ struct SkyCanvas: View {
   /// 夜へ近づくほど月の照らされている割合に従います。
   /// 新月では月が見えないため、光の道も消えます。
   private var reflectionStrength: Double {
-    let illuminated = (1 - cos(2 * .pi * MoonPhase.phase(at: Date()))) / 2
+    let illuminated = (1 - cos(2 * .pi * MoonPhase.phase(at: AppDate.now()))) / 2
     return 1 - sky.nightness * (1 - illuminated)
   }
 

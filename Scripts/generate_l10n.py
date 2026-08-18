@@ -53,6 +53,64 @@ def load_entries():
     return ENTRIES
 
 
+def build_localization(value):
+    """1言語ぶんの訳を、文字列カタログの形に変えます。
+
+    値が文字列ならそのまま1つの訳になります。
+    辞書のときは、数によって形の変わる言語のための書き分けです。
+
+      {"one": ..., "other": ...}
+        1つ目の引数の数で切り替えます。英語の「1 service / 2 services」のような場合です。
+
+      {"format": ..., "units": [(単数, 複数), ...]}
+        引数ごとに切り替えます。書式の %1$@ %2$@ が、順に units の語に置き換わります。
+    """
+    if isinstance(value, str):
+        return {"stringUnit": {"state": "translated", "value": value}}
+
+    if "units" in value:
+        localization = {
+            "stringUnit": {
+                "state": "translated",
+                "value": substituted_format(value["format"], len(value["units"])),
+            },
+            "substitutions": {},
+        }
+        for index, (one, other) in enumerate(value["units"], start=1):
+            localization["substitutions"]["arg%d" % index] = {
+                "argNum": index,
+                "formatSpecifier": format_specifier(one),
+                "variations": {"plural": plural_variations(one, other, placeholder="%arg")},
+            }
+        return localization
+
+    return {"variations": {"plural": plural_variations(value["one"], value["other"])}}
+
+
+def plural_variations(one, other, placeholder=None):
+    """単数・複数の2つの訳を、文字列カタログの形に変えます。"""
+    def unit(text):
+        if placeholder is not None:
+            text = re.sub(r"%\d+\$", "%", text)
+            text = re.sub(r"%(lld|d|@)", placeholder, text)
+        return {"stringUnit": {"state": "translated", "value": text}}
+
+    return {"one": unit(one), "other": unit(other)}
+
+
+def format_specifier(text):
+    """その訳が使っている書式指定子です。"""
+    found = re.search(r"%(?:\d+\$)?(lld|d|@)", text)
+    return found.group(1) if found else "lld"
+
+
+def substituted_format(template, count):
+    """書式の %1$@ を、置き換え用の %1$#@arg1@ に書き換えます。"""
+    for index in range(1, count + 1):
+        template = template.replace("%%%d$@" % index, "%%%d$#@arg%d@" % (index, index))
+    return template
+
+
 def build_catalog(entries):
     catalog = {"sourceLanguage": SOURCE_LANGUAGE, "version": "1.0", "strings": {}}
     for key, ja, en, zh, _ in entries:
@@ -60,8 +118,7 @@ def build_catalog(entries):
         catalog["strings"][key] = {
             "extractionState": "manual",
             "localizations": {
-                language: {"stringUnit": {"state": "translated", "value": values[language]}}
-                for language in LANGUAGES
+                language: build_localization(values[language]) for language in LANGUAGES
             },
         }
     return json.dumps(catalog, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
@@ -87,13 +144,21 @@ def build_swift(entries):
     for head, members in groups.items():
         lines.append("  public enum %s {" % swift_enum_name(head))
         for key, tail, ja, args in members:
-            lines.append("    /// %s" % ja.replace("\n", "\\n"))
+            comment = ja["other"] if isinstance(ja, dict) and "other" in ja else ja
+            if isinstance(comment, dict):
+                comment = comment["format"]
+            lines.append("    /// %s" % comment.replace("\n", "\\n"))
             name = swift_member_name(tail)
             if args:
                 params = ", ".join("_ arg%d: %s" % (i, kind) for i, kind in enumerate(args))
                 call = ", ".join("arg%d" % i for i in range(len(args)))
                 lines.append("    public static func %s(%s) -> String {" % (name, params))
-                lines.append('      String(format: String(localized: "%s"), %s)' % (key, call))
+                # 数で形が変わる文言は、現在の言語の規則で選ぶ必要があります。
+                # String(format:) は言語を見ないため、localizedStringWithFormat を使います。
+                lines.append(
+                    '      String.localizedStringWithFormat(String(localized: "%s"), %s)'
+                    % (key, call)
+                )
                 lines.append("    }")
             else:
                 lines.append(

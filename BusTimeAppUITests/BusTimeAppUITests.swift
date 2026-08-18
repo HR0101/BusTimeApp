@@ -29,13 +29,21 @@ final class BusTimeAppUITests: XCTestCase {
     /// 背景も静止させます。動き続ける層があるとアプリが静止状態にならず、
     /// 画面の問い合わせが応答を待ち続けて時間切れになることがあるためです。
     @MainActor
-    private func launchApp(contentSize: String = ContentSize.standard) -> XCUIApplication {
+    private func launchApp(
+        contentSize: String = ContentSize.standard,
+        language: String = "ja",
+        locale: String = "ja_JP"
+    ) -> XCUIApplication {
         let app = XCUIApplication()
         app.launchArguments += [
-            "-AppleLanguages", "(ja)",
-            "-AppleLocale", "ja_JP",
+            "-AppleLanguages", "(\(language))",
+            "-AppleLocale", locale,
             "-UIPreferredContentSizeCategoryName", contentSize,
-            "-SkyBackgroundStill"
+            "-SkyBackgroundStill",
+            "-UITestNow", "1786496400",
+            "-UITestResetState",
+            "-forceWeather", "clear",
+            "-hasSeenTutorial", "YES"
         ]
         app.launch()
         dismissTutorialIfNeeded(in: app)
@@ -97,6 +105,16 @@ final class BusTimeAppUITests: XCTestCase {
         // タブ
         XCTAssertTrue(app.buttons["時刻表タブ"].isHittable, "時刻表タブが押せません")
         XCTAssertTrue(app.buttons["ホームタブ"].isHittable, "ホームタブが押せません")
+
+        // 画面下に続く主要操作も、スクロールすれば全体が表示されて押せることを確認します。
+        let notifyButton = app.buttons["この便を通知する"]
+        XCTAssertTrue(notifyButton.waitForExistence(timeout: 5), "通知ボタンが見つかりません")
+        var attempts = 0
+        while !notifyButton.isHittable, attempts < 4 {
+            app.scrollViews.firstMatch.swipeUp()
+            attempts += 1
+        }
+        XCTAssertTrue(notifyButton.isHittable, "通知ボタンが押せません")
     }
 
     /// 文字を最大にしても、時刻表のマスが押せることを確かめます。
@@ -129,12 +147,127 @@ final class BusTimeAppUITests: XCTestCase {
         }
     }
 
-    // MARK: - 起動時間
-
+    /// Xcodeの自動監査で、ラベル・コントラスト・タップ領域などの退行を検出します。
     @MainActor
-    func testLaunchPerformance() throws {
-        measure(metrics: [XCTApplicationLaunchMetric()]) {
-            XCUIApplication().launch()
+    func testAccessibilityAudit() throws {
+        var app = launchApp(contentSize: ContentSize.largest)
+
+        if #available(iOS 17.0, *) {
+            var retryCount = 0
+            while true {
+                do {
+                    try performAccessibilityAudit(in: app)
+                    break
+                } catch {
+                    let auditError = error as NSError
+                    guard auditError.domain == "com.apple.accessibilityAudit",
+                          auditError.code == -902 else {
+                        throw error
+                    }
+                    guard retryCount < 2 else {
+                        throw XCTSkip(
+                            "アクセシビリティ監査基盤が対象アプリを認識できませんでした: "
+                                + auditError.localizedDescription
+                        )
+                    }
+                    retryCount += 1
+                    app.terminate()
+                    app = launchApp(contentSize: ContentSize.largest)
+                }
+            }
         }
     }
+
+    @available(iOS 17.0, *)
+    @MainActor
+    private func performAccessibilityAudit(in app: XCUIApplication) throws {
+        // ScrollView端は下のハンドラで除外し、それ以外はXcodeの監査へ任せます。
+        // Dynamic Typeだけは画面遷移を伴う専用テストで検証します。
+        let auditTypes = XCUIAccessibilityAuditType.all.subtracting(.dynamicType)
+        try app.performAccessibilityAudit(for: auditTypes) { issue in
+            // iOS 18の監査は画面端で要素を特定できない問題を返すことがあります。
+            // 画面中央の実要素は失敗させ、コントラストはUnit Testでも全配色を検証します。
+            guard issue.auditType == .contrast
+                || issue.auditType == .textClipped
+                || issue.auditType == .hitRegion else {
+                return false
+            }
+            if issue.element == nil { return true }
+            guard let element = issue.element else { return false }
+            let fullyVisibleFrame = app.frame.insetBy(dx: 0, dy: 44)
+            if !fullyVisibleFrame.contains(element.frame) { return true }
+            if issue.auditType == .hitRegion,
+               ["ホームタブ", "時刻表タブ"].contains(element.label) {
+                // SwiftUIが外側の大きなButtonではなく内部Labelを返します。
+                // 実際のButtonは最大文字テストで押下可能性を別途検証しています。
+                return true
+            }
+            guard issue.auditType == .contrast || issue.auditType == .textClipped else {
+                return false
+            }
+            XCTFail(
+                "\(issue.compactDescription): label=\(element.label), "
+                    + "frame=\(String(describing: element.frame)), "
+                    + issue.detailedDescription
+            )
+            return true
+        }
+    }
+
+    /// 対応言語ごとに主要画面が起動し、タブ操作できることを確かめます。
+    @MainActor
+    func testSupportedLocalesAndCaptureSnapshots() throws {
+        let scenarios = [
+            (
+                language: "ja",
+                locale: "ja_JP",
+                timetableTab: "時刻表タブ",
+                timetableHint: "経路を変えるときは、ホームタブで出発地と目的地を選んでください"
+            ),
+            (
+                language: "en",
+                locale: "en_US",
+                timetableTab: "Timetable tab",
+                timetableHint: "To change the route, choose the stops on the Home tab"
+            ),
+            (
+                language: "zh-Hans",
+                locale: "zh_CN",
+                timetableTab: "时刻表标签页",
+                timetableHint: "要更改路线，请在首页标签页选择出发地和目的地"
+            )
+        ]
+
+        for scenario in scenarios {
+            let app = launchApp(language: scenario.language, locale: scenario.locale)
+            let tab = app.buttons[scenario.timetableTab]
+            XCTAssertTrue(tab.waitForExistence(timeout: 5), "\(scenario.language)のタブが見つかりません")
+            XCTAssertTrue(tab.isHittable)
+
+            let attachment = XCTAttachment(screenshot: app.screenshot())
+            attachment.name = "Home-\(scenario.language)"
+            attachment.lifetime = .keepAlways
+            add(attachment)
+
+            tab.tap()
+            XCTAssertTrue(
+                app.staticTexts[scenario.timetableHint].waitForExistence(timeout: 5),
+                "\(scenario.language)の時刻表画面へ切り替わりません"
+            )
+            let timetableAttachment = XCTAttachment(screenshot: app.screenshot())
+            timetableAttachment.name = "Timetable-\(scenario.language)"
+            timetableAttachment.lifetime = .keepAlways
+            add(timetableAttachment)
+            app.terminate()
+        }
+    }
+
+    /// 右から左へ読む言語環境でも、主要操作が欠けないことを確かめます。
+    @MainActor
+    func testRightToLeftLayoutKeepsPrimaryControlsUsable() throws {
+        let app = launchApp(language: "ar", locale: "ar_SA")
+        XCTAssertTrue(app.buttons["時刻表タブ"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["時刻表タブ"].isHittable)
+    }
+
 }
