@@ -4,6 +4,7 @@ import SwiftUI
 @main
 struct BusTimeWidgetBundle: WidgetBundle {
     var body: some Widget {
+        NextBusWidget()
         BusTimeWidgetLiveActivity()
     }
 }

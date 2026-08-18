@@ -3,7 +3,7 @@ import SwiftUI
 // MARK: - タブ
 
 /// 画面下部のタブです。
-enum MainTab: Hashable {
+enum MainTab: String, Hashable {
   case home
   case timetable
 
@@ -39,6 +39,7 @@ enum MainTab: Hashable {
 private struct SkyTabBar: View {
   @Binding var selection: MainTab
   @Environment(\.sky) private var sky
+  @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
   var body: some View {
     HStack(spacing: 4) {
@@ -56,13 +57,13 @@ private struct SkyTabBar: View {
     let isSelected = selection == tab
 
     return Button {
-      withAnimation(.easeInOut(duration: 0.2)) {
+      withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.2)) {
         selection = tab
       }
     } label: {
       Label(tab.title, systemImage: tab.systemName)
         .dynamicFont(size: 14, relativeTo: .subheadline, weight: .bold, design: .rounded)
-        .foregroundStyle(isSelected ? Color.white : sky.inkSecondary)
+        .foregroundStyle(isSelected ? sky.accentInk : sky.ink)
         .frame(maxWidth: .infinity, minHeight: SkyMetrics.minimumTapSize)
         .background(Capsule().fill(isSelected ? sky.accent : Color.clear))
     }
@@ -81,9 +82,10 @@ struct ContentView: View {
   @StateObject private var notificationViewModel = NotificationViewModel()
   @StateObject private var skyClock = SkyClock()
   @StateObject private var weatherViewModel = WeatherViewModel()
-  @State private var selectedTab: MainTab = .home
+  @SceneStorage("selectedMainTab") private var selectedTab: MainTab = .home
   @Environment(\.scenePhase) private var scenePhase
   @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+  @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
   /// 空の色が切り替わるときのアニメーション時間です。
   private let paletteAnimationDuration: Double = 0.9
@@ -112,17 +114,27 @@ struct ContentView: View {
           viewModel.performSearch()
           viewModel.checkLocationAndSetOrigin()
           notificationViewModel.refresh()
+          setAutomaticUpdatesActive(true)
         }
         .task {
-          await weatherViewModel.refresh()
+          await weatherViewModel.refreshIfNeeded()
+        }
+        .onOpenURL { url in
+          // ウィジェットのタップで開かれたときは、その経路に合わせます。
+          guard let route = SharedAppData.route(from: url) else { return }
+          viewModel.selectRouteFromWidget(route)
+          // 検索結果はホームタブにあるので、そちらへ寄せます。
+          selectedTab = .home
         }
         .onChange(of: scenePhase) { newPhase in
           if newPhase == .active {
-            skyClock.refresh()
+            setAutomaticUpdatesActive(true)
             viewModel.refreshForAppActivation()
             viewModel.checkLocationAndSetOrigin()
             settingsViewModel.refreshLiveActivityAvailability()
             Task { await weatherViewModel.refreshIfNeeded() }
+          } else {
+            setAutomaticUpdatesActive(false)
           }
         }
         // 経路・検索方法・時刻のいずれを変えても、その場で結果へ反映します。
@@ -131,19 +143,24 @@ struct ContentView: View {
           viewModel.performSearch()
         }
         .onChange(of: viewModel.serviceDay) { _ in
+          viewModel.persistSearchPreferences()
           viewModel.performSearch()
         }
         .onChange(of: viewModel.searchType) { _ in
+          viewModel.persistSearchPreferences()
           viewModel.performSearch()
         }
         .onChange(of: viewModel.searchTime) { _ in
+          viewModel.persistSearchPreferences()
           viewModel.performSearch()
         }
         .sheet(isPresented: Binding(
           get: { coordinator.isTutorialPresented },
           set: { if !$0 { coordinator.send(.dismiss) } }
         )) {
-          TutorialView()
+          TutorialView {
+            coordinator.send(.tutorialCompleted)
+          }
             .environment(\.sky, palette)
             .environment(\.skyWeather, weatherViewModel.weather)
             .environment(\.skyCardOpacity, settingsViewModel.cardOpacity)
@@ -153,7 +170,10 @@ struct ContentView: View {
           get: { coordinator.isSettingsPresented },
           set: { if !$0 { coordinator.send(.dismiss) } }
         )) {
-          SettingsView(viewModel: settingsViewModel)
+          SettingsView(
+            viewModel: settingsViewModel,
+            weatherViewModel: weatherViewModel
+          )
             .environment(\.sky, palette)
             .environment(\.skyWeather, weatherViewModel.weather)
             .presentationDragIndicator(.visible)
@@ -209,7 +229,7 @@ struct ContentView: View {
           get: { coordinator.isNotificationResultPresented },
           set: { if !$0 { coordinator.send(.dismiss) } }
         )) {
-          Button("OK") { coordinator.send(.dismiss) }
+          Button(L10n.Common.ok) { coordinator.send(.dismiss) }
         } message: {
           Text(coordinator.notificationMessage ?? "")
         }
@@ -228,7 +248,7 @@ struct ContentView: View {
             viewModel.liveActivityError = nil
             coordinator.send(.clearError)
           }
-          Button("OK") {
+          Button(L10n.Common.ok) {
             viewModel.liveActivityError = nil
             coordinator.send(.clearError)
           }
@@ -237,6 +257,7 @@ struct ContentView: View {
         }
         .onChange(of: viewModel.liveActivityError) { errorMessage in
           if let errorMessage {
+            SkyHaptics.failure()
             coordinator.send(.liveActivityFailed(errorMessage))
             viewModel.liveActivityError = nil
           }
@@ -245,8 +266,14 @@ struct ContentView: View {
     .environment(\.sky, palette)
     .environment(\.skyWeather, weatherViewModel.weather)
     .environment(\.skyCardOpacity, settingsViewModel.cardOpacity)
-    .animation(.easeInOut(duration: paletteAnimationDuration), value: palette)
-    .preferredColorScheme(palette.isNight ? .dark : .light)
+    // バスの運行時刻は海浜幕張の日本時間です。端末が海外にあっても
+    // DatePickerと時刻表示が運行地域の時刻からずれないよう固定します。
+    .environment(\.timeZone, AppCalendar.timeZone)
+    .animation(
+      reduceMotion ? nil : .easeInOut(duration: paletteAnimationDuration),
+      value: palette
+    )
+    .preferredColorScheme(settingsViewModel.preferredColorScheme(for: palette))
   }
 
   // MARK: - タブの構成
@@ -274,7 +301,7 @@ struct ContentView: View {
           .tag(MainTab.timetable)
       }
       .tabViewStyle(.page(indexDisplayMode: .never))
-      .animation(.easeInOut(duration: 0.2), value: selectedTab)
+      .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: selectedTab)
 
       SkyTabBar(selection: $selectedTab)
     }
@@ -305,7 +332,7 @@ struct ContentView: View {
     }
     .tabViewStyle(.tabBarOnly)
     .tint(palette.accent)
-    .animation(.easeInOut(duration: 0.2), value: selectedTab)
+    .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: selectedTab)
   }
 #endif
 
@@ -344,6 +371,9 @@ struct ContentView: View {
       .padding(.horizontal, horizontalPadding)
       .padding(.top, 10)
       .padding(.bottom, 28)
+      // 横に広い画面では、1行が長くなりすぎないところで幅を止めて中央に置きます。
+      .frame(maxWidth: SkyMetrics.contentMaxWidth)
+      .frame(maxWidth: .infinity)
     }
   }
 
@@ -436,6 +466,12 @@ struct ContentView: View {
     .padding(.top, 2)
   }
 
+  private func setAutomaticUpdatesActive(_ isActive: Bool) {
+    skyClock.setAutomaticUpdatesActive(isActive)
+    viewModel.setAutomaticUpdatesActive(isActive)
+    weatherViewModel.setAutomaticRefreshActive(isActive)
+  }
+
   // MARK: - 通知の操作
 
   private func selectBus(_ bus: Bus) {
@@ -460,6 +496,8 @@ struct ContentView: View {
           for: bus,
           shouldStart: shouldStartLiveActivity
         )
+        // 通知の登録は結果が文字でしか分からないので、成否を手応えでも返します。
+        SkyHaptics.success()
         coordinator.send(.notificationScheduled(
           L10n.Notify.scheduledMessage(
             item.busDescription,
@@ -468,6 +506,7 @@ struct ContentView: View {
           )
         ))
       case let .failure(error):
+        SkyHaptics.failure()
         coordinator.send(.notificationScheduled(error.localizedDescription))
       }
     }

@@ -16,6 +16,11 @@ enum SkyMetrics {
   static let minimumTapSize: CGFloat = 44
   /// カード輪郭線の太さです。
   static let borderWidth: CGFloat = 1
+  /// 本文の横幅の上限です。
+  ///
+  /// iPadのように横に広い画面では、1列のまま画面いっぱいに広げると
+  /// 1行が長くなりすぎて目で追いにくくなります。読みやすい幅で止めます。
+  static let contentMaxWidth: CGFloat = 520
 }
 
 // MARK: - カード
@@ -33,7 +38,17 @@ enum SkyCardOpacity {
 
   /// 背景を隠す地をどれだけ効かせるかを返します。
   /// 1で背景が完全に隠れ、0で半透明の地だけになります。
-  static func coverage(for value: Double, isDense: Bool) -> Double {
+  ///
+  /// 「透明度を下げる」がオンのときは、設定の濃さにかかわらず地を敷き切ります。
+  /// 背景の風景が透けること自体がこの設定で避けたいことなので、
+  /// 濃さの好みより、読みやすさの求めを優先します。
+  static func coverage(
+    for value: Double,
+    isDense: Bool,
+    reduceTransparency: Bool = false
+  ) -> Double {
+    guard !reduceTransparency else { return maximum }
+
     let boosted = value + (isDense ? denseBoost : 0)
     return min(max(boosted, minimum), maximum)
   }
@@ -51,10 +66,28 @@ extension EnvironmentValues {
   }
 }
 
+/// ボタンの輪郭の濃さです。
+///
+/// このアプリのボタンは、塗りつぶさないものには薄い輪郭を引いています。
+/// iPhoneの「ボタンの形」設定は、押せる範囲をはっきり示すためのものなので、
+/// オンのときは輪郭をはっきりさせて、文字との区別が付くようにします。
+enum SkyButtonOutline {
+  /// ふだんの濃さです。風景を邪魔しない薄さにしています。
+  static let normal: Double = 0.22
+  /// 「ボタンの形」がオンのときの濃さです。
+  static let emphasized: Double = 0.65
+
+  static func opacity(showButtonShapes: Bool) -> Double {
+    showButtonShapes ? emphasized : normal
+  }
+}
+
 /// カードの地と輪郭を与える修飾子です。
 private struct SkyCardModifier: ViewModifier {
   @Environment(\.sky) private var sky
   @Environment(\.skyCardOpacity) private var cardOpacity
+  /// iPhoneの「透明度を下げる」設定です。
+  @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
 
   let radius: CGFloat
   let padding: CGFloat
@@ -64,7 +97,11 @@ private struct SkyCardModifier: ViewModifier {
 
   /// 背景を隠す地をどれだけ効かせるかです。1で完全に隠れます。
   private var coverage: Double {
-    SkyCardOpacity.coverage(for: cardOpacity, isDense: isDense)
+    SkyCardOpacity.coverage(
+      for: cardOpacity,
+      isDense: isDense,
+      reduceTransparency: reduceTransparency
+    )
   }
 
   func body(content: Content) -> some View {
@@ -105,13 +142,14 @@ extension View {
 
 /// 押している間だけわずかに縮む、影を使わないボタンスタイルです。
 struct SkyPressStyle: ButtonStyle {
+  @Environment(\.accessibilityReduceMotion) private var reduceMotion
   /// 押下時の縮小率です。
   private let pressedScale: CGFloat = 0.97
 
   func makeBody(configuration: Configuration) -> some View {
     configuration.label
       .scaleEffect(configuration.isPressed ? pressedScale : 1)
-      .animation(.easeOut(duration: 0.14), value: configuration.isPressed)
+      .animation(reduceMotion ? nil : .easeOut(duration: 0.14), value: configuration.isPressed)
   }
 }
 
@@ -130,7 +168,7 @@ struct SkyPrimaryButton: View {
     Button(action: action) {
       Label(title, systemImage: systemImage)
         .dynamicFont(size: 15, relativeTo: .subheadline, weight: .bold, design: .rounded)
-        .foregroundStyle(Color.white)
+        .foregroundStyle(sky.accentInk)
         .padding(.horizontal, 18)
         .frame(minHeight: SkyMetrics.minimumTapSize)
         .background(
@@ -145,6 +183,8 @@ struct SkyPrimaryButton: View {
 /// 補助的な操作に使う、枠線だけのボタンです。
 struct SkySecondaryButton: View {
   @Environment(\.sky) private var sky
+  /// iPhoneの「ボタンの形」設定です。
+  @Environment(\.accessibilityShowButtonShapes) private var showButtonShapes
 
   let title: String
   let systemImage: String
@@ -162,7 +202,10 @@ struct SkySecondaryButton: View {
         .frame(minHeight: SkyMetrics.minimumTapSize)
         .background(
           RoundedRectangle(cornerRadius: radius, style: .continuous)
-            .stroke(sky.ink.opacity(0.28), lineWidth: SkyMetrics.borderWidth)
+            .stroke(
+              sky.ink.opacity(SkyButtonOutline.opacity(showButtonShapes: showButtonShapes)),
+              lineWidth: SkyMetrics.borderWidth
+            )
         )
     }
     .buttonStyle(SkyPressStyle())
@@ -172,6 +215,8 @@ struct SkySecondaryButton: View {
 /// ヘッダーなどで使う、輪郭だけの円形アイコンボタンです。
 struct SkyIconButton: View {
   @Environment(\.sky) private var sky
+  /// iPhoneの「ボタンの形」設定です。
+  @Environment(\.accessibilityShowButtonShapes) private var showButtonShapes
 
   let systemImage: String
   let accessibilityLabel: String
@@ -182,14 +227,16 @@ struct SkyIconButton: View {
     Button(action: action) {
       Image(systemName: systemImage)
         .dynamicFont(size: 16, relativeTo: .body, weight: .semibold)
-        .foregroundStyle(isHighlighted ? Color.white : sky.ink)
+        .foregroundStyle(isHighlighted ? sky.accentInk : sky.ink)
         .scaledTapTarget()
         .background(
           Circle().fill(isHighlighted ? sky.accent : Color.clear)
         )
         .overlay(
           Circle().stroke(
-            isHighlighted ? Color.clear : sky.ink.opacity(0.22),
+            isHighlighted
+              ? Color.clear
+              : sky.ink.opacity(SkyButtonOutline.opacity(showButtonShapes: showButtonShapes)),
             lineWidth: SkyMetrics.borderWidth
           )
         )
@@ -202,6 +249,8 @@ struct SkyIconButton: View {
 /// 2択以上の選択に使う、小さなチップです。
 struct SkyChip: View {
   @Environment(\.sky) private var sky
+  /// iPhoneの「ボタンの形」設定です。
+  @Environment(\.accessibilityShowButtonShapes) private var showButtonShapes
 
   let title: String
   let isSelected: Bool
@@ -211,7 +260,7 @@ struct SkyChip: View {
     Button(action: action) {
       Text(title)
         .dynamicFont(size: 14, relativeTo: .subheadline, weight: .bold, design: .rounded)
-        .foregroundStyle(isSelected ? Color.white : sky.inkSecondary)
+        .foregroundStyle(isSelected ? sky.accentInk : sky.ink)
         .frame(maxWidth: .infinity)
         .frame(minHeight: SkyMetrics.minimumTapSize)
         .background(
@@ -219,7 +268,9 @@ struct SkyChip: View {
         )
         .overlay(
           Capsule().stroke(
-            isSelected ? Color.clear : sky.ink.opacity(0.2),
+            isSelected
+              ? Color.clear
+              : sky.ink.opacity(SkyButtonOutline.opacity(showButtonShapes: showButtonShapes)),
             lineWidth: SkyMetrics.borderWidth
           )
         )
@@ -234,14 +285,16 @@ struct SkyChip: View {
 /// セクションの上に置く、字間を広げた小さな見出しです。
 struct SkySectionLabel: View {
   @Environment(\.sky) private var sky
+  @ScaledMetric(relativeTo: .caption) private var letterSpacing: CGFloat = 1.2
 
   let text: String
 
   var body: some View {
     Text(text)
-      .dynamicFont(size: 11, relativeTo: .caption2, weight: .bold, design: .rounded)
-      .tracking(1.6)
-      .foregroundStyle(sky.inkSecondary)
+      // 標準のテキストスタイルを直接使い、Dynamic Type監査でも追従を判定できるようにします。
+      .font(.system(.caption, design: .rounded, weight: .heavy))
+      .tracking(letterSpacing)
+      .foregroundStyle(sky.ink)
       .accessibilityAddTraits(.isHeader)
   }
 }
@@ -273,7 +326,8 @@ struct SkyNoticeRow: View {
         .foregroundStyle(isWarning ? sky.warning : sky.inkSecondary)
       Text(message)
         .dynamicFont(size: 12, relativeTo: .caption, weight: .medium)
-        .foregroundStyle(isWarning ? sky.warning : sky.inkSecondary)
+        // 注意状態はアイコンの形と文面で伝え、本文は常に高コントラスト色にします。
+        .foregroundStyle(isWarning ? sky.ink : sky.inkSecondary)
         .fixedSize(horizontal: false, vertical: true)
         .frame(maxWidth: .infinity, alignment: .leading)
     }

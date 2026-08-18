@@ -9,13 +9,36 @@ Scripts/generate_l10n.py を実行して次の2つを作り直してください
 1件の形式は (キー, 日本語, 英語, 簡体字中国語, 引数の型) です。
 キーは「区分.名前」で、区分がSwiftの列挙型、名前がその要素になります。
 引数がある場合は %@ や %lld を含め、2つ以上なら %1$@ のように順番を明示します。
+
+英語のように数で語形が変わる言語では、訳を辞書で書けます。
+日本語と中国語は語形が変わらないので、これまでどおり文字列のままで構いません。
+
+  {'one': '%lld service', 'other': '%lld services'}
+    1つ目の引数の数で切り替えます。
+
+  {'format': 'Departing in %1$@ %2$@',
+   'units': [('%lld hour', '%lld hours'), ('%lld minute', '%lld minutes')]}
+    引数ごとに切り替えます。書式の %1$@ %2$@ が順に units の語へ置き換わります。
 """
 
 ENTRIES = [
 
+    # ---- ショートカット（Siri） ----
+    ('shortcut.nextBusTitle', '次のバスを調べる', 'Check the next bus', '查询下一班车', []),
+    ('shortcut.nextBusDescription', '次に出るバスの時刻と、出発までの時間を答えます。',
+     'Tells you when the next bus leaves and how long until then.',
+     '告知下一班车的出发时刻和距出发的时间。', []),
+    ('shortcut.phrase', '%@で次のバス', 'Next bus in %@', '%@的下一班车', ['String']),
+    ('shortcut.answer', '%1$@は%2$@発、%3$@着です。%4$@。',
+     'The next %1$@ bus leaves at %2$@ and arrives at %3$@. %4$@.',
+     '%1$@的下一班车%2$@出发，%3$@到达。%4$@。', ['String', 'String', 'String', 'String']),
+    ('shortcut.noService', '次に出るバスが見つかりませんでした。',
+     'I could not find the next bus.', '未能找到下一班车。', []),
+
     # ---- 共通 ----
     ('common.close', '閉じる', 'Close', '关闭', []),
     ('common.done', '完了', 'Done', '完成', []),
+    ('common.ok', 'OK', 'OK', '好', []),
 
     # ---- タブ ----
     ('tab.home', 'ホーム', 'Home', '首页', []),
@@ -32,10 +55,13 @@ ENTRIES = [
     ('route.originLabel', '出発地', 'From', '出发地', []),
     ('route.destinationLabel', '目的地', 'To', '目的地', []),
     ('route.menuHint', '変更するには二回タップします', 'Double tap to change', '轻点两下即可更改', []),
+    ('route.stopAccessibility', '%1$@、%2$@', '%1$@, %2$@', '%1$@，%2$@', ['String', 'String']),
     ('route.swapLabel', '出発地と目的地を入れ替える', 'Swap origin and destination', '交换出发地和目的地', []),
     ('route.swapHintAvailable', '入れ替えます', 'Swaps them', '进行交换', []),
     ('route.swapHintUnavailable', '逆向きの便は本日終了しているため使えません', 'There is no return service left today', '反方向班次今日已结束', []),
     ('route.useCurrentLocation', '現在地に合わせる', 'Use current location', '使用当前位置', []),
+    ('route.locationPermissionDenied', '現在地を使うには、iPhoneの設定で位置情報を許可してください。', 'Allow location access in iPhone Settings to use your current location.', '要使用当前位置，请在 iPhone 设置中允许位置访问。', []),
+    ('route.openLocationSettings', '位置情報の設定を開く', 'Open Location Settings', '打开位置设置', []),
     ('route.decisionAutomatic', '現在地から自動で選びました', 'Chosen from your location', '已根据当前位置选择', []),
     ('route.decisionTimeOfDay', '時間帯と前回の行き先から選びました', 'Chosen from the time of day and your last destination', '已根据时段和上次的目的地选择', []),
     ('route.decisionManual', '自分で選んだ経路です', 'You chose this route', '这是您选择的路线', []),
@@ -77,9 +103,16 @@ ENTRIES = [
     ('result.a11yCalculating', '残り時間を計算中', 'Calculating the time remaining', '正在计算剩余时间', []),
     ('result.a11yDeparted', 'この便は出発済みです', 'This service has departed', '该班次已出发', []),
     ('result.a11yLeavingSoon', 'まもなく出発します', 'Leaving soon', '即将出发', []),
-    ('result.a11yMinutes', 'あと%lld分で出発します', 'Departing in %lld minutes', '%lld分钟后出发', ['Int']),
-    ('result.a11yHours', 'あと%lld時間で出発します', 'Departing in %lld hours', '%lld小时后出发', ['Int']),
-    ('result.a11yHoursMinutes', 'あと%1$lld時間%2$lld分で出発します', 'Departing in %1$lld hours %2$lld minutes', '%1$lld小时%2$lld分钟后出发', ['Int', 'Int']),
+    ('result.a11yMinutes', 'あと%lld分で出発します',
+     {'one': 'Departing in %lld minute', 'other': 'Departing in %lld minutes'},
+     '%lld分钟后出发', ['Int']),
+    ('result.a11yHours', 'あと%lld時間で出発します',
+     {'one': 'Departing in %lld hour', 'other': 'Departing in %lld hours'},
+     '%lld小时后出发', ['Int']),
+    ('result.a11yHoursMinutes', 'あと%1$lld時間%2$lld分で出発します',
+     {'format': 'Departing in %1$@ %2$@',
+      'units': [('%lld hour', '%lld hours'), ('%lld minute', '%lld minutes')]},
+     '%1$lld小时%2$lld分钟后出发', ['Int', 'Int']),
     ('result.a11yScheduledDeparture', '%1$@、%2$@発です', '%1$@, departing at %2$@', '%1$@，%2$@出发', ['String', 'String']),
     ('result.a11yTimeRow', '%1$@発、%2$@着', 'Departs %1$@, arrives %2$@', '%1$@出发，%2$@到达', ['String', 'String']),
     ('result.notifyScheduled', '通知を設定済み', 'Alert set', '已设置提醒', []),
@@ -99,8 +132,13 @@ ENTRIES = [
     ('search.criteriaInitial', '検索条件: まだ検索されていません', 'Search: not run yet', '搜索条件：尚未搜索', []),
     ('search.resultInitial', '出発地・目的地と時刻を選んでください', 'Choose the stops and the time', '请选择站点和时间', []),
     ('search.noResults', '条件に合う便がありません。時刻または目的地を変更してください', 'No services match. Change the time or the destination.', '没有符合条件的班次。请更改时间或目的地。', []),
-    ('search.resultCountSuspended', '%lld便見つかりました。運休日のため平日ダイヤの時刻です', 'Found %lld services. There is no service today, so these are weekday times.', '找到%lld个班次。今日停运，显示的是工作日时刻。', ['Int']),
-    ('search.resultCount', '%1$lld便見つかりました。%2$@', 'Found %1$lld services. %2$@', '找到%1$lld个班次。%2$@', ['Int', 'String']),
+    ('search.resultCountSuspended', '%lld便見つかりました。運休日のため平日ダイヤの時刻です',
+     {'one': 'Found %lld service. There is no service today, so these are weekday times.',
+      'other': 'Found %lld services. There is no service today, so these are weekday times.'},
+     '找到%lld个班次。今日停运，显示的是工作日时刻。', ['Int']),
+    ('search.resultCount', '%1$lld便見つかりました。%2$@',
+     {'one': 'Found %1$lld service. %2$@', 'other': 'Found %1$lld services. %2$@'},
+     '找到%1$lld个班次。%2$@', ['Int', 'String']),
     ('search.criteriaArrival', '%1$@ → %2$@｜%3$@までに到着', '%1$@ → %2$@ | arriving by %3$@', '%1$@ → %2$@｜%3$@前到达', ['String', 'String', 'String']),
     ('search.criteriaDeparture', '%1$@ → %2$@｜%3$@以降に出発', '%1$@ → %2$@ | departing after %3$@', '%1$@ → %2$@｜%3$@后出发', ['String', 'String', 'String']),
     ('search.timetableLoadFailed', '選択された路線の時刻表を読み込めませんでした。', 'Could not load the timetable for the selected route.', '无法加载所选路线的时刻表。', []),
@@ -159,7 +197,9 @@ ENTRIES = [
     # ---- 通知 ----
     ('notify.busDescription', '%1$@発｜%2$@', '%1$@ dep. | %2$@', '%1$@出发｜%2$@', ['String', 'String']),
     ('notify.minutesBefore', '%1$lld分前（%2$@）', '%1$lld min before (%2$@)', '提前%1$lld分钟（%2$@）', ['Int', 'String']),
-    ('notify.dateFormat', 'M月d日(E) H:mm', 'MMM d (E) H:mm', 'M月d日(E) H:mm', []),
+    # 日付と時刻の「並べる要素」だけを決めます。実際の並び順・区切り・
+    # 12時間制か24時間制かは、端末の設定にあわせてiOSが決めます。
+    ('notify.dateFormat', 'MdEjmm', 'MMMdEjmm', 'MdEjmm', []),
 
     # ---- 通知の管理画面 ----
     ('manage.title', '設定した通知', 'Scheduled alerts', '已设置的提醒', []),
@@ -202,7 +242,9 @@ ENTRIES = [
     ('timetable.serviceNoticeTitle', '本日の運行', "Today's service", '今日运行', []),
     ('timetable.emptyTitle', '時刻表がありません', 'No timetable', '没有时刻表', []),
     ('timetable.emptyMessage', 'ホームタブで出発地と目的地を選び直してください', 'Choose the stops again on the Home tab', '请在首页标签页重新选择出发地和目的地', []),
-    ('timetable.serviceCount', '%lld便', '%lld services', '%lld个班次', ['Int']),
+    ('timetable.serviceCount', '%lld便',
+     {'one': '%lld service', 'other': '%lld services'},
+     '%lld个班次', ['Int']),
     ('timetable.routeHint', '経路を変えるときは、ホームタブで出発地と目的地を選んでください', 'To change the route, choose the stops on the Home tab', '要更改路线，请在首页标签页选择出发地和目的地', []),
     ('timetable.notificationHintTitle', '時刻をタップすると通知できます', 'Tap a time to set an alert', '轻点时刻即可设置提醒', []),
     ('timetable.notificationHintBody', '選んだ便が出発する前にお知らせします。設定した時刻は色が変わります。', 'You will be alerted before the service departs. Times with an alert change colour.', '将在所选班次出发前通知您。已设置的时刻会变色。', []),
@@ -218,7 +260,15 @@ ENTRIES = [
     ('settings.appearanceSection', '画面の色', 'Appearance', '界面颜色', []),
     ('settings.appearanceTitle', '時刻に合わせて変わります', 'Changes with the time of day', '随时间变化', []),
     ('settings.appearanceDescription', '朝は明るい空、夕方は夕焼け、夜は星空へと背景がゆっくり変化します。太陽と月の位置も現在時刻に合わせて動きます。', 'The background shifts slowly from a bright morning sky to sunset and then a starry night. The sun and moon move with the current time too.', '背景会从明亮的清晨天空缓缓变为晚霞，再变为星空。太阳和月亮的位置也随当前时间移动。', []),
+    ('settings.appearanceMode', '表示モード', 'Display mode', '显示模式', []),
+    ('settings.appearanceAutomatic', '時刻に合わせる', 'Follow time of day', '跟随时间', []),
+    ('settings.appearanceSystem', 'システム設定', 'System setting', '系统设置', []),
+    ('settings.appearanceLight', 'ライト', 'Light', '浅色', []),
+    ('settings.appearanceDark', 'ダーク', 'Dark', '深色', []),
     ('settings.weatherNotice', '海浜幕張駅の周辺で雨が降っているときは、背景にも雨が降ります。天気の情報は Open-Meteo から取得しています。', 'When it is raining near 海浜幕張駅, rain appears in the background too. Weather data comes from Open-Meteo.', '当海浜幕張駅附近下雨时，背景中也会下雨。天气信息来自 Open-Meteo。', []),
+    ('settings.weatherUpdated', '天気は%@に更新しました', 'Weather updated at %@', '天气已于%@更新', ['String']),
+    ('settings.weatherCached', '現在は更新できないため、%@に取得した天気を表示しています。', 'Unable to refresh. Showing weather retrieved at %@.', '目前无法更新，正在显示%@获取的天气。', ['String']),
+    ('settings.weatherUnavailable', '天気を取得できません。通信状態を確認すると自動で再試行します。', 'Weather is unavailable. The app will retry automatically when the connection improves.', '无法获取天气。网络恢复后应用会自动重试。', []),
     ('settings.previewMorning', '朝', 'Morning', '早晨', []),
     ('settings.previewNoon', '昼', 'Midday', '白天', []),
     ('settings.previewEvening', '夕', 'Evening', '傍晚', []),
@@ -271,6 +321,11 @@ ENTRIES = [
     # ---- ウィジェット ----
     ('widget.untilDeparture', '出発まで', 'Until departure', '距出发', []),
     ('widget.departedShort', '出発済', 'Departed', '已出发', []),
+    ('widget.displayName', '次のバス', 'Next Bus', '下一班车', []),
+    ('widget.description', '次とその次のバスを表示します', 'Shows the next two departures', '显示接下来两班车', []),
+    ('widget.nextLabel', '次', 'Next', '下一班', []),
+    ('widget.followingLabel', 'その次', 'Then', '再下一班', []),
+    ('widget.noService', '便が見つかりません', 'No departures found', '未找到班次', []),
 
     # ---- バスの備考 ----
     ('busNote.shopping', 'お買い物便', 'Shopping service', '购物班次', []),

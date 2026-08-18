@@ -46,12 +46,31 @@ struct BusTimeAppTests {
         #expect(coordinator.state == .dashboard)
         coordinator.send(.showTutorial)
         #expect(coordinator.state == .tutorial)
-        coordinator.send(.dismiss)
+        coordinator.send(.tutorialCompleted)
         #expect(coordinator.state == .dashboard)
+        #expect(defaults.bool(forKey: "hasSeenTutorial"))
         coordinator.send(.showNotifications)
         #expect(coordinator.state == .notifications)
         coordinator.send(.dismiss)
         #expect(coordinator.state == .dashboard)
+    }
+
+    @Test @MainActor
+    func tutorialIsOnlyMarkedSeenAfterCompletion() {
+        let defaults = makeIsolatedDefaults()
+        let first = AppCoordinator(defaults: defaults)
+        first.send(.launch)
+        #expect(first.state == .tutorial)
+        first.send(.dismiss)
+
+        let reopened = AppCoordinator(defaults: defaults)
+        reopened.send(.launch)
+        #expect(reopened.state == .tutorial)
+        reopened.send(.tutorialCompleted)
+
+        let completed = AppCoordinator(defaults: defaults)
+        completed.send(.launch)
+        #expect(completed.state == .dashboard)
     }
 
     @Test
@@ -60,14 +79,14 @@ struct BusTimeAppTests {
         calendar.timeZone = TimeZone(identifier: "Asia/Tokyo")!
 
         let beforeBoundary = calendar.date(
-            from: DateComponents(year: 2026, month: 8, day: 11, hour: 3, minute: 0)
+            from: DateComponents(year: 2026, month: 8, day: 13, hour: 3, minute: 0)
         )!
         let currentServiceDay = BusNotificationTimeCalculator.departureDateForCurrentServiceDay(
             for: "0:04",
             from: beforeBoundary,
             calendar: calendar
         )!
-        #expect(calendar.component(.day, from: currentServiceDay) == 11)
+        #expect(calendar.component(.day, from: currentServiceDay) == 13)
         #expect(calendar.component(.hour, from: currentServiceDay) == 0)
         #expect(calendar.component(.minute, from: currentServiceDay) == 4)
 
@@ -76,17 +95,17 @@ struct BusTimeAppTests {
             from: beforeBoundary,
             calendar: calendar
         )!
-        #expect(calendar.component(.day, from: nextDeparture) == 12)
+        #expect(calendar.component(.day, from: nextDeparture) == 14)
 
         let afterBoundary = calendar.date(
-            from: DateComponents(year: 2026, month: 8, day: 11, hour: 5, minute: 0)
+            from: DateComponents(year: 2026, month: 8, day: 13, hour: 5, minute: 0)
         )!
         let nextServiceDay = BusNotificationTimeCalculator.nextDepartureDate(
             for: "0:04",
             from: afterBoundary,
             calendar: calendar
         )!
-        #expect(calendar.component(.day, from: nextServiceDay) == 12)
+        #expect(calendar.component(.day, from: nextServiceDay) == 14)
         #expect(calendar.component(.hour, from: nextServiceDay) == 0)
     }
 
@@ -95,7 +114,7 @@ struct BusTimeAppTests {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = TimeZone(identifier: "Asia/Tokyo")!
         let now = calendar.date(
-            from: DateComponents(year: 2026, month: 8, day: 11, hour: 7, minute: 55)
+            from: DateComponents(year: 2026, month: 8, day: 12, hour: 7, minute: 55)
         )!
 
         let schedule = BusNotificationTimeCalculator.notificationDate(
@@ -105,6 +124,40 @@ struct BusTimeAppTests {
             calendar: calendar
         )
         #expect(schedule == nil)
+    }
+
+    @Test @MainActor
+    func legacyNotificationStorageMigratesToVersionedEnvelope() throws {
+        let defaults = makeIsolatedDefaults()
+        let item = makeFutureScheduledNotification()
+        defaults.set(
+            try JSONEncoder().encode([item]),
+            forKey: "scheduledBusNotifications"
+        )
+
+        let viewModel = NotificationViewModel(defaults: defaults)
+        #expect(viewModel.scheduledNotifications == [item])
+
+        let migratedData = try #require(
+            defaults.data(forKey: "scheduledBusNotifications")
+        )
+        let migrated = try JSONDecoder().decode(
+            StoredNotificationsEnvelope.self,
+            from: migratedData
+        )
+        #expect(migrated.version == 1)
+        #expect(migrated.notifications == [item])
+    }
+
+    @Test @MainActor
+    func corruptNotificationStorageIsNotOverwritten() {
+        let defaults = makeIsolatedDefaults()
+        let corruptData = Data("not-json".utf8)
+        defaults.set(corruptData, forKey: "scheduledBusNotifications")
+
+        let viewModel = NotificationViewModel(defaults: defaults)
+        #expect(viewModel.scheduledNotifications.isEmpty)
+        #expect(defaults.data(forKey: "scheduledBusNotifications") == corruptData)
     }
 
     @Test
@@ -226,6 +279,28 @@ struct BusTimeAppTests {
         #expect(SkyCardOpacity.coverage(for: 0.5, isDense: true) == 0.75)
         // 上限を超えては濃くなりません。
         #expect(SkyCardOpacity.coverage(for: 1, isDense: true) == 1)
+    }
+
+    @Test
+    func showButtonShapesStrengthensTheOutline() {
+        // 「ボタンの形」がオンのときは、押せる範囲がはっきり分かるよう輪郭を濃くします。
+        let normal = SkyButtonOutline.opacity(showButtonShapes: false)
+        let emphasized = SkyButtonOutline.opacity(showButtonShapes: true)
+
+        #expect(emphasized > normal)
+        // ふだんは風景を邪魔しない薄さに保ちます。
+        #expect(normal < 0.3)
+    }
+
+    @Test
+    func reduceTransparencyHidesTheSceneBehindCards() {
+        // 「透明度を下げる」がオンのときは、濃さの設定にかかわらず地を敷き切ります。
+        // 背景の風景が透けること自体が、この設定で避けたいことだからです。
+        #expect(SkyCardOpacity.coverage(for: 0, isDense: false, reduceTransparency: true) == 1)
+        #expect(SkyCardOpacity.coverage(for: 0.5, isDense: false, reduceTransparency: true) == 1)
+
+        // オフのときは、これまでどおり設定の濃さに従います。
+        #expect(SkyCardOpacity.coverage(for: 0, isDense: false, reduceTransparency: false) == 0)
     }
 
     @Test @MainActor
@@ -363,6 +438,7 @@ struct BusTimeAppTests {
         let viewModel = WeatherViewModel(
             service: stub,
             nowProvider: { now },
+            defaults: makeIsolatedDefaults(),
             startsAutomaticRefresh: false
         )
 
@@ -385,7 +461,11 @@ struct BusTimeAppTests {
     @Test @MainActor
     func weatherKeepsLastValueWhenFetchFails() async {
         let stub = StubWeatherService()
-        let viewModel = WeatherViewModel(service: stub, startsAutomaticRefresh: false)
+        let viewModel = WeatherViewModel(
+            service: stub,
+            defaults: makeIsolatedDefaults(),
+            startsAutomaticRefresh: false
+        )
 
         stub.result = .success(.rain(.moderate))
         await viewModel.refresh()
@@ -397,6 +477,113 @@ struct BusTimeAppTests {
         await viewModel.refresh()
         #expect(viewModel.weather == .rain(.moderate))
         #expect(viewModel.hasFailedRecently == true)
+    }
+
+    @Test @MainActor
+    func weatherRestoresTheLastSuccessfulValueFromCache() async {
+        let defaults = makeIsolatedDefaults()
+        let firstService = StubWeatherService()
+        firstService.result = .success(.snow(.moderate))
+        let first = WeatherViewModel(
+            service: firstService,
+            defaults: defaults,
+            startsAutomaticRefresh: false
+        )
+        await first.refresh()
+
+        let restored = WeatherViewModel(
+            service: StubWeatherService(),
+            defaults: defaults,
+            startsAutomaticRefresh: false
+        )
+        #expect(restored.weather == .snow(.moderate))
+        #expect(restored.lastSuccessfulUpdate != nil)
+    }
+
+    @Test @MainActor
+    func weatherRejectsCacheWithAFutureTimestamp() async {
+        let defaults = makeIsolatedDefaults()
+        let service = StubWeatherService()
+        service.result = .success(.rain(.heavy))
+        let future = Date(timeIntervalSince1970: 20_000)
+        let first = WeatherViewModel(
+            service: service,
+            nowProvider: { future },
+            defaults: defaults,
+            startsAutomaticRefresh: false
+        )
+        await first.refresh()
+
+        let restored = WeatherViewModel(
+            service: StubWeatherService(),
+            nowProvider: { Date(timeIntervalSince1970: 10_000) },
+            defaults: defaults,
+            startsAutomaticRefresh: false
+        )
+        #expect(restored.weather == .clear)
+        #expect(restored.lastSuccessfulUpdate == nil)
+    }
+
+    @Test @MainActor
+    func weatherFailureUsesExponentialBackoff() async {
+        var now = Date(timeIntervalSince1970: 10_000)
+        let stub = StubWeatherService()
+        stub.result = .failure(WeatherServiceError.requestFailed)
+        let viewModel = WeatherViewModel(
+            service: stub,
+            nowProvider: { now },
+            defaults: makeIsolatedDefaults(),
+            startsAutomaticRefresh: false
+        )
+
+        await viewModel.refreshIfNeeded()
+        #expect(stub.callCount == 1)
+        now = now.addingTimeInterval(30)
+        await viewModel.refreshIfNeeded()
+        #expect(stub.callCount == 1)
+        now = now.addingTimeInterval(30)
+        await viewModel.refreshIfNeeded()
+        #expect(stub.callCount == 2)
+        now = now.addingTimeInterval(60)
+        await viewModel.refreshIfNeeded()
+        #expect(stub.callCount == 2)
+        now = now.addingTimeInterval(60)
+        await viewModel.refreshIfNeeded()
+        #expect(stub.callCount == 3)
+    }
+
+    @Test @MainActor
+    func appearancePreferencePersists() {
+        let defaults = makeIsolatedDefaults()
+        let first = SettingsViewModel(
+            defaults: defaults,
+            liveActivityAvailability: { false }
+        )
+        first.setAppearancePreference(.dark)
+
+        let restored = SettingsViewModel(
+            defaults: defaults,
+            liveActivityAvailability: { false }
+        )
+        #expect(restored.appearancePreference == .dark)
+        #expect(restored.preferredColorScheme(for: SkyPalette.at(hour: 12)) == .dark)
+    }
+
+    @Test @MainActor
+    func homeSearchPreferencesRestoreAcrossLaunches() {
+        let defaults = makeIsolatedDefaults()
+        let now = makeTestDate(hour: 8)
+        let futureSearchTime = makeTestDate(hour: 12)
+        let first = HomeViewModel(nowProvider: { now }, defaults: defaults)
+        first.serviceDay = .otherWeekday
+        first.searchType = .arrival
+        first.searchTime = futureSearchTime
+        first.persistSearchPreferences()
+
+        let restored = HomeViewModel(nowProvider: { now }, defaults: defaults)
+        #expect(restored.serviceDay == .otherWeekday)
+        #expect(restored.searchType == .arrival)
+        #expect(restored.searchTime == futureSearchTime)
     }
 
     @Test
@@ -806,11 +993,27 @@ struct BusTimeAppTests {
         calendar.timeZone = TimeZone(identifier: "Asia/Tokyo")!
         let weekday = calendar.date(from: DateComponents(year: 2026, month: 8, day: 12))!
         let saturday = calendar.date(from: DateComponents(year: 2026, month: 8, day: 15))!
-        let holiday = calendar.date(from: DateComponents(year: 2025, month: 11, day: 3))!
+        let holiday = calendar.date(from: DateComponents(year: 2026, month: 9, day: 22))!
+        let substituteHoliday = calendar.date(from: DateComponents(year: 2027, month: 3, day: 22))!
 
         #expect(BusServiceCalendar.isServiceDay(weekday, calendar: calendar))
         #expect(!BusServiceCalendar.isServiceDay(saturday, calendar: calendar))
         #expect(!BusServiceCalendar.isServiceDay(holiday, calendar: calendar))
+        #expect(!BusServiceCalendar.isServiceDay(substituteHoliday, calendar: calendar))
+    }
+
+    @Test
+    func holidayDataHasAForwardLookingValidityWindow() {
+        #expect(BusServiceCalendar.daysUntilHolidayDataExpires(from: Date()) > 90)
+    }
+
+    @Test
+    func defaultServiceCalendarUsesJapanTime() {
+        var utc = Calendar(identifier: .gregorian)
+        utc.timeZone = TimeZone(secondsFromGMT: 0)!
+        // UTCでは8月10日ですが、日本では山の日の8月11日です。
+        let date = utc.date(from: DateComponents(year: 2026, month: 8, day: 10, hour: 16))!
+        #expect(!BusServiceCalendar.isServiceDay(date))
     }
 
     @Test
@@ -882,6 +1085,70 @@ struct BusTimeAppTests {
         )
     }
 
+    @Test
+    func accentTextStaysReadableAtEveryHourAndSeason() {
+        var worstRatio = Double.infinity
+        var worstReadableRatio = Double.infinity
+        let coverage = SkyCardOpacity.coverage(for: SkyCardOpacity.standard, isDense: false)
+        for season in Season.allCases {
+            for step in 0..<(24 * 4) {
+                let palette = SkyPalette.at(hour: Double(step) / 4, season: season)
+                let ratio = contrastRatio(
+                    components(of: palette.accentInk),
+                    components(of: palette.accent)
+                )
+                worstRatio = min(worstRatio, ratio)
+
+                let background = components(of: palette.skyBottom)
+                let onSurface = blend(components(of: palette.surface), over: background)
+                let card = blend(
+                    components(of: palette.surfaceOpaque, alpha: coverage),
+                    over: onSurface
+                )
+                worstReadableRatio = min(
+                    worstReadableRatio,
+                    contrastRatio(components(of: palette.accentReadable), card)
+                )
+            }
+        }
+        #expect(worstRatio >= 4.5, "強調色上の文字コントラスト比が\(worstRatio)でした")
+        #expect(
+            worstReadableRatio >= 4.5,
+            "カード上の強調文字コントラスト比が\(worstReadableRatio)でした"
+        )
+    }
+
+    @Test
+    func semanticStatusColorsStayDistinguishableOnCards() {
+        var worstWarningRatio = Double.infinity
+        var worstPositiveRatio = Double.infinity
+        let coverage = SkyCardOpacity.coverage(for: SkyCardOpacity.standard, isDense: false)
+
+        for season in Season.allCases {
+            for step in 0..<(24 * 4) {
+                let palette = SkyPalette.at(hour: Double(step) / 4, season: season)
+                let background = components(of: palette.skyBottom)
+                let onSurface = blend(components(of: palette.surface), over: background)
+                let card = blend(
+                    components(of: palette.surfaceOpaque, alpha: coverage),
+                    over: onSurface
+                )
+                worstWarningRatio = min(
+                    worstWarningRatio,
+                    contrastRatio(components(of: palette.warning), card)
+                )
+                worstPositiveRatio = min(
+                    worstPositiveRatio,
+                    contrastRatio(components(of: palette.positive), card)
+                )
+            }
+        }
+
+        // 状態色は必ず形や文言と併用します。非テキスト要素に必要な3:1を全配色で守ります。
+        #expect(worstWarningRatio >= 3, "注意色のコントラスト比が\(worstWarningRatio)でした")
+        #expect(worstPositiveRatio >= 3, "状態色のコントラスト比が\(worstPositiveRatio)でした")
+    }
+
     // MARK: - 季節
 
     @Test
@@ -918,47 +1185,88 @@ struct BusTimeAppTests {
         }
     }
 
+    // MARK: - ショートカット（Siri）
+
     @Test
-    func paletteCarriesTheSeasonForSeasonalScenery() {
-        // 星座は季節ごとに変わるため、配色から季節を取り出せる必要があります。
-        #expect(SkyPalette.at(hour: 12, season: .autumn).season == .autumn)
+    func shortcutAnswerNamesTheRouteAndTheNextDeparture() {
+        // 声で聞く人には画面がないので、経路と時刻が1文に入っている必要があります。
+        let answer = NextBusAnswer.text(at: makeTestDate(hour: 10))
+
+        #expect(!answer.isEmpty)
+        // 経路名（出発地と目的地）が入っています。
+        #expect(answer.contains("コロンブスシティ") || answer.contains("海浜幕張駅"))
+        // 時刻が入っています。
+        #expect(answer.contains(":"))
+        // 便が見つからないときの文ではありません。
+        #expect(answer != L10n.Shortcut.noService)
     }
 
-    // MARK: - 星座
+    // MARK: - ウィジェットのタップ先
 
     @Test
-    func everySeasonHasItsOwnConstellation() {
-        // どの季節に開いても、その季節の星座が1つは見えるようにします。
-        for season in Season.allCases {
-            let matched = SkyCanvas.constellations.filter { $0.season == season }
-            #expect(matched.count >= 1)
+    func widgetLinkCarriesTheRouteBothWays() {
+        // ウィジェットのタップでアプリを開いたとき、見ていた経路が伝わる必要があります。
+        for route in BusRoute.allCases {
+            let link = SharedAppData.routeLink(for: route)
+            #expect(link != nil)
+            #expect(SharedAppData.route(from: link!) == route)
         }
     }
 
     @Test
-    func constellationsStayInsideTheStarField() {
-        // 星座が画面からはみ出したり、文字の並ぶ下半分に降りてこないことを確かめます。
-        // 星の位置は縦横とも画面の幅を基準に置くので、縦の割合は画面比で換算します。
-        let aspectRatio = 2622.0 / 1206.0
-
-        for constellation in SkyCanvas.constellations {
-            for star in constellation.stars {
-                #expect(star.x >= 0 && star.x <= 1)
-                #expect(star.y >= 0 && star.y <= 1)
-
-                let x = constellation.origin.x + star.x * constellation.scale
-                let y = constellation.origin.y + star.y * constellation.scale / aspectRatio
-                #expect(x >= 0 && x <= 1)
-                #expect(y >= 0.03 && y <= 0.45)
-            }
-
-            // 結ぶ相手が実在する星であることを確かめます。
-            for link in constellation.links {
-                #expect(constellation.stars.indices.contains(link.0))
-                #expect(constellation.stars.indices.contains(link.1))
-            }
-        }
+    func widgetLinkIgnoresOtherURLs() {
+        // 別のアプリ宛のURLや、経路の名前が違うURLは受け取りません。
+        #expect(SharedAppData.route(from: URL(string: "https://example.com/route/mansion-station")!) == nil)
+        #expect(SharedAppData.route(from: URL(string: "bustimeapp://settings/mansion-station")!) == nil)
+        #expect(SharedAppData.route(from: URL(string: "bustimeapp://route/unknown-stop")!) == nil)
     }
+
+    @Test @MainActor
+    func openingFromTheWidgetSwitchesTheRoute() {
+        let viewModel = HomeViewModel(
+            nowProvider: { makeTestDate(hour: 10) },
+            defaults: makeIsolatedDefaults()
+        )
+
+        viewModel.selectRouteFromWidget(.yokadoToMansion)
+
+        #expect(viewModel.selectedRoute == .yokadoToMansion)
+        #expect(viewModel.selectedOrigin == .yokado)
+        #expect(viewModel.selectedDestination == .mansion)
+        // 自分で選んだのと同じ扱いなので、決め方は手動になります。
+        #expect(viewModel.routeDecision == .manual)
+    }
+
+    // MARK: - 日時の表し方
+
+    @Test
+    func notificationDateFollowsTheDeviceLanguage() {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "Asia/Tokyo")!
+        let date = calendar.date(
+            from: DateComponents(year: 2026, month: 8, day: 17, hour: 18, minute: 30)
+        )!
+
+        let japanese = BusNotificationTimeCalculator.displayString(
+            date,
+            locale: Locale(identifier: "ja_JP")
+        )
+        let english = BusNotificationTimeCalculator.displayString(
+            date,
+            locale: Locale(identifier: "en_US")
+        )
+
+        // 言語ごとに書式が変わることを確かめます。
+        // 日本語に固定していたころは、どの言語でも同じ文字列になっていました。
+        #expect(japanese != english)
+        // 日本語は「8月17日」のように月日を漢字で区切ります。
+        #expect(japanese.contains("月"))
+        // アメリカ英語は12時間制なので、午後を表す語が付きます。
+        #expect(english.contains("PM"))
+        // 日本語は24時間制なので、午後を表す語は付きません。
+        #expect(!japanese.contains("PM"))
+    }
+
     // MARK: - 月の満ち欠け
 
     @Test
@@ -1135,6 +1443,27 @@ struct BusTimeAppTests {
 
 }
 
+private struct StoredNotificationsEnvelope: Codable {
+    let version: Int
+    let notifications: [ScheduledBusNotification]
+}
+
+private func makeFutureScheduledNotification() -> ScheduledBusNotification {
+    let departureDate = Date().addingTimeInterval(24 * 60 * 60)
+    return ScheduledBusNotification(
+        id: "bus_notification_test",
+        busID: "test",
+        originName: "海浜幕張駅",
+        destinationName: "コロンブスシティ",
+        stopSummary: nil,
+        departure: "12:00",
+        routeName: "test-route",
+        departureDate: departureDate,
+        notificationDate: departureDate.addingTimeInterval(-5 * 60),
+        minutesBefore: 5
+    )
+}
+
 /// テストごとに独立した保存領域を用意します。
 /// 経路の好みを保存する処理があるため、テスト同士が干渉しないようにします。
 private func makeIsolatedDefaults() -> UserDefaults {
@@ -1156,9 +1485,11 @@ private func makeTestDate(day: Int = 12, hour: Int, minute: Int = 0) -> Date {
 /// 天気の取得結果を差し替えるためのテスト用スタブです。
 private final class StubWeatherService: WeatherFetching, @unchecked Sendable {
     var result: Result<SkyWeather, Error> = .success(.clear)
+    private(set) var callCount = 0
 
     func fetchCurrentWeather() async throws -> SkyWeather {
-        try result.get()
+        callCount += 1
+        return try result.get()
     }
 }
 

@@ -95,7 +95,7 @@ struct BusTimeWidgetLiveActivity: Widget {
                         .lineLimit(1)
                         .minimumScaleFactor(0.7)
                 } else {
-                    Text("--")
+                    Text(verbatim: "--")
                 }
             } minimal: {
                 Image(systemName: "bus.fill")

@@ -38,10 +38,9 @@ struct NotificationOptionsView: View {
         ToolbarItem(placement: .navigationBarTrailing) {
           Button(L10n.Common.close) { dismiss() }
             .fontWeight(.bold)
-            .foregroundStyle(sky.accent)
+            .foregroundStyle(sky.accentReadable)
         }
       }
-      .preferredColorScheme(sky.isNight ? .dark : .light)
     }
   }
 
@@ -93,7 +92,7 @@ struct NotificationOptionsView: View {
       if let scheduledNotification {
         Text(L10n.Options.currentSetting(scheduledNotification.notificationDescription))
           .dynamicFont(size: 13, relativeTo: .footnote, weight: .bold)
-          .foregroundStyle(sky.accent)
+          .foregroundStyle(sky.accentReadable)
           .fixedSize(horizontal: false, vertical: true)
         Text(L10n.Options.onlyOnePerBus)
           .dynamicFont(size: 11, relativeTo: .caption2, weight: .medium)
@@ -114,7 +113,7 @@ struct NotificationOptionsView: View {
           )
           Button(L10n.Options.allowInSettings, action: onOpenNotificationSettings)
             .dynamicFont(size: 13, relativeTo: .footnote, weight: .bold, design: .rounded)
-            .foregroundStyle(sky.accent)
+            .foregroundStyle(sky.accentReadable)
             .frame(minHeight: SkyMetrics.minimumTapSize, alignment: .leading)
         }
       }
@@ -129,7 +128,7 @@ struct NotificationOptionsView: View {
     let schedule = BusNotificationTimeCalculator.notificationDate(
       for: bus.departure,
       minutesBefore: minutes,
-      from: Date()
+      from: AppDate.now()
     )
 
     return Button {
@@ -138,7 +137,7 @@ struct NotificationOptionsView: View {
       DynamicTypeStack(spacing: 12) {
         Image(systemName: "bell.badge.fill")
           .dynamicFont(size: 16, relativeTo: .body, weight: .semibold)
-          .foregroundStyle(sky.accent)
+          .foregroundStyle(sky.accentReadable)
 
         VStack(alignment: .leading, spacing: 3) {
           Text(L10n.Options.minutesBefore(minutes))
@@ -199,12 +198,12 @@ struct NotificationOptionsView: View {
     } else if let scheduledNotification {
       Text(L10n.Options.existingAlertKept(scheduledNotification.minutesBefore))
         .dynamicFont(size: 12, relativeTo: .caption, weight: .bold)
-        .foregroundStyle(sky.accent)
+        .foregroundStyle(sky.accentReadable)
         .fixedSize(horizontal: false, vertical: true)
     } else {
       Text(L10n.Options.autoStartDescription)
         .dynamicFont(size: 12, relativeTo: .caption, weight: .medium)
-        .foregroundStyle(sky.accent)
+        .foregroundStyle(sky.accentReadable)
         .fixedSize(horizontal: false, vertical: true)
     }
   }
@@ -215,7 +214,7 @@ struct NotificationOptionsView: View {
       Button(action: onEndLiveActivity) {
         Label(L10n.Options.endThisDisplay, systemImage: "stop.circle.fill")
           .dynamicFont(size: 15, relativeTo: .subheadline, weight: .bold, design: .rounded)
-          .foregroundStyle(sky.warning)
+          .foregroundStyle(sky.ink)
           .frame(maxWidth: .infinity, minHeight: 50)
           .background(
             RoundedRectangle(cornerRadius: 16, style: .continuous)
@@ -232,7 +231,7 @@ struct NotificationOptionsView: View {
           systemImage: "lock.rectangle.on.rectangle"
         )
         .dynamicFont(size: 15, relativeTo: .subheadline, weight: .bold, design: .rounded)
-        .foregroundStyle(Color.white)
+        .foregroundStyle(sky.accentInk)
         .frame(maxWidth: .infinity, minHeight: 50)
         .background(
           RoundedRectangle(cornerRadius: 16, style: .continuous)

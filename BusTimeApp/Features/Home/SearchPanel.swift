@@ -38,6 +38,20 @@ struct RouteHeaderCard: View {
           isWarning: true
         )
       }
+
+      if viewModel.isLocationPermissionDenied {
+        VStack(alignment: .leading, spacing: 6) {
+          SkyNoticeRow(
+            message: L10n.Route.locationPermissionDenied,
+            systemImage: "location.slash.fill",
+            isWarning: true
+          )
+          Button(L10n.Route.openLocationSettings, action: viewModel.openAppSettings)
+            .dynamicFont(size: 12, relativeTo: .caption, weight: .bold, design: .rounded)
+            .foregroundStyle(sky.accentReadable)
+            .frame(minHeight: SkyMetrics.minimumTapSize, alignment: .leading)
+        }
+      }
     }
     .frame(maxWidth: .infinity, alignment: .leading)
     .skyCard(padding: 16)
@@ -144,7 +158,7 @@ struct RouteHeaderCard: View {
       .frame(minHeight: SkyMetrics.minimumTapSize)
     }
     .disabled(options.isEmpty)
-    .accessibilityLabel("\(title)、\(selected.rawValue)")
+    .accessibilityLabel(L10n.Route.stopAccessibility(title, selected.rawValue))
     .accessibilityHint(L10n.Route.menuHint)
   }
 
@@ -163,7 +177,11 @@ struct RouteHeaderCard: View {
   }
 
   private var swapButton: some View {
-    Button(action: viewModel.swapEndpoints) {
+    Button {
+      // 向きが入れ替わったことが一瞬で終わるので、手応えを添えます。
+      SkyHaptics.tap()
+      viewModel.swapEndpoints()
+    } label: {
       Image(systemName: "arrow.left.arrow.right")
         .dynamicFont(size: 14, relativeTo: .body, weight: .bold)
         .foregroundStyle(viewModel.canSwapEndpoints ? sky.accent : sky.inkFaint)
@@ -186,11 +204,11 @@ struct RouteHeaderCard: View {
       HStack(spacing: 6) {
         Image(systemName: viewModel.routeDecision.systemName)
           .font(.caption2.weight(.bold))
-          .foregroundStyle(sky.inkSecondary)
+          .foregroundStyle(sky.ink)
 
         Text(viewModel.routeDecision.explanation)
-          .dynamicFont(size: 12, relativeTo: .caption, weight: .medium)
-          .foregroundStyle(sky.inkSecondary)
+          .dynamicFont(size: 12, relativeTo: .caption, weight: .bold)
+          .foregroundStyle(sky.ink)
           .fixedSize(horizontal: false, vertical: true)
       }
       .frame(maxWidth: .infinity, alignment: .leading)
@@ -199,13 +217,22 @@ struct RouteHeaderCard: View {
         locationButton
       }
     }
+    .padding(.horizontal, 10)
+    .padding(.vertical, 8)
+    .background(
+      RoundedRectangle(cornerRadius: 10, style: .continuous)
+        .fill(sky.surfaceOpaque)
+    )
   }
 
   private var locationButton: some View {
-    Button(action: locationAction) {
+    Button {
+      SkyHaptics.tap()
+      locationAction()
+    } label: {
       Label(L10n.Route.useCurrentLocation, systemImage: "location.fill")
         .dynamicFont(size: 12, relativeTo: .caption, weight: .bold, design: .rounded)
-        .foregroundStyle(sky.accent)
+        .foregroundStyle(sky.accentReadable)
         .padding(.horizontal, 12)
         .frame(minHeight: SkyMetrics.minimumTapSize)
         .background(
@@ -226,6 +253,7 @@ struct RouteHeaderCard: View {
 struct ServiceDayTimeCard: View {
   @Environment(\.sky) private var sky
   @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+  @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
   @ObservedObject var viewModel: HomeViewModel
 
@@ -245,13 +273,13 @@ struct ServiceDayTimeCard: View {
   /// 運行日の選択です。平日ダイヤが1本しかないため、
   /// 日付そのものではなく運行日の単位で選びます。
   private var serviceDayChips: some View {
-    HStack(spacing: 8) {
+    DynamicTypeStack(spacing: 8) {
       ForEach(HomeViewModel.ServiceDay.allCases) { day in
         SkyChip(
           title: day.displayName,
           isSelected: viewModel.serviceDay == day
         ) {
-          withAnimation(.easeOut(duration: 0.2)) {
+          withAnimation(reduceMotion ? nil : .easeOut(duration: 0.2)) {
             viewModel.serviceDay = day
           }
         }
@@ -260,12 +288,12 @@ struct ServiceDayTimeCard: View {
   }
 
   private var searchTypeChips: some View {
-    HStack(spacing: 8) {
+    DynamicTypeStack(spacing: 8) {
       SkyChip(
         title: HomeViewModel.SearchType.departure.shortTitle,
         isSelected: viewModel.searchType == .departure
       ) {
-        withAnimation(.easeOut(duration: 0.2)) {
+        withAnimation(reduceMotion ? nil : .easeOut(duration: 0.2)) {
           viewModel.searchType = .departure
         }
       }
@@ -273,7 +301,7 @@ struct ServiceDayTimeCard: View {
         title: HomeViewModel.SearchType.arrival.shortTitle,
         isSelected: viewModel.searchType == .arrival
       ) {
-        withAnimation(.easeOut(duration: 0.2)) {
+        withAnimation(reduceMotion ? nil : .easeOut(duration: 0.2)) {
           viewModel.searchType = .arrival
         }
       }
@@ -341,10 +369,25 @@ struct ServiceDayTimeCard: View {
   /// 結果カードはこのすぐ下にありますが、条件を変えた瞬間の手応えを
   /// 同じ場所で返すための行です。
   private var resultSummary: some View {
-    Text(viewModel.searchResultDescription)
-      .dynamicFont(size: 12, relativeTo: .caption, weight: .bold, design: .rounded)
-      .foregroundStyle(viewModel.searchResults.isEmpty ? sky.warning : sky.positive)
-      .fixedSize(horizontal: false, vertical: true)
-      .frame(maxWidth: .infinity, alignment: .leading)
+    HStack(alignment: .firstTextBaseline, spacing: 6) {
+      Image(systemName: viewModel.searchResults.isEmpty ? "exclamationmark.circle.fill" : "checkmark.circle.fill")
+        // 状態はアイコンの形で区別できるため、文字と同じ高コントラスト色を使います。
+        // カード背景が時刻・天候で変わっても説明全体を読みやすく保てます。
+        .foregroundStyle(sky.ink)
+        .accessibilityHidden(true)
+      Text(viewModel.searchResultDescription)
+        .dynamicFont(size: 12, relativeTo: .caption, weight: .bold, design: .rounded)
+        .foregroundStyle(sky.ink)
+        .fixedSize(horizontal: false, vertical: true)
+    }
+    .padding(.horizontal, 10)
+    .padding(.vertical, 8)
+    .frame(maxWidth: .infinity, alignment: .leading)
+    // 背景アニメーションの明暗が文字の直下へ透けないようにし、
+    // どの時刻・天候でも検索結果の説明を同じコントラストで表示します。
+    .background(
+      RoundedRectangle(cornerRadius: 10, style: .continuous)
+        .fill(sky.surfaceOpaque)
+    )
   }
 }

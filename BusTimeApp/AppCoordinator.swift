@@ -6,6 +6,7 @@ import Combine
 enum AppEvent {
     case launch
     case showTutorial
+    case tutorialCompleted
     case showSettings
     case showNotifications
     case selectBus(Bus)
@@ -52,7 +53,6 @@ final class AppCoordinator: ObservableObject {
             hasStarted = true
 
             if !defaults.bool(forKey: "hasSeenTutorial") {
-                defaults.set(true, forKey: "hasSeenTutorial")
                 state = .tutorial
             } else {
                 state = .dashboard
@@ -61,6 +61,10 @@ final class AppCoordinator: ObservableObject {
         case .showTutorial:
             guard state == .dashboard else { return }
             state = .tutorial
+
+        case .tutorialCompleted:
+            defaults.set(true, forKey: "hasSeenTutorial")
+            state = .dashboard
 
         case .showSettings:
             guard state == .dashboard else { return }

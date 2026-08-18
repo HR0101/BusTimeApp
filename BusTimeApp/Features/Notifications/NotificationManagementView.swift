@@ -27,10 +27,9 @@ struct NotificationManagementView: View {
         ToolbarItem(placement: .navigationBarTrailing) {
           Button(L10n.Common.close) { dismiss() }
             .fontWeight(.bold)
-            .foregroundStyle(sky.accent)
+            .foregroundStyle(sky.accentReadable)
         }
       }
-      .preferredColorScheme(sky.isNight ? .dark : .light)
     }
   }
 
@@ -58,7 +57,7 @@ struct NotificationManagementView: View {
         if viewModel.permissionStatus == .denied {
           Button(L10n.Manage.openNotificationSettings, action: viewModel.openNotificationSettings)
             .dynamicFont(size: 13, relativeTo: .footnote, weight: .bold, design: .rounded)
-            .foregroundStyle(sky.accent)
+            .foregroundStyle(sky.accentReadable)
             .frame(minHeight: SkyMetrics.minimumTapSize, alignment: .leading)
         }
       }
@@ -80,7 +79,7 @@ struct NotificationManagementView: View {
 
         Button(L10n.Manage.endLiveActivity, action: onEndLiveActivity)
           .dynamicFont(size: 14, relativeTo: .subheadline, weight: .bold, design: .rounded)
-          .foregroundStyle(sky.warning)
+          .foregroundStyle(sky.ink)
           .frame(minHeight: SkyMetrics.minimumTapSize, alignment: .leading)
       } else {
         Text(L10n.Manage.noLiveActivity)
@@ -103,7 +102,7 @@ struct NotificationManagementView: View {
             viewModel.cancelAllNotifications()
           }
           .dynamicFont(size: 12, relativeTo: .caption, weight: .bold, design: .rounded)
-          .foregroundStyle(sky.warning)
+          .foregroundStyle(sky.ink)
         }
       }
 
@@ -124,7 +123,7 @@ struct NotificationManagementView: View {
     DynamicTypeStack(verticalAlignment: .top, spacing: 12) {
       Image(systemName: "bell.badge.fill")
         .dynamicFont(size: 14, relativeTo: .body, weight: .semibold)
-        .foregroundStyle(sky.accent)
+        .foregroundStyle(sky.accentReadable)
 
       VStack(alignment: .leading, spacing: 4) {
         Text(item.busDescription)
@@ -133,7 +132,7 @@ struct NotificationManagementView: View {
           .fixedSize(horizontal: false, vertical: true)
         Text(L10n.Manage.notificationRow(item.notificationDescription))
           .dynamicFont(size: 12, relativeTo: .caption, weight: .bold)
-          .foregroundStyle(sky.accent)
+          .foregroundStyle(sky.accentReadable)
           .fixedSize(horizontal: false, vertical: true)
         Text(item.routeName)
           .dynamicFont(size: 11, relativeTo: .caption2, weight: .medium)
