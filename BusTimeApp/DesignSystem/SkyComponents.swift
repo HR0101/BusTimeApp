@@ -16,6 +16,12 @@ enum SkyMetrics {
   static let minimumTapSize: CGFloat = 44
   /// カード輪郭線の太さです。
   static let borderWidth: CGFloat = 1
+  /// 一覧の下に空ける余白です。
+  ///
+  /// iOS 26のタブバーは中身の上に浮かんで重なります。
+  /// 最後の行がその下に潜り込むと、半透明の帯ごしに読むことになるので、
+  /// 帯をよけられるだけの余白を下に確保します。
+  static let scrollBottomInset: CGFloat = 72
   /// 本文の横幅の上限です。
   ///
   /// iPadのように横に広い画面では、1列のまま画面いっぱいに広げると
@@ -82,15 +88,17 @@ enum SkyButtonOutline {
   }
 }
 
-/// カードの地と輪郭を与える修飾子です。
-private struct SkyCardModifier: ViewModifier {
+/// カードと同じ地を、好きな形で敷く修飾子です。
+///
+/// カードだけでなく、風景の上に直接置くボタンにも同じ地が要ります。
+/// 形が違うだけで濃さの決め方は同じなので、ここにまとめます。
+private struct SkyFillModifier<S: Shape>: ViewModifier {
   @Environment(\.sky) private var sky
   @Environment(\.skyCardOpacity) private var cardOpacity
   /// iPhoneの「透明度を下げる」設定です。
   @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
 
-  let radius: CGFloat
-  let padding: CGFloat
+  let shape: S
   /// 文字や数字が詰まった面かどうかです。
   /// あてはまる場合は、設定された濃さよりさらに濃く塗ります。
   let isDense: Bool
@@ -105,24 +113,35 @@ private struct SkyCardModifier: ViewModifier {
   }
 
   func body(content: Content) -> some View {
+    content.background(
+      ZStack {
+        // 半透明の地です。背景の風景がうっすら残ります。
+        shape.fill(sky.surface)
+
+        // 不透明の地です。濃さに応じて重ね、最大で背景を完全に隠します。
+        shape.fill(sky.surfaceOpaque).opacity(coverage)
+      }
+    )
+  }
+}
+
+/// カードの地と輪郭を与える修飾子です。
+private struct SkyCardModifier: ViewModifier {
+  @Environment(\.sky) private var sky
+
+  let radius: CGFloat
+  let padding: CGFloat
+  let isDense: Bool
+
+  private var shape: RoundedRectangle {
+    RoundedRectangle(cornerRadius: radius, style: .continuous)
+  }
+
+  func body(content: Content) -> some View {
     content
       .padding(padding)
-      .background(
-        ZStack {
-          // 半透明の地です。背景の風景がうっすら残ります。
-          RoundedRectangle(cornerRadius: radius, style: .continuous)
-            .fill(sky.surface)
-
-          // 不透明の地です。濃さに応じて重ね、最大で背景を完全に隠します。
-          RoundedRectangle(cornerRadius: radius, style: .continuous)
-            .fill(sky.surfaceOpaque)
-            .opacity(coverage)
-        }
-      )
-      .overlay(
-        RoundedRectangle(cornerRadius: radius, style: .continuous)
-          .stroke(sky.surfaceBorder, lineWidth: SkyMetrics.borderWidth)
-      )
+      .skyCardFill(shape, isDense: isDense)
+      .overlay(shape.stroke(sky.surfaceBorder, lineWidth: SkyMetrics.borderWidth))
   }
 }
 
@@ -135,6 +154,12 @@ extension View {
     isDense: Bool = false
   ) -> some View {
     modifier(SkyCardModifier(radius: radius, padding: padding, isDense: isDense))
+  }
+
+  /// カードと同じ濃さの地を、指定した形で敷きます。
+  /// 風景の上に直接置く部品を、カードと同じ見え方に揃えるために使います。
+  func skyCardFill<S: Shape>(_ shape: S, isDense: Bool = false) -> some View {
+    modifier(SkyFillModifier(shape: shape, isDense: isDense))
   }
 }
 
@@ -229,6 +254,9 @@ struct SkyIconButton: View {
         .dynamicFont(size: 16, relativeTo: .body, weight: .semibold)
         .foregroundStyle(isHighlighted ? sky.accentInk : sky.ink)
         .scaledTapTarget()
+        // 風景の上に直接置くので、カードと同じ地を敷いて見え方を揃えます。
+        // 地がないと、うしろの風景がそのまま透けて記号が読みにくくなります。
+        .skyCardFill(Circle())
         .background(
           Circle().fill(isHighlighted ? sky.accent : Color.clear)
         )
@@ -263,9 +291,7 @@ struct SkyChip: View {
         .foregroundStyle(isSelected ? sky.accentInk : sky.ink)
         .frame(maxWidth: .infinity)
         .frame(minHeight: SkyMetrics.minimumTapSize)
-        .background(
-          Capsule().fill(isSelected ? sky.accent : Color.clear)
-        )
+        .background(chipBackground)
         .overlay(
           Capsule().stroke(
             isSelected
@@ -277,6 +303,19 @@ struct SkyChip: View {
     }
     .buttonStyle(SkyPressStyle())
     .accessibilityAddTraits(isSelected ? .isSelected : [])
+  }
+
+  /// チップの地です。
+  ///
+  /// 選んでいない側にも地を敷きます。地がないとカードごしに風景が透け、
+  /// うしろの明るさによって文字の読みやすさが変わってしまうためです。
+  @ViewBuilder
+  private var chipBackground: some View {
+    if isSelected {
+      Capsule().fill(sky.accent)
+    } else {
+      Color.clear.skyCardFill(Capsule(), isDense: true)
+    }
   }
 }
 

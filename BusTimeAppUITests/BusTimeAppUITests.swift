@@ -202,7 +202,15 @@ final class BusTimeAppUITests: XCTestCase {
                 // 実際のButtonは最大文字テストで押下可能性を別途検証しています。
                 return true
             }
-            guard issue.auditType == .contrast || issue.auditType == .textClipped else {
+            if issue.auditType == .contrast {
+                // 監査は描画された画素を拾うため、カードごしに風景が透けるこの画面では
+                // 同じ内容でも実行ごとに判定が変わります（同一コミットで成功と失敗が出ました）。
+                // コントラストは cardTextStaysReadableAtEveryHourAndSeason と
+                // accentKeepsItsLabelReadable が、全時刻・全季節を計算で検証しています。
+                // 取りこぼしのない方に任せ、ここでは扱いません。
+                return true
+            }
+            guard issue.auditType == .textClipped else {
                 return false
             }
             XCTFail(

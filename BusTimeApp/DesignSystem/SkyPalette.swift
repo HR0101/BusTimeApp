@@ -257,7 +257,12 @@ struct SkyPalette: Equatable {
   /// 昼の強調色です。
   private static let dayAccent = RGBComponents(red: 0.098, green: 0.361, blue: 0.761)
   /// 夜の強調色です。暗い背景でも沈まないよう、昼より明度を上げます。
-  private static let nightAccent = RGBComponents(red: 0.278, green: 0.502, blue: 0.882)
+  /// 夜の強調色です。
+  ///
+  /// 明るくしすぎると、上に置く白文字とのコントラストが落ちます。
+  /// 昼と夜のちょうど中間で白と黒のどちらを置いても足りなくなるため、
+  /// どの時刻でも白文字が十分に読める明るさに抑えています。
+  private static let nightAccent = RGBComponents(red: 0.216, green: 0.400, blue: 0.780)
   private static let lightAccentInk = RGBComponents(red: 1, green: 1, blue: 1)
   private static let darkAccentInk = RGBComponents(red: 0, green: 0, blue: 0)
   /// 昼の注意色です。
@@ -309,7 +314,10 @@ struct SkyPalette: Equatable {
   /// 夜のカード輪郭の不透明度です。
   private static let nightSurfaceBorderOpacity: Double = 0.16
   /// 副次的な文字の不透明度です。
-  private static let secondaryInkOpacity: Double = 0.90
+  ///
+  /// 薄くすると、カードごしに透ける風景と重なったときにコントラストが落ちます。
+  /// 主な文字とは大きさと太さで差を付けているので、色の濃さは同じにします。
+  private static let secondaryInkOpacity: Double = 1.0
   /// 最も控えめな要素の不透明度です。
   private static let faintInkOpacity: Double = 0.22
   /// 昼の強調色の淡い背景の不透明度です。
