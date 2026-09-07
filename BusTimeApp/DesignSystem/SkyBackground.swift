@@ -937,8 +937,11 @@ struct SkyCanvas: View {
       let slant = Double(row) * windStrength * Self.precipitationSlant
       // 横揺れは粒ごとに位相をずらし、同じ動きに見えないようにします。
       let sway = sin(elapsed * 1.6 + pseudoRandom(index * 11 + 5) * 6.28) * Self.snowSwayCells
-      let x = (Double(column) + sway + slant)
+      var x = (Double(column) + sway + slant)
         .truncatingRemainder(dividingBy: Double(columnCount))
+      // 横揺れで左端より外へ出た粒は、右端から入り直させます。
+      // 余りは割られる側の符号を引き継ぐので、負のままだと画面外に消えてしまいます。
+      if x < 0 { x += Double(columnCount) }
 
       path.addRect(
         CGRect(x: CGFloat(x) * cell, y: CGFloat(row) * cell, width: cell, height: cell)
@@ -970,6 +973,13 @@ struct SkyCanvas: View {
       let headRow = Int(travelled) - Self.rainDropLength
       let baseColumn = Int(pseudoRandom(index &* 7 &+ 1) * Double(columnCount))
 
+      // 風で流された粒が右の画面外へ抜けきると、左下に雨のない三角形が残ります。
+      // 先頭が画面幅を何回ぶん越えたかを求め、その量だけ左へ戻して反対側から降らせます。
+      // 戻す量は1粒のなかで共通にするので、斜めの線は途中で切れません。
+      let span = Double(columnCount)
+      let headSlant = Double(max(headRow, 0)) * windStrength * Self.precipitationSlant
+      let wrapShift = ((Double(baseColumn) + headSlant) / span).rounded(.down) * span
+
       for segment in 0..<Self.rainDropLength {
         let row = headRow + segment
         guard row >= 0, row < rowCount else { continue }
@@ -978,7 +988,7 @@ struct SkyCanvas: View {
         let slant = Double(row) * windStrength * Self.precipitationSlant
         path.addRect(
           CGRect(
-            x: CGFloat(Double(baseColumn) + slant) * Self.cellSize,
+            x: CGFloat(Double(baseColumn) + slant - wrapShift) * Self.cellSize,
             y: CGFloat(row) * Self.cellSize,
             width: Self.cellSize,
             height: Self.cellSize
