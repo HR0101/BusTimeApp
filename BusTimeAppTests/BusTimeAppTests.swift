@@ -752,6 +752,55 @@ struct BusTimeAppTests {
         #expect(viewModel.searchTime == futureSearchTime)
     }
 
+    @Test @MainActor
+    func timerAdvancesDeparturesWithoutAppActivation() {
+        var currentDate = makeTestDate(hour: 8)
+        let viewModel = HomeViewModel(
+            nowProvider: { currentDate }, defaults: makeIsolatedDefaults()
+        )
+        viewModel.setAutomaticUpdatesActive(false)
+        let first = viewModel.searchResults.first!
+        let departure = BusNotificationTimeCalculator.departureDateForCurrentServiceDay(
+            for: first.departure, from: currentDate, calendar: AppCalendar.japan
+        )!
+        currentDate = departure.addingTimeInterval(61)
+        viewModel.refreshForTimerTick()
+
+        #expect(viewModel.searchResults.first?.id != first.id)
+        #expect(viewModel.searchResults.count == 4)
+        #expect(viewModel.searchResults.allSatisfy {
+            (BusNotificationTimeCalculator.departureDateForCurrentServiceDay(
+                for: $0.departure, from: currentDate, calendar: AppCalendar.japan
+            ) ?? .distantPast) > currentDate
+        })
+        #expect(viewModel.remainingMinutes[first.id] == nil)
+    }
+
+    @Test @MainActor
+    func timerPreservesFutureAndOtherWeekdaySearches() {
+        var currentDate = makeTestDate(hour: 8)
+        let viewModel = HomeViewModel(
+            nowProvider: { currentDate }, defaults: makeIsolatedDefaults()
+        )
+        viewModel.setAutomaticUpdatesActive(false)
+        viewModel.searchTime = makeTestDate(hour: 18)
+        viewModel.performSearch()
+        let futureResults = viewModel.searchResults.map(\.id)
+        currentDate = currentDate.addingTimeInterval(120)
+        viewModel.refreshForTimerTick()
+        #expect(viewModel.searchResults.map(\.id) == futureResults)
+        #expect(viewModel.searchTime == makeTestDate(hour: 18))
+
+        viewModel.serviceDay = .otherWeekday
+        viewModel.searchTime = makeTestDate(hour: 7)
+        viewModel.performSearch()
+        let weekdayResults = viewModel.searchResults.map(\.id)
+        currentDate = makeTestDate(hour: 10)
+        viewModel.refreshForTimerTick()
+        #expect(viewModel.searchResults.map(\.id) == weekdayResults)
+        #expect(viewModel.remainingMinutes.isEmpty)
+    }
+
     // MARK: - 時間帯からの初期経路
 
     @Test @MainActor

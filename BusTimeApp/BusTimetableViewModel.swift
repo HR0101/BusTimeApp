@@ -569,16 +569,28 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
         guard timer == nil else { return }
         timer = Timer.publish(every: 30, on: .main, in: .common).autoconnect().sink { [weak self] _ in
             guard let self else { return }
-            let currentDate = self.now()
-            if !self.calendar.isDate(
-                currentDate,
-                equalTo: self.availabilityReferenceDate,
-                toGranularity: .minute
-            ) {
-                self.refreshRouteAvailability(at: currentDate)
-            }
-            self.updateCountdown(at: currentDate)
+            self.refreshForTimerTick()
         }
+    }
+
+    /// 分が変わったら検索も更新し、待機中に次の便へ繰り上げます。
+    func refreshForTimerTick() {
+        let currentDate = now()
+        let minuteChanged = !calendar.isDate(
+            currentDate,
+            equalTo: availabilityReferenceDate,
+            toGranularity: .minute
+        )
+        if minuteChanged {
+            refreshRouteAvailability(at: currentDate)
+            if isRealtimeContext && searchType == .departure {
+                if searchTime < currentDate {
+                    searchTime = currentDate
+                }
+                performSearch()
+            }
+        }
+        updateCountdown(at: currentDate)
     }
 
     func setAutomaticUpdatesActive(_ isActive: Bool) {
@@ -733,7 +745,7 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
     }
 
     /// 画面に並べる検索結果の最大件数です。
-    private static let maximumSearchResults = 2
+    private static let maximumSearchResults = 4
 
     // 「到着希望時刻」でバスを探すロジックです。
     private func findNextBusesByArrival(timetable: [Bus], arrivalTargetTime: Date) -> [Bus] {
