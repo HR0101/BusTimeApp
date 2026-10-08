@@ -752,6 +752,48 @@ struct BusTimeAppTests {
         #expect(viewModel.searchTime == futureSearchTime)
     }
 
+    @Test @MainActor
+    func departureSearchExcludesTheBusAtItsDepartureInstant() {
+        var currentDate = makeTestDate(hour: 7, minute: 59)
+        let viewModel = HomeViewModel(
+            nowProvider: { currentDate }, defaults: makeIsolatedDefaults()
+        )
+        viewModel.setAutomaticUpdatesActive(false)
+        let bus = viewModel.searchResults.first!
+        let departure = BusNotificationTimeCalculator.departureDateForCurrentServiceDay(
+            for: bus.departure, from: currentDate, calendar: AppCalendar.japan
+        )!
+        currentDate = departure.addingTimeInterval(-1)
+        viewModel.searchTime = currentDate
+        viewModel.performSearch()
+        #expect(viewModel.searchResults.first?.id == bus.id)
+
+        for seconds in [0.0, 30.0] {
+            currentDate = departure.addingTimeInterval(seconds)
+            viewModel.searchTime = currentDate
+            viewModel.performSearch()
+            #expect(!viewModel.searchResults.contains { $0.id == bus.id })
+            #expect(viewModel.searchResults.allSatisfy {
+                (BusNotificationTimeCalculator.departureDateForCurrentServiceDay(
+                    for: $0.departure, from: currentDate, calendar: AppCalendar.japan
+                ) ?? .distantPast) > currentDate
+            })
+        }
+    }
+
+    @Test @MainActor
+    func otherWeekdaySearchKeepsTheBusAtTheSpecifiedMinute() {
+        let currentDate = makeTestDate(hour: 8)
+        let viewModel = HomeViewModel(
+            nowProvider: { currentDate }, defaults: makeIsolatedDefaults()
+        )
+        viewModel.setAutomaticUpdatesActive(false)
+        viewModel.serviceDay = .otherWeekday
+        viewModel.searchTime = currentDate
+        viewModel.performSearch()
+        #expect(viewModel.searchResults.first?.departure == "8:00")
+    }
+
     // MARK: - 時間帯からの初期経路
 
     @Test @MainActor
