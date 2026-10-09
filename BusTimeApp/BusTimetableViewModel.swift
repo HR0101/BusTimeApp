@@ -847,7 +847,7 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
         let id = selectedRoute.origin.identifier + "-" + selectedRoute.destination.identifier
         if let snapshot = remoteTimetables[id] {
             guard let schedule = snapshot.schedule(on: date, calendar: calendar), !schedule.isSuspended else {
-                return String(localized: "holiday.scheduleSuspension", defaultValue: "この日の運行はありません")
+                return L10n.Holiday.scheduleSuspension
             }
             return nil
         }
@@ -959,7 +959,8 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
     /// 「他の平日」は必ず運行日なので、案内が出るのは今日を見ているときだけです。
     var serviceDayNotice: String? {
         guard let reason = suspensionReason(for: timetableServiceDate) else { return nil }
-        return L10n.Holiday.serviceDayNotice(reason)
+        let id = selectedRoute.origin.identifier + "-" + selectedRoute.destination.identifier
+        return remoteTimetables[id] == nil ? L10n.Holiday.serviceDayNotice(reason) : L10n.Holiday.message(reason)
     }
 
     /// 結果カードに続けて並べる便の見出しです。

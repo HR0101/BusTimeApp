@@ -252,6 +252,8 @@ public enum L10n {
   }
 
   public enum Holiday {
+    /// 運行ダイヤの設定
+    public static var scheduleSuspension: String { String(localized: "holiday.scheduleSuspension") }
     /// 土日
     public static var weekend: String { String(localized: "holiday.weekend") }
     /// 祝日

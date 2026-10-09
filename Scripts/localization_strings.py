@@ -146,6 +146,7 @@ ENTRIES = [
     ('search.reasonDeparture', '%@出発・指定時刻以降', 'Departs %@, after the time you set', '%@出发，在指定时间之后', ['String']),
 
     # ---- 運休の案内 ----
+    ('holiday.scheduleSuspension', '運行ダイヤの設定', 'a scheduled suspension', '运行时刻表设置', []),
     ('holiday.weekend', '土日', 'the weekend', '周末', []),
     ('holiday.publicHoliday', '祝日', 'a public holiday', '节假日', []),
     ('holiday.message', '本日は%@のため運休です。', 'There is no service today (%@).', '今日因%@停运。', ['String']),
