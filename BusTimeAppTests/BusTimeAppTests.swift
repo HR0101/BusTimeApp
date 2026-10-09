@@ -901,6 +901,49 @@ struct BusTimeAppTests {
     }
 
 
+    @Test @MainActor
+    func departureBannerUsesTheEffectiveReferenceAndExplainsAdjustment() {
+        let current = makeTestDate(hour: 9)
+        let viewModel = HomeViewModel(nowProvider: { current }, defaults: makeIsolatedDefaults())
+        viewModel.setAutomaticUpdatesActive(false)
+        viewModel.selectOrigin(.mansion)
+        viewModel.searchTime = makeTestDate(hour: 7)
+        viewModel.performSearch()
+        #expect(viewModel.searchTime == makeTestDate(hour: 7))
+        #expect(viewModel.searchCriteriaDescription.contains("9:00以降に出発"))
+        #expect(viewModel.searchCriteriaDescription.contains(L10n.Search.adjustedToCurrentTime))
+        #expect(viewModel.searchResults.allSatisfy {
+            (BusNotificationTimeCalculator.departureDateForCurrentServiceDay(
+                for: $0.departure, from: current, calendar: AppCalendar.japan
+            ) ?? .distantPast) >= current
+        })
+
+        viewModel.searchTime = makeTestDate(hour: 18)
+        viewModel.performSearch()
+        #expect(viewModel.searchCriteriaDescription.contains("18:00以降に出発"))
+        #expect(!viewModel.searchCriteriaDescription.contains(L10n.Search.adjustedToCurrentTime))
+
+        viewModel.serviceDay = .otherWeekday
+        viewModel.searchTime = makeTestDate(hour: 7)
+        viewModel.performSearch()
+        #expect(viewModel.searchCriteriaDescription.contains("7:00以降に出発"))
+        #expect(!viewModel.searchCriteriaDescription.contains(L10n.Search.adjustedToCurrentTime))
+    }
+
+    @Test @MainActor
+    func arrivalBannerRetainsTheRequestedDeadline() {
+        let viewModel = HomeViewModel(
+            nowProvider: { makeTestDate(hour: 9) }, defaults: makeIsolatedDefaults()
+        )
+        viewModel.setAutomaticUpdatesActive(false)
+        viewModel.searchType = .arrival
+        viewModel.searchTime = makeTestDate(hour: 7)
+        viewModel.performSearch()
+        #expect(viewModel.searchCriteriaDescription.contains("7:00までに到着"))
+        #expect(!viewModel.searchCriteriaDescription.contains(L10n.Search.adjustedToCurrentTime))
+    }
+
+
     // MARK: - 時間帯からの初期経路
 
     @Test @MainActor

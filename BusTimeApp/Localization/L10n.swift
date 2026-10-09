@@ -239,6 +239,8 @@ public enum L10n {
     public static func criteriaArrival(_ arg0: String, _ arg1: String, _ arg2: String) -> String {
       String.localizedStringWithFormat(String(localized: "search.criteriaArrival"), arg0, arg1, arg2)
     }
+    /// 過去の指定時刻を現在時刻に合わせました
+    public static var adjustedToCurrentTime: String { String(localized: "search.adjustedToCurrentTime") }
     /// %1$@ → %2$@｜%3$@以降に出発
     public static func criteriaDeparture(_ arg0: String, _ arg1: String, _ arg2: String) -> String {
       String.localizedStringWithFormat(String(localized: "search.criteriaDeparture"), arg0, arg1, arg2)

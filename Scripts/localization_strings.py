@@ -140,6 +140,7 @@ ENTRIES = [
      {'one': 'Found %1$lld service. %2$@', 'other': 'Found %1$lld services. %2$@'},
      '找到%1$lld个班次。%2$@', ['Int', 'String']),
     ('search.criteriaArrival', '%1$@ → %2$@｜%3$@までに到着', '%1$@ → %2$@ | arriving by %3$@', '%1$@ → %2$@｜%3$@前到达', ['String', 'String', 'String']),
+    ('search.adjustedToCurrentTime', '過去の指定時刻を現在時刻に合わせました', 'The past requested time was adjusted to the current time.', '过去的指定时间已调整为当前时间。', []),
     ('search.criteriaDeparture', '%1$@ → %2$@｜%3$@以降に出発', '%1$@ → %2$@ | departing after %3$@', '%1$@ → %2$@｜%3$@后出发', ['String', 'String', 'String']),
     ('search.timetableLoadFailed', '選択された路線の時刻表を読み込めませんでした。', 'Could not load the timetable for the selected route.', '无法加载所选路线的时刻表。', []),
     ('search.reasonArrival', '%@到着・希望時刻までに到着', 'Arrives %@, within your target time', '%@到达，在期望时间之内', ['String']),
