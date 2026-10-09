@@ -3218,6 +3218,29 @@
         }
       }
     },
+    "search.adjustedToCurrentTime": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The past requested time was adjusted to the current time."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "過去の指定時刻を現在時刻に合わせました"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "过去的指定时间已调整为当前时间。"
+          }
+        }
+      }
+    },
     "search.criteriaArrival": {
       "extractionState": "manual",
       "localizations": {

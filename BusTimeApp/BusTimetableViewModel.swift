@@ -764,7 +764,8 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
         formatter.timeZone = calendar.timeZone
         formatter.timeStyle = .short
         formatter.dateStyle = .none
-        let time = formatter.string(from: searchTime)
+        let reference = searchType == .arrival ? searchTime : departureSearchReference
+        let time = formatter.string(from: reference)
         if searchType == .arrival {
             searchCriteriaDescription = L10n.Search.criteriaArrival(
                 selectedOrigin.rawValue,
@@ -777,6 +778,9 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
                 selectedDestination.rawValue,
                 time
             )
+            if isRealtimeContext && !shouldSkipToTodaysService && searchTime < now() {
+                searchCriteriaDescription += "\n" + L10n.Search.adjustedToCurrentTime
+            }
         }
     }
 
@@ -833,16 +837,16 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
     /// 検索の基準にする時刻です。
     /// 深夜に前の運行日が運休だった場合は、今日の始発（午前4時）から探します。
     private var departureSearchReference: Date {
-        guard shouldSkipToTodaysService,
+        let currentDate = now()
+        let reference = isRealtimeContext ? max(searchTime, currentDate) : searchTime
+        guard isViewingToday, shouldSkipToTodaysService,
               let todaysServiceStart = calendar.date(
                 bySettingHour: BusNotificationTimeCalculator.serviceDayBoundaryHour,
-                minute: 0,
-                second: 0,
-                of: now()
+                minute: 0, second: 0, of: currentDate
               ) else {
-            return searchTime
+            return reference
         }
-        return todaysServiceStart
+        return max(reference, todaysServiceStart)
     }
 
     // MARK: - 運行日
