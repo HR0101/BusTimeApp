@@ -62,6 +62,7 @@ ENTRIES = [
     ('route.useCurrentLocation', '現在地に合わせる', 'Use current location', '使用当前位置', []),
     ('route.locationPermissionDenied', '現在地を使うには、iPhoneの設定で位置情報を許可してください。', 'Allow location access in iPhone Settings to use your current location.', '要使用当前位置，请在 iPhone 设置中允许位置访问。', []),
     ('route.openLocationSettings', '位置情報の設定を開く', 'Open Location Settings', '打开位置设置', []),
+    ('route.adjustedForLocation', '現在地に合わせました：%1$@ → %2$@', 'Updated for your location: %1$@ → %2$@', '已根据当前位置调整：%1$@ → %2$@', ['String', 'String']),
     ('route.decisionAutomatic', '現在地から自動で選びました', 'Chosen from your location', '已根据当前位置选择', []),
     ('route.decisionTimeOfDay', '時間帯と前回の行き先から選びました', 'Chosen from the time of day and your last destination', '已根据时段和上次的目的地选择', []),
     ('route.decisionManual', '自分で選んだ経路です', 'You chose this route', '这是您选择的路线', []),

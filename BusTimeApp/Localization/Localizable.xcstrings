@@ -2735,6 +2735,29 @@
         }
       }
     },
+    "route.adjustedForLocation": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Updated for your location: %1$@ → %2$@"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "現在地に合わせました：%1$@ → %2$@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已根据当前位置调整：%1$@ → %2$@"
+          }
+        }
+      }
+    },
     "route.allServicesEnded": {
       "extractionState": "manual",
       "localizations": {
