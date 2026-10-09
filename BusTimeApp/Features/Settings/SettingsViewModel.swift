@@ -79,6 +79,15 @@ final class SettingsViewModel: ObservableObject {
         defaults.set(preference.rawValue, forKey: Self.appearancePreferenceKey)
     }
 
+    func paletteColorScheme(systemColorScheme: ColorScheme) -> ColorScheme? {
+        switch appearancePreference {
+        case .automatic: return nil
+        case .system: return systemColorScheme
+        case .light: return .light
+        case .dark: return .dark
+        }
+    }
+
     func preferredColorScheme(for palette: SkyPalette) -> ColorScheme? {
         switch appearancePreference {
         case .automatic:

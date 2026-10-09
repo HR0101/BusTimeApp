@@ -128,7 +128,8 @@ struct NotificationOptionsView: View {
     let schedule = BusNotificationTimeCalculator.notificationDate(
       for: bus.departure,
       minutesBefore: minutes,
-      from: AppDate.now()
+      from: AppDate.now(),
+      serviceDate: bus.scheduledServiceDate
     )
 
     return Button {
