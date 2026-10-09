@@ -93,7 +93,14 @@ final class BusTimeAppUITests: XCTestCase {
         attachment.name = "Search-time-English-spacing"
         attachment.lifetime = .keepAlways
         add(attachment)
-        time.tap()
+        // A fresh simulator can present the location prompt here. Dismissing it
+        // changes the route card height, so resolve and tap the time button afterward.
+        let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
+        let denyLocation = springboard.buttons.matching(NSPredicate(
+            format: "label == %@ OR label == %@", "Don’t Allow", "Don't Allow"
+        )).firstMatch
+        if denyLocation.waitForExistence(timeout: 2) { denyLocation.tap() }
+        app.buttons["search-time-picker"].tap()
         XCTAssertTrue(app.datePickers.firstMatch.waitForExistence(timeout: 5))
         app.buttons["Done"].tap()
         XCTAssertTrue(time.isHittable)
