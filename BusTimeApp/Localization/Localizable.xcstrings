@@ -5507,6 +5507,22 @@
           }
         }
       }
+    },
+    "holiday.scheduleSuspension": {
+      "localizations": {
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "この日の運行はありません"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No service on this date"
+          }
+        }
+      }
     }
   },
   "version": "1.0"
