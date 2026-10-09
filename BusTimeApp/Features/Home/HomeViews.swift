@@ -33,11 +33,17 @@ struct HomeHeaderBar: View {
         .dynamicFont(size: 17, relativeTo: .headline, weight: .bold)
         .foregroundStyle(sky.accentReadable)
 
-      Text(L10n.Home.brandName)
-        .dynamicFont(size: 16, relativeTo: .headline, weight: .bold, design: .rounded)
-        .foregroundStyle(sky.ink)
-        .lineLimit(1)
-        .minimumScaleFactor(0.8)
+      VStack(alignment: .leading, spacing: 2) {
+        Text(L10n.Home.brandName)
+          .dynamicFont(size: 16, relativeTo: .headline, weight: .bold, design: .rounded)
+          .foregroundStyle(sky.ink)
+          .lineLimit(1)
+          .minimumScaleFactor(0.8)
+        Text(L10n.Home.serviceName)
+          .font(.caption2.weight(.semibold))
+          .foregroundStyle(sky.ink)
+          .fixedSize(horizontal: false, vertical: true)
+      }
     }
     .padding(.horizontal, 12)
     .padding(.vertical, 10)

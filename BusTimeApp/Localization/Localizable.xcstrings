@@ -415,6 +415,29 @@
         }
       }
     },
+    "home.serviceName": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bus timetable"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "バス時刻表"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "公交时刻表"
+          }
+        }
+      }
+    },
     "home.settingsButton": {
       "extractionState": "manual",
       "localizations": {
