@@ -146,6 +146,7 @@ ENTRIES = [
     ('search.reasonDeparture', '%@出発・指定時刻以降', 'Departs %@, after the time you set', '%@出发，在指定时间之后', ['String']),
 
     # ---- 運休の案内 ----
+    ('holiday.scheduleSuspension', '運行ダイヤの設定', 'a scheduled suspension', '运行时刻表设置', []),
     ('holiday.weekend', '土日', 'the weekend', '周末', []),
     ('holiday.publicHoliday', '祝日', 'a public holiday', '节假日', []),
     ('holiday.message', '本日は%@のため運休です。', 'There is no service today (%@).', '今日因%@停运。', ['String']),
@@ -306,6 +307,8 @@ ENTRIES = [
 
     # ---- いつのバス（運行日と時刻） ----
     ('when.serviceDayTodayName', '今日', 'Today', '今天', []),
+    ('when.serviceDayOtherServiceName', '別の運行日', 'Another service day', '其他运行日', []),
+    ('notify.unavailableOtherServiceDay', '別の運行日の時刻のため、通知は運行当日に設定してください', 'These are times for another service day. Set the alert on the day of travel.', '这是其他运行日的时刻，请在乘车当天设置提醒。', []),
     ('when.serviceDayOtherWeekdayName', '他の平日', 'Other weekday', '其他工作日', []),
 
     # ---- ホーム画面のヘッダー ----

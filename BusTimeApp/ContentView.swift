@@ -117,6 +117,7 @@ struct ContentView: View {
           setAutomaticUpdatesActive(true)
         }
         .task {
+          await viewModel.refreshTimetables()
           await weatherViewModel.refreshIfNeeded()
         }
         .onOpenURL { url in
@@ -132,7 +133,10 @@ struct ContentView: View {
             viewModel.refreshForAppActivation()
             viewModel.checkLocationAndSetOrigin()
             settingsViewModel.refreshLiveActivityAvailability()
-            Task { await weatherViewModel.refreshIfNeeded() }
+            Task {
+              await viewModel.refreshTimetables()
+              await weatherViewModel.refreshIfNeeded()
+            }
           } else {
             setAutomaticUpdatesActive(false)
           }

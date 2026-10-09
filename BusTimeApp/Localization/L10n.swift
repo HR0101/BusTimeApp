@@ -133,6 +133,8 @@ public enum L10n {
     public static var currentTimeHint: String { String(localized: "when.currentTimeHint") }
     /// 今日
     public static var serviceDayTodayName: String { String(localized: "when.serviceDayTodayName") }
+    /// 別の運行日
+    public static var serviceDayOtherServiceName: String { String(localized: "when.serviceDayOtherServiceName") }
     /// 他の平日
     public static var serviceDayOtherWeekdayName: String { String(localized: "when.serviceDayOtherWeekdayName") }
   }
@@ -252,6 +254,8 @@ public enum L10n {
   }
 
   public enum Holiday {
+    /// 運行ダイヤの設定
+    public static var scheduleSuspension: String { String(localized: "holiday.scheduleSuspension") }
     /// 土日
     public static var weekend: String { String(localized: "holiday.weekend") }
     /// 祝日
@@ -301,6 +305,8 @@ public enum L10n {
     }
     /// MdEjmm
     public static var dateFormat: String { String(localized: "notify.dateFormat") }
+    /// 別の運行日の時刻のため、通知は運行当日に設定してください
+    public static var unavailableOtherServiceDay: String { String(localized: "notify.unavailableOtherServiceDay") }
   }
 
   public enum Countdown {
