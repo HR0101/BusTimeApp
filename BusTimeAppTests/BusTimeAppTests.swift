@@ -378,6 +378,16 @@ struct BusTimeAppTests {
     }
 
     @Test
+    func localizedTimeSeparatesEnglishPeriodAndKeeps24HourLocales() {
+        let evening = makeTestDate(hour: 18, minute: 48)
+        let morning = makeTestDate(hour: 6, minute: 48)
+        #expect(TimeDisplayFormatter.string(from: evening, locale: Locale(identifier: "en_US")) == "6:48 PM")
+        #expect(TimeDisplayFormatter.string(from: morning, locale: Locale(identifier: "en_US")) == "6:48 AM")
+        #expect(TimeDisplayFormatter.string(from: evening, locale: Locale(identifier: "ja_JP")) == "18:48")
+        #expect(TimeDisplayFormatter.string(from: evening, locale: Locale(identifier: "en_GB")) == "18:48")
+    }
+
+    @Test
     func skyPaletteSwitchesBetweenDayAndNight() {
         // 昼は明るい空なので暗い文字、夜は暗い空なので明るい文字になります。
         // 昼の長さは季節で変わるので、季節を決めてから確かめます。
@@ -409,6 +419,36 @@ struct BusTimeAppTests {
         }
     }
 
+    @Test @MainActor
+    func appearanceOverridesKeepControlsAndSurfacesConsistent() {
+        let settings = SettingsViewModel(defaults: makeIsolatedDefaults())
+        settings.setAppearancePreference(.automatic)
+        #expect(settings.paletteColorScheme(systemColorScheme: .dark) == nil)
+        settings.setAppearancePreference(.system)
+        #expect(settings.paletteColorScheme(systemColorScheme: .dark) == .dark)
+        #expect(settings.paletteColorScheme(systemColorScheme: .light) == .light)
+        settings.setAppearancePreference(.dark)
+        #expect(settings.paletteColorScheme(systemColorScheme: .light) == .dark)
+        settings.setAppearancePreference(.light)
+        #expect(settings.paletteColorScheme(systemColorScheme: .dark) == .light)
+
+        for scheme in [ColorScheme.light, .dark] {
+            for season in Season.allCases {
+                for step in 0..<96 {
+                    let hour = Double(step) / 4
+                    let natural = SkyPalette.at(hour: hour, season: season)
+                    let palette = SkyPalette.at(hour: hour, season: season, colorScheme: scheme)
+                    #expect(palette.skyTop == natural.skyTop)
+                    #expect(palette.skyBottom == natural.skyBottom)
+                    #expect(palette.nightness == natural.nightness)
+                    let card = blend(components(of: palette.surface), over: components(of: palette.skyTop))
+                    #expect(contrastRatio(components(of: palette.ink), card) >= 4.5)
+                    #expect(contrastRatio(components(of: palette.ink), components(of: palette.surfaceOpaque)) >= 4.5)
+                }
+            }
+        }
+    }
+
     @Test
     func weatherCodeIdentifiesRainOnly() {
         // 晴れや曇りは雨として扱いません。
@@ -423,6 +463,23 @@ struct BusTimeAppTests {
         #expect(WeatherCodeInterpreter.isRaining(code: 63) == true)
         #expect(WeatherCodeInterpreter.isRaining(code: 80) == true)
         #expect(WeatherCodeInterpreter.isRaining(code: 95) == true)
+    }
+
+    @Test
+    func rainAndCloudsDimTheSkyAndHideTheSun() {
+        let palette = SkyPalette.at(hour: 12 + 22.0 / 60, season: .summer)
+        let clear = components(of: palette.skyColor(at: 0, weather: .clear))
+        let rainy = components(of: palette.skyColor(at: 0, weather: .rain(.heavy)))
+        #expect(relativeLuminance(rainy) < relativeLuminance(clear))
+        #expect(rainy.b - rainy.r < clear.b - clear.r)
+        #expect(SkyWeather.clear.celestialVisibility == 1)
+        #expect(SkyWeather.rain(.heavy).celestialVisibility == 0)
+        #expect(SkyWeather.rain(.heavy).rainStrokeOpacity > SkyWeather.rain(.light).rainStrokeOpacity)
+        #expect(SkyWeather(cloudCover: 1).celestialVisibility == 0)
+        #expect(SkyWeather(cloudCover: 0.5).celestialVisibility > SkyWeather(cloudCover: 0.9).celestialVisibility)
+        #expect(SkyWeather(precipitation: .rain(.heavy)).skyObscuration == 1)
+        #expect(palette.quantizedSkyColors(steps: 8) == palette.quantizedSkyColors(steps: 8, weather: .clear))
+        #expect(palette.quantizedWaterColors(steps: 8, weather: .rain(.heavy)) != palette.quantizedWaterColors(steps: 8))
     }
 
     @Test
@@ -753,6 +810,55 @@ struct BusTimeAppTests {
     }
 
     @Test @MainActor
+    func timerAdvancesDeparturesWithoutAppActivation() {
+        var currentDate = makeTestDate(hour: 8)
+        let viewModel = HomeViewModel(
+            nowProvider: { currentDate }, defaults: makeIsolatedDefaults()
+        )
+        viewModel.setAutomaticUpdatesActive(false)
+        let first = viewModel.searchResults.first!
+        let departure = BusNotificationTimeCalculator.departureDateForCurrentServiceDay(
+            for: first.departure, from: currentDate, calendar: AppCalendar.japan
+        )!
+        currentDate = departure.addingTimeInterval(61)
+        viewModel.refreshForTimerTick()
+
+        #expect(viewModel.searchResults.first?.id != first.id)
+        #expect(viewModel.searchResults.count == 4)
+        #expect(viewModel.searchResults.allSatisfy {
+            (BusNotificationTimeCalculator.departureDateForCurrentServiceDay(
+                for: $0.departure, from: currentDate, calendar: AppCalendar.japan
+            ) ?? .distantPast) > currentDate
+        })
+        #expect(viewModel.remainingMinutes[first.id] == nil)
+    }
+
+    @Test @MainActor
+    func timerPreservesFutureAndOtherWeekdaySearches() {
+        var currentDate = makeTestDate(hour: 8)
+        let viewModel = HomeViewModel(
+            nowProvider: { currentDate }, defaults: makeIsolatedDefaults()
+        )
+        viewModel.setAutomaticUpdatesActive(false)
+        viewModel.searchTime = makeTestDate(hour: 18)
+        viewModel.performSearch()
+        let futureResults = viewModel.searchResults.map(\.id)
+        currentDate = currentDate.addingTimeInterval(120)
+        viewModel.refreshForTimerTick()
+        #expect(viewModel.searchResults.map(\.id) == futureResults)
+        #expect(viewModel.searchTime == makeTestDate(hour: 18))
+
+        viewModel.serviceDay = .otherWeekday
+        viewModel.searchTime = makeTestDate(hour: 7)
+        viewModel.performSearch()
+        let weekdayResults = viewModel.searchResults.map(\.id)
+        currentDate = makeTestDate(hour: 10)
+        viewModel.refreshForTimerTick()
+        #expect(viewModel.searchResults.map(\.id) == weekdayResults)
+        #expect(viewModel.remainingMinutes.isEmpty)
+    }
+
+    @Test @MainActor
     func departureSearchExcludesTheBusAtItsDepartureInstant() {
         var currentDate = makeTestDate(hour: 7, minute: 59)
         let viewModel = HomeViewModel(
@@ -793,6 +899,7 @@ struct BusTimeAppTests {
         viewModel.performSearch()
         #expect(viewModel.searchResults.first?.departure == "8:00")
     }
+
 
     // MARK: - 時間帯からの初期経路
 

@@ -41,6 +41,9 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
 
     // MARK: - 内部でだけ使うプロパティ
     
+    @Published private(set) var timetableSyncInfo = TimetableSyncInfo()
+    private var remoteTimetables: [String: TimetableSnapshot] = [:]
+    private let timetableRepository: TimetableRepository?
     private var allTimetables: [Route: [Bus]] = [:] // 全ルートの時刻表データ
     private var timer: AnyCancellable?              // カウントダウン用のタイマー
     
@@ -170,11 +173,17 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
     init(
         nowProvider: @escaping () -> Date = AppDate.now,
         defaults: UserDefaults = .standard,
-        calendar: Calendar = AppCalendar.japan
+        calendar: Calendar = AppCalendar.japan,
+        timetableRepository: TimetableRepository? = .configured
     ) {
         self.nowProvider = nowProvider
         self.defaults = defaults
         self.calendar = calendar
+        self.timetableRepository = timetableRepository
+        if let cached = timetableRepository?.initialCache {
+            self.remoteTimetables = cached.snapshots
+            self.timetableSyncInfo = TimetableSyncInfo(verifiedAt: cached.verifiedAt, hasCache: true)
+        }
         self.availabilityReferenceDate = nowProvider()
         super.init()
         setupTimetables() // 時刻表データを準備する
@@ -403,7 +412,7 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
     }
 
     private func nextDepartureDate(for route: Route, at referenceDate: Date) -> Date? {
-        guard let timetable = allTimetables[route] else { return nil }
+        let timetable = timetable(for: route, on: serviceDayStart(for: referenceDate) ?? referenceDate)
         return timetable.compactMap { bus in
             BusNotificationTimeCalculator.departureDateForCurrentServiceDay(
                 for: bus.departure,
@@ -564,21 +573,73 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
         allTimetables = BusSchedule.timetables
     }
 
+    @MainActor
+    func refreshTimetables() async {
+        guard let timetableRepository else { return }
+        timetableSyncInfo.connection = .syncing
+        do {
+            remoteTimetables = try await timetableRepository.refresh()
+            refreshRouteAvailability()
+            performSearch()
+        } catch {
+            // Keep the last validated timetable (or bundled fallback) on server failure.
+            AppLogger.timetable.error("Timetable refresh failed: \(String(describing: error), privacy: .public)")
+        }
+        timetableSyncInfo = await timetableRepository.info()
+    }
+
+    var hasTimetableAPI: Bool { timetableRepository != nil }
+
+    @MainActor
+    func watchTimetableConnectivity() async {
+        guard let timetableRepository else { return }
+        for await online in timetableRepository.connectionUpdates {
+            guard !Task.isCancelled else { return }
+            await timetableRepository.setConnection(online: online)
+            if online { await refreshTimetables() }
+            else { timetableSyncInfo = await timetableRepository.info() }
+        }
+    }
+
+    private func timetable(for route: Route, on date: Date) -> [Bus] {
+        let id = route.origin.identifier + "-" + route.destination.identifier
+        if let snapshot = remoteTimetables[id] { return snapshot.timetable(on: date, calendar: calendar) }
+        return allTimetables[route] ?? []
+    }
+
+    private var timetableServiceDate: Date {
+        serviceDay == .today
+            ? (shouldSkipToTodaysService ? now() : (serviceDayStart(for: now()) ?? now()))
+            : selectedServiceDate
+    }
+
     // 秒単位の表示はないため、30秒ごとにカウントダウンを更新します。
     private func startTimer() {
         guard timer == nil else { return }
         timer = Timer.publish(every: 30, on: .main, in: .common).autoconnect().sink { [weak self] _ in
             guard let self else { return }
-            let currentDate = self.now()
-            if !self.calendar.isDate(
-                currentDate,
-                equalTo: self.availabilityReferenceDate,
-                toGranularity: .minute
-            ) {
-                self.refreshRouteAvailability(at: currentDate)
-            }
-            self.updateCountdown(at: currentDate)
+            self.refreshForTimerTick()
         }
+    }
+
+    /// 分が変わったら検索も更新し、待機中に次の便へ繰り上げます。
+    func refreshForTimerTick() {
+        let currentDate = now()
+        let minuteChanged = !calendar.isDate(
+            currentDate,
+            equalTo: availabilityReferenceDate,
+            toGranularity: .minute
+        )
+        if minuteChanged {
+            refreshRouteAvailability(at: currentDate)
+            if isRealtimeContext && searchType == .departure {
+                if searchTime < currentDate {
+                    searchTime = currentDate
+                }
+                performSearch()
+            }
+        }
+        updateCountdown(at: currentDate)
     }
 
     func setAutomaticUpdatesActive(_ isActive: Bool) {
@@ -670,10 +731,7 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
         checkHoliday()
 
         // 選択されているルートの時刻表を取得します。
-        guard let currentTimetable = allTimetables[selectedRoute] else {
-            send(.failed(L10n.Search.timetableLoadFailed))
-            return
-        }
+        let currentTimetable = timetable(for: selectedRoute, on: timetableServiceDate)
         
         // 検索方法に応じて処理を分岐します。
         if searchType == .arrival {
@@ -685,8 +743,13 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
                 timetable: currentTimetable,
                 departureRefTime: departureSearchReference
             )
-            self.searchResults = found.buses
-            self.showsNextServiceDay = found.isNextServiceDay || shouldSkipToTodaysService
+            if let remote = remoteDepartureResults(from: departureSearchReference) {
+                self.searchResults = remote.buses
+                self.showsNextServiceDay = remote.isNextServiceDay
+            } else {
+                self.searchResults = found.buses
+                self.showsNextServiceDay = found.isNextServiceDay || shouldSkipToTodaysService
+            }
         }
         updateSearchCriteriaDescription() // 検索条件の表示を更新します。
         if searchResults.isEmpty {
@@ -697,6 +760,30 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
             searchResultDescription = L10n.Search.resultCount(searchResults.count, searchType.explanation)
         }
         send(.searchSucceeded(hasResults: !searchResults.isEmpty))
+    }
+
+    /// A special timetable must never be reused on a different service day.
+    private func remoteDepartureResults(from reference: Date) -> (buses: [Bus], isNextServiceDay: Bool)? {
+        let id = selectedRoute.origin.identifier + "-" + selectedRoute.destination.identifier
+        guard let snapshot = remoteTimetables[id] else { return nil }
+        let start = timetableServiceDate
+        let threshold = shiftTime(timeToMinutes(reference))
+        for offset in 0...Self.maximumDaysToFindNextServiceDay {
+            guard let date = calendar.date(byAdding: .day, value: offset, to: start) else { continue }
+            let candidates = snapshot.timetable(on: date, calendar: calendar).filter {
+                guard offset > 0 || TimetableSnapshot.minutes($0.departure) >= threshold else { return false }
+                guard serviceDay == .today, offset == 0,
+                      let boundary = calendar.date(bySettingHour: 4, minute: 0, second: 0, of: date),
+                      let departure = BusNotificationTimeCalculator.departureDateForCurrentServiceDay(
+                        for: $0.departure, from: boundary, calendar: calendar
+                      ) else { return true }
+                return departure > now()
+            }
+            if !candidates.isEmpty {
+                return (Array(candidates.prefix(Self.maximumSearchResults)), offset > 0 || shouldSkipToTodaysService)
+            }
+        }
+        return ([], false)
     }
 
     private func send(_ event: HomeEvent) {
@@ -743,7 +830,7 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
     }
 
     /// 画面に並べる検索結果の最大件数です。
-    private static let maximumSearchResults = 2
+    private static let maximumSearchResults = 4
 
     // 「到着希望時刻」でバスを探すロジックです。
     private func findNextBusesByArrival(timetable: [Bus], arrivalTargetTime: Date) -> [Bus] {
@@ -799,7 +886,14 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
     
     /// その日が運休になる理由です。運行日であればnilを返します。
     private func suspensionReason(for date: Date) -> String? {
-        BusServiceCalendar.suspensionReason(for: date, calendar: calendar)
+        let id = selectedRoute.origin.identifier + "-" + selectedRoute.destination.identifier
+        if let snapshot = remoteTimetables[id] {
+            guard let schedule = snapshot.schedule(on: date, calendar: calendar), !schedule.isSuspended else {
+                return L10n.Holiday.scheduleSuspension
+            }
+            return nil
+        }
+        return BusServiceCalendar.suspensionReason(for: date, calendar: calendar)
     }
 
     /// 深夜0〜3時台に、暦の上での今日の始発から探し直すべきかどうかです。
@@ -815,8 +909,8 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
         ) else {
             return false
         }
-        return !BusServiceCalendar.isServiceDay(serviceDay, calendar: calendar)
-            && BusServiceCalendar.isServiceDay(currentDate, calendar: calendar)
+        return suspensionReason(for: serviceDay) != nil
+            && suspensionReason(for: currentDate) == nil
     }
 
     // 運休かどうかをチェックし、メッセージを設定します。
@@ -855,6 +949,11 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
         return todaysServiceStart
     }
 
+    func serviceDayDisplayName(for day: ServiceDay) -> String {
+        if timetableRepository != nil && day == .otherWeekday { return L10n.When.serviceDayOtherServiceName }
+        return day.displayName
+    }
+
     // MARK: - 運行日
 
     /// 選んでいる運行日の日付です。
@@ -889,7 +988,7 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
 
     /// 選んでいる運行日に運行があるかどうかです。
     var selectedDayHasService: Bool {
-        suspensionReason(for: selectedServiceDate) == nil
+        suspensionReason(for: timetableServiceDate) == nil
     }
 
     /// 今日の便を見ているかどうかです。
@@ -906,8 +1005,9 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
     /// 選んでいる運行日が運休のときの案内です。
     /// 「他の平日」は必ず運行日なので、案内が出るのは今日を見ているときだけです。
     var serviceDayNotice: String? {
-        guard let reason = suspensionReason(for: selectedServiceDate) else { return nil }
-        return L10n.Holiday.serviceDayNotice(reason)
+        guard let reason = suspensionReason(for: timetableServiceDate) else { return nil }
+        let id = selectedRoute.origin.identifier + "-" + selectedRoute.destination.identifier
+        return remoteTimetables[id] == nil ? L10n.Holiday.serviceDayNotice(reason) : L10n.Holiday.message(reason)
     }
 
     /// 結果カードに続けて並べる便の見出しです。
@@ -930,7 +1030,7 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
             return L10n.Notify.unavailableSuspended
         }
         if !isViewingToday {
-            return L10n.Notify.unavailableOtherDay
+            return timetableRepository == nil ? L10n.Notify.unavailableOtherDay : L10n.Notify.unavailableOtherServiceDay
         }
         return nil
     }
@@ -941,6 +1041,19 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
     /// 「出発済み」と示すためです。
     /// 翌朝の便を出しているときだけ、実際に次に走る日時を使います。
     private func departureDateForCountdown(of bus: Bus, from now: Date) -> Date? {
+        let id = selectedRoute.origin.identifier + "-" + selectedRoute.destination.identifier
+        if let snapshot = remoteTimetables[id] {
+            for offset in 0...Self.maximumDaysToFindNextServiceDay {
+                guard let reference = calendar.date(byAdding: .day, value: offset, to: now),
+                      let day = serviceDayStart(for: reference),
+                      snapshot.timetable(on: day, calendar: calendar).contains(where: { $0.id == bus.id }),
+                      let date = BusNotificationTimeCalculator.departureDateForCurrentServiceDay(
+                        for: bus.departure, from: reference, calendar: calendar
+                      ), !showsNextServiceDay || date > now else { continue }
+                return date
+            }
+            return nil
+        }
         if showsNextServiceDay {
             return BusNotificationTimeCalculator.nextDepartureDate(
                 for: bus.departure,
@@ -1055,9 +1168,12 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
         }
 
         let currentDate = now()
+        let activityReference = bus.scheduledServiceDate.flatMap {
+            calendar.date(bySettingHour: 4, minute: 0, second: 0, of: $0)
+        } ?? currentDate
         guard let departureDate = BusNotificationTimeCalculator.departureDateForCurrentServiceDay(
             for: bus.departure,
-            from: currentDate,
+            from: activityReference,
             calendar: calendar
         ) else {
             liveActivityError = L10n.LiveActivity.noDepartureTime
@@ -1141,6 +1257,6 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
     
     // 現在選択されているルートの全時刻表を返します。
     var currentFullTimetable: [Bus] {
-        return allTimetables[selectedRoute] ?? []
+        return timetable(for: selectedRoute, on: timetableServiceDate)
     }
 }

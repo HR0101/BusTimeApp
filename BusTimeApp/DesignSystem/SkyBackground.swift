@@ -101,8 +101,6 @@ struct SkyCanvas: View {
   private static let rainDropLength = 2
   /// 雨粒の色です。
   private static let rainColor = Color(red: 0.847, green: 0.906, blue: 0.976)
-  /// 雨粒の濃さです。
-  private static let rainOpacity: Double = 0.34
   /// 星を描く空の暗さの下限です。これより明るいと星は見えません。
   /// 夕焼けの残る空に星が出ないよう、暗さがある程度進んでから現れるようにします。
   private static let starVisibilityThreshold: Double = 0.22
@@ -997,7 +995,7 @@ struct SkyCanvas: View {
       }
     }
 
-    context.fill(path, with: .color(Self.rainColor.opacity(Self.rainOpacity)))
+    context.fill(path, with: .color(Self.rainColor.opacity(weather.rainStrokeOpacity)))
   }
 
   /// 雨の強さごとの粒の数です。
@@ -1018,7 +1016,7 @@ struct SkyCanvas: View {
   /// 色の境目はベイヤーディザの市松模様でつなぎ、限られた色数のまま階調を表現します。
   /// 画面全体を空の色で埋め、海面は動く層があとから重ねます。
   private func drawSkyBase(in context: inout GraphicsContext, size: CGSize) {
-    let colors = sky.quantizedSkyColors(steps: Self.skyColorSteps)
+    let colors = sky.quantizedSkyColors(steps: Self.skyColorSteps, weather: weather)
     let columnCount = max(Int(ceil(size.width / Self.cellSize)), 1)
     let rowCount = max(Int(ceil(size.height / Self.cellSize)), 1)
 
@@ -1058,7 +1056,7 @@ struct SkyCanvas: View {
 
   /// 海面を描きます。水平線を鏡として空を映し、映る位置は時間とともに波打ちます。
   private func drawWater(in context: inout GraphicsContext, size: CGSize, tick: Int) {
-    let colors = sky.quantizedWaterColors(steps: Self.skyColorSteps)
+    let colors = sky.quantizedWaterColors(steps: Self.skyColorSteps, weather: weather)
     let columnCount = max(Int(ceil(size.width / Self.cellSize)), 1)
     let rowCount = max(Int(ceil(size.height / Self.cellSize)), 1)
     let startRow = max(Int(Self.horizonRatio * Double(rowCount)), 0)
@@ -2005,7 +2003,7 @@ struct SkyCanvas: View {
       centerY: centerY,
       radiusInCells: celestialRadiusInCells(),
       color: sky.celestialTint,
-      opacity: 0.92,
+      opacity: 0.92 * weather.celestialVisibility,
       // 夜に近いほど月として扱い、実際の日付の満ち欠けで欠かします。
       moonPhase: sky.nightness > 0.5 ? MoonPhase.phase(at: AppDate.now()) : nil
     )
@@ -2080,7 +2078,7 @@ struct SkyCanvas: View {
   /// 新月では月が見えないため、光の道も消えます。
   private var reflectionStrength: Double {
     let illuminated = (1 - cos(2 * .pi * MoonPhase.phase(at: AppDate.now()))) / 2
-    return 1 - sky.nightness * (1 - illuminated)
+    return (1 - sky.nightness * (1 - illuminated)) * weather.celestialVisibility
   }
 
   /// 月のそのマスが照らされているかどうかです。

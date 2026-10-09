@@ -36,6 +36,31 @@ struct SkyWeather: Codable, Equatable, Sendable {
     SkyWeather(precipitation: .snow(intensity), cloudCover: 0.9)
   }
 
+  /// 雲と降水によって空や天体が遮られる度合いです。
+  var skyObscuration: Double {
+    let precipitationCover: Double
+    switch precipitation {
+    case .none: precipitationCover = 0
+    case .rain(.light), .snow(.light): precipitationCover = 0.55
+    case .rain(.moderate), .snow(.moderate): precipitationCover = 0.8
+    case .rain(.heavy), .snow(.heavy): precipitationCover = 1
+    }
+    return max(min(max(cloudCover, 0), 1), precipitationCover)
+  }
+
+  var celestialVisibility: Double {
+    pow(1 - skyObscuration, 2)
+  }
+
+  var rainStrokeOpacity: Double {
+    switch rainIntensity {
+    case .light: return 0.5
+    case .moderate: return 0.65
+    case .heavy: return 0.8
+    case nil: return 0
+    }
+  }
+
   var isRaining: Bool {
     if case .rain = precipitation { return true }
     return false
