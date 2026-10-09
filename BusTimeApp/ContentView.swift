@@ -366,6 +366,8 @@ struct ContentView: View {
           helpAction: { coordinator.send(.showTutorial) }
         )
 
+        serviceDayNotice
+        departuresSection
         TimetableSyncBanner(viewModel: viewModel)
 
         RouteHeaderCard(
@@ -375,9 +377,7 @@ struct ContentView: View {
 
         ServiceDayTimeCard(viewModel: viewModel)
 
-        serviceDayNotice
-        departuresSection
-
+        followingDepartures
         serviceFooter
       }
       .padding(.horizontal, horizontalPadding)
@@ -392,8 +392,7 @@ struct ContentView: View {
 
   /// 便の情報をまとめたカードです。
   ///
-  /// 次の便とそれに続く便は同じ「いつ乗れるか」の話なので、
-  /// カードを分けずに1枚へ収め、区切り線だけで役割を分けています。
+  /// 最も重要な発車時刻と通知操作を、条件入力より上に置きます。
   @ViewBuilder
   private var departuresSection: some View {
     if case let .failed(message) = viewModel.state {
@@ -415,7 +414,6 @@ struct ContentView: View {
           notifyAction: { selectBus(nextBus) }
         )
 
-        followingDepartures
       }
       .frame(maxWidth: .infinity, alignment: .leading)
       .skyCard(padding: 20)
@@ -435,8 +433,6 @@ struct ContentView: View {
     let followingBuses = Array(viewModel.searchResults.dropFirst())
 
     if !followingBuses.isEmpty {
-      SkyDivider()
-
       VStack(alignment: .leading, spacing: 10) {
         SkySectionLabel(text: viewModel.followingSectionTitle)
 
@@ -450,6 +446,7 @@ struct ContentView: View {
           )
         }
       }
+      .skyCard(padding: 20)
     }
   }
 

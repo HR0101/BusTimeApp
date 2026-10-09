@@ -126,6 +126,24 @@ final class BusTimeAppUITests: XCTestCase {
         XCTAssertFalse(nextBus.isHittable, "手動スクロール後に初期位置へ戻りました")
     }
 
+    @MainActor
+    func testNextBusTimeAndNotificationAreVisibleWithoutScrolling() throws {
+        let app = launchApp()
+        let notify = app.buttons["この便を通知する"]
+        XCTAssertTrue(notify.waitForExistence(timeout: 5))
+        XCTAssertTrue(notify.isHittable, "起動直後に通知操作が隠れています")
+        let departure = app.descendants(matching: .any)["next-bus-times"]
+        XCTAssertTrue(departure.isHittable, "起動直後に発車時刻が隠れています")
+        let tabBarTop = app.buttons["ホームタブ"].frame.minY
+        XCTAssertLessThan(notify.frame.maxY, tabBarTop, "通知操作がタブバーと重なっています")
+        let attachment = XCTAttachment(screenshot: app.screenshot())
+        attachment.name = "Home-primary-action-first-view"
+        attachment.lifetime = .keepAlways
+        add(attachment)
+        notify.tap()
+        XCTAssertTrue(app.navigationBars.firstMatch.waitForExistence(timeout: 5))
+    }
+
     // MARK: - 文字サイズ
 
     /// 文字を最大にしても、主要な操作が画面から消えたり押せなくなったりしないことを確かめます。
@@ -140,7 +158,12 @@ final class BusTimeAppUITests: XCTestCase {
         // 運行日の選択
         let today = app.buttons["今日"]
         XCTAssertTrue(today.waitForExistence(timeout: 5), "運行日の選択が見つかりません")
-        XCTAssertTrue(today.isHittable, "運行日の選択が押せません")
+        var conditionScrolls = 0
+        while !today.isHittable, conditionScrolls < 8 {
+            app.scrollViews.firstMatch.swipeUp()
+            conditionScrolls += 1
+        }
+        XCTAssertTrue(today.isHittable, "スクロールしても運行日の選択が押せません")
 
         // 出発地と目的地の入れ替え
         let swap = app.buttons["出発地と目的地を入れ替える"]
@@ -154,8 +177,8 @@ final class BusTimeAppUITests: XCTestCase {
         let notifyButton = app.buttons["この便を通知する"]
         XCTAssertTrue(notifyButton.waitForExistence(timeout: 5), "通知ボタンが見つかりません")
         var attempts = 0
-        while !notifyButton.isHittable, attempts < 4 {
-            app.scrollViews.firstMatch.swipeUp()
+        while !notifyButton.isHittable, attempts < 8 {
+            app.scrollViews.firstMatch.swipeDown()
             attempts += 1
         }
         XCTAssertTrue(notifyButton.isHittable, "通知ボタンが押せません")

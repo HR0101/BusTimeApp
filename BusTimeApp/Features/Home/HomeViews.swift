@@ -281,6 +281,7 @@ struct NextDepartureHero: View {
     }
     .accessibilityElement(children: .combine)
     .accessibilityLabel(L10n.Result.a11yTimeRow(bus.departure, bus.arrival))
+    .accessibilityIdentifier("next-bus-times")
   }
 
   @ViewBuilder
