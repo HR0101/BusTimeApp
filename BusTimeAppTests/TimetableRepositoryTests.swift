@@ -124,4 +124,24 @@ struct TimetableRepositoryTests {
         let malformed = TimetableSnapshot(schemaVersion: 2, routeId: seed.routeId, version: 2, updatedAt: seed.updatedAt, schedules: seed.schedules, buses: seed.buses)
         #expect(throws: TimetableAPIError.self) { try malformed.validate(expectedRoute: seed.routeId) }
     }
+
+    @Test func specialWeekendNotificationUsesTheActualServiceDate() {
+        let calendar = AppCalendar.japan
+        let saturday = calendar.date(from: DateComponents(year: 2026, month: 8, day: 15, hour: 8))!
+        let trip = RemoteTrip(id: "special-bus", routeId: "mansion-station", scheduleId: "special", stops: [
+            RemoteStopTime(stopId: "mansion", name: "コロンブスシティ", time: "9:00"),
+            RemoteStopTime(stopId: "station", name: "海浜幕張駅", time: "9:08")
+        ], note: nil)
+        let schedule = RemoteSchedule(id: "special", routeId: "mansion-station", kind: "special", serviceDate: "2026-08-15", validFrom: nil, validUntil: nil, isSuspended: false, priority: 10)
+        let snapshot = TimetableSnapshot(schemaVersion: 1, routeId: "mansion-station", version: 2, updatedAt: "2026-08-12T01:00:00Z", schedules: [schedule], buses: [trip])
+        let bus = snapshot.timetable(on: saturday)[0]
+        let dates = BusNotificationTimeCalculator.notificationDate(for: bus.departure, minutesBefore: 5,
+            from: saturday, calendar: calendar, serviceDate: bus.scheduledServiceDate)
+        #expect(dates?.departureDate == calendar.date(from: DateComponents(year: 2026, month: 8, day: 15, hour: 9)))
+        #expect(dates?.notificationDate == calendar.date(from: DateComponents(year: 2026, month: 8, day: 15, hour: 8, minute: 55)))
+        let afterDeparture = saturday.addingTimeInterval(2 * 60 * 60)
+        #expect(BusNotificationTimeCalculator.nextDepartureDate(for: bus.departure, from: afterDeparture,
+            calendar: calendar, serviceDate: bus.scheduledServiceDate) == nil)
+    }
+
 }

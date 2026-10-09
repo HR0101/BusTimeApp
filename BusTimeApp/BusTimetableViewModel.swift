@@ -1121,9 +1121,12 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
         }
 
         let currentDate = now()
+        let activityReference = bus.scheduledServiceDate.flatMap {
+            calendar.date(bySettingHour: 4, minute: 0, second: 0, of: $0)
+        } ?? currentDate
         guard let departureDate = BusNotificationTimeCalculator.departureDateForCurrentServiceDay(
             for: bus.departure,
-            from: currentDate,
+            from: activityReference,
             calendar: calendar
         ) else {
             liveActivityError = L10n.LiveActivity.noDepartureTime

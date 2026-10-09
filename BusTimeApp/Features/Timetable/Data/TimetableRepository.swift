@@ -62,7 +62,11 @@ struct TimetableSnapshot: Codable, Sendable {
 
     func timetable(on date: Date, calendar: Calendar = AppCalendar.japan) -> [Bus] {
         guard let schedule = schedule(on: date, calendar: calendar), !schedule.isSuspended else { return [] }
-        return buses.filter { $0.scheduleId == schedule.id }.map(\.bus).sorted {
+        return buses.filter { $0.scheduleId == schedule.id }.map {
+            var bus = $0.bus
+            bus.scheduledServiceDate = date
+            return bus
+        }.sorted {
             Self.minutes($0.departure) < Self.minutes($1.departure)
         }
     }
