@@ -378,6 +378,16 @@ struct BusTimeAppTests {
     }
 
     @Test
+    func localizedTimeSeparatesEnglishPeriodAndKeeps24HourLocales() {
+        let evening = makeTestDate(hour: 18, minute: 48)
+        let morning = makeTestDate(hour: 6, minute: 48)
+        #expect(TimeDisplayFormatter.string(from: evening, locale: Locale(identifier: "en_US")) == "6:48 PM")
+        #expect(TimeDisplayFormatter.string(from: morning, locale: Locale(identifier: "en_US")) == "6:48 AM")
+        #expect(TimeDisplayFormatter.string(from: evening, locale: Locale(identifier: "ja_JP")) == "18:48")
+        #expect(TimeDisplayFormatter.string(from: evening, locale: Locale(identifier: "en_GB")) == "18:48")
+    }
+
+    @Test
     func skyPaletteSwitchesBetweenDayAndNight() {
         // 昼は明るい空なので暗い文字、夜は暗い空なので明るい文字になります。
         // 昼の長さは季節で変わるので、季節を決めてから確かめます。
