@@ -55,6 +55,8 @@ public enum L10n {
     public static var settingsButton: String { String(localized: "home.settingsButton") }
     /// 使い方を開く
     public static var tutorialButton: String { String(localized: "home.tutorialButton") }
+    /// バス時刻表
+    public static var serviceName: String { String(localized: "home.serviceName") }
     /// コロンブスシティ
     public static var brandName: String { String(localized: "home.brandName") }
   }
@@ -82,6 +84,10 @@ public enum L10n {
     public static var locationPermissionDenied: String { String(localized: "route.locationPermissionDenied") }
     /// 位置情報の設定を開く
     public static var openLocationSettings: String { String(localized: "route.openLocationSettings") }
+    /// 現在地に合わせました：%1$@ → %2$@
+    public static func adjustedForLocation(_ arg0: String, _ arg1: String) -> String {
+      String.localizedStringWithFormat(String(localized: "route.adjustedForLocation"), arg0, arg1)
+    }
     /// 現在地から自動で選びました
     public static var decisionAutomatic: String { String(localized: "route.decisionAutomatic") }
     /// 時間帯と前回の行き先から選びました
@@ -133,6 +139,8 @@ public enum L10n {
     public static var currentTimeHint: String { String(localized: "when.currentTimeHint") }
     /// 今日
     public static var serviceDayTodayName: String { String(localized: "when.serviceDayTodayName") }
+    /// 別の運行日
+    public static var serviceDayOtherServiceName: String { String(localized: "when.serviceDayOtherServiceName") }
     /// 他の平日
     public static var serviceDayOtherWeekdayName: String { String(localized: "when.serviceDayOtherWeekdayName") }
   }
@@ -235,6 +243,8 @@ public enum L10n {
     public static func criteriaArrival(_ arg0: String, _ arg1: String, _ arg2: String) -> String {
       String.localizedStringWithFormat(String(localized: "search.criteriaArrival"), arg0, arg1, arg2)
     }
+    /// 過去の指定時刻を現在時刻に合わせました
+    public static var adjustedToCurrentTime: String { String(localized: "search.adjustedToCurrentTime") }
     /// %1$@ → %2$@｜%3$@以降に出発
     public static func criteriaDeparture(_ arg0: String, _ arg1: String, _ arg2: String) -> String {
       String.localizedStringWithFormat(String(localized: "search.criteriaDeparture"), arg0, arg1, arg2)
@@ -252,6 +262,8 @@ public enum L10n {
   }
 
   public enum Holiday {
+    /// 運行ダイヤの設定
+    public static var scheduleSuspension: String { String(localized: "holiday.scheduleSuspension") }
     /// 土日
     public static var weekend: String { String(localized: "holiday.weekend") }
     /// 祝日
@@ -301,6 +313,8 @@ public enum L10n {
     }
     /// MdEjmm
     public static var dateFormat: String { String(localized: "notify.dateFormat") }
+    /// 別の運行日の時刻のため、通知は運行当日に設定してください
+    public static var unavailableOtherServiceDay: String { String(localized: "notify.unavailableOtherServiceDay") }
   }
 
   public enum Countdown {
@@ -624,6 +638,29 @@ public enum L10n {
     public static var viaYokado: String { String(localized: "busNote.viaYokado") }
     /// 海浜幕張駅経由
     public static var viaStation: String { String(localized: "busNote.viaStation") }
+  }
+
+  public enum Sync {
+    /// オフライン
+    public static var offline: String { String(localized: "sync.offline") }
+    /// 保存済みの時刻表を表示しています
+    public static var savedTimetable: String { String(localized: "sync.savedTimetable") }
+    /// 同梱の時刻表を表示しています
+    public static var bundledTimetable: String { String(localized: "sync.bundledTimetable") }
+    /// 時刻表を更新できませんでした
+    public static var failed: String { String(localized: "sync.failed") }
+    /// 時刻表を確認中…
+    public static var updating: String { String(localized: "sync.updating") }
+    /// 新しいダイヤに更新しました
+    public static var updated: String { String(localized: "sync.updated") }
+    /// 最終更新: %@
+    public static func lastUpdated(_ arg0: String) -> String {
+      String.localizedStringWithFormat(String(localized: "sync.lastUpdated"), arg0)
+    }
+    /// 3日以上前の時刻表です。通信できる場所で更新してください。
+    public static var stale: String { String(localized: "sync.stale") }
+    /// 時刻表を更新
+    public static var refresh: String { String(localized: "sync.refresh") }
   }
 
 }

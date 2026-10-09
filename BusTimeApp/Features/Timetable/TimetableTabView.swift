@@ -65,6 +65,7 @@ struct TimetableTabView: View {
       ScrollView(showsIndicators: false) {
         VStack(alignment: .leading, spacing: SkyMetrics.sectionSpacing) {
           header
+          TimetableSyncBanner(viewModel: viewModel)
           // 運休日でも時刻表そのものは見たい情報なので、案内を出したうえで表示します。
           if let holidayMessage = viewModel.holidayMessage {
             NoticeCard(
@@ -104,6 +105,7 @@ struct TimetableTabView: View {
         proxy.scrollTo(hour, anchor: .center)
       }
     }
+    .refreshable { await viewModel.refreshTimetables() }
   }
 
   // MARK: - 見出し
