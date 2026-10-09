@@ -426,6 +426,23 @@ struct BusTimeAppTests {
     }
 
     @Test
+    func rainAndCloudsDimTheSkyAndHideTheSun() {
+        let palette = SkyPalette.at(hour: 12 + 22.0 / 60, season: .summer)
+        let clear = components(of: palette.skyColor(at: 0, weather: .clear))
+        let rainy = components(of: palette.skyColor(at: 0, weather: .rain(.heavy)))
+        #expect(relativeLuminance(rainy) < relativeLuminance(clear))
+        #expect(rainy.b - rainy.r < clear.b - clear.r)
+        #expect(SkyWeather.clear.celestialVisibility == 1)
+        #expect(SkyWeather.rain(.heavy).celestialVisibility == 0)
+        #expect(SkyWeather.rain(.heavy).rainStrokeOpacity > SkyWeather.rain(.light).rainStrokeOpacity)
+        #expect(SkyWeather(cloudCover: 1).celestialVisibility == 0)
+        #expect(SkyWeather(cloudCover: 0.5).celestialVisibility > SkyWeather(cloudCover: 0.9).celestialVisibility)
+        #expect(SkyWeather(precipitation: .rain(.heavy)).skyObscuration == 1)
+        #expect(palette.quantizedSkyColors(steps: 8) == palette.quantizedSkyColors(steps: 8, weather: .clear))
+        #expect(palette.quantizedWaterColors(steps: 8, weather: .rain(.heavy)) != palette.quantizedWaterColors(steps: 8))
+    }
+
+    @Test
     func rainIntensityFollowsPrecipitation() {
         #expect(WeatherCodeInterpreter.weather(code: 61, precipitation: 0.2).precipitation == .rain(.light))
         #expect(WeatherCodeInterpreter.weather(code: 63, precipitation: 2.0).precipitation == .rain(.moderate))
