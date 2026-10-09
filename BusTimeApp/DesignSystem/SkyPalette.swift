@@ -341,7 +341,9 @@ struct SkyPalette: Equatable {
   /// - Parameters:
   ///   - hour: 0以上24未満の時刻です。範囲外の値は24時間周期に丸めます。
   ///   - season: 季節です。省略すると今日の季節を使います。
-  static func at(hour: Double, season: Season = Season.current()) -> SkyPalette {
+  static func at(
+    hour: Double, season: Season = Season.current(), colorScheme: ColorScheme? = nil
+  ) -> SkyPalette {
     let normalizedHour = normalize(hour: hour)
     // 昼の長さを季節で伸び縮みさせます。
     // 冬は同じ17時でも暗く、夏は明るく見えるようにするためです。
@@ -355,15 +357,21 @@ struct SkyPalette: Equatable {
     let skyBottom = baseSkyBottom.mixed(with: season.tint, ratio: season.tintStrength * 0.6)
     let nightness = previous.nightness + (next.nightness - previous.nightness) * ratio
 
-    let accent = dayAccent.mixed(with: nightAccent, ratio: nightness)
+    // 外観指定はカードと操作部品に適用し、時刻による風景は維持します。
+    let darkSurfaces = colorScheme.map { $0 == .dark } ?? (nightness > nightThreshold)
+    let interfaceNightness = colorScheme == nil ? nightness : (darkSurfaces ? 1.0 : 0.0)
+    let surfaceBase: RGBComponents = colorScheme == nil ? skyBottom : (
+      darkSurfaces ? keyframes[0].skyBottom : RGBComponents(red: 0.94, green: 0.96, blue: 0.98)
+    )
+    let accent = dayAccent.mixed(with: nightAccent, ratio: interfaceNightness)
     let accentInk = accent.contrastRatio(with: lightAccentInk)
       >= accent.contrastRatio(with: darkAccentInk)
       ? lightAccentInk
       : darkAccentInk
     let isNight = nightness > nightThreshold
     // 文字とカードの地は中間の値を持たせず、この境界で一度に入れ替えます。
-    let ink = isNight ? nightInk : dayInk
-    let surfaceTone: Double = isNight ? 1 : 0
+    let ink = darkSurfaces ? nightInk : dayInk
+    let surfaceTone: Double = darkSurfaces ? 1 : 0
 
     return SkyPalette(
       skyTop: skyTop.color(),
@@ -373,13 +381,13 @@ struct SkyPalette: Equatable {
       ink: ink.color(),
       inkSecondary: ink.color(opacity: secondaryInkOpacity),
       inkFaint: ink.color(opacity: faintInkOpacity),
-      surface: Color.white.opacity(
+      surface: colorScheme == nil ? Color.white.opacity(
         interpolate(from: daySurfaceOpacity, to: nightSurfaceOpacity, ratio: surfaceTone)
-      ),
-      surfaceOpaque: skyBottom
+      ) : surfaceBase.color(opacity: 0.95),
+      surfaceOpaque: surfaceBase
         .mixed(with: RGBComponents(red: 1, green: 1, blue: 1), ratio: dayOpaqueWhiteMix)
         .mixed(
-          with: skyBottom.darkened(by: nightOpaqueDarkening),
+          with: surfaceBase.darkened(by: nightOpaqueDarkening),
           ratio: surfaceTone
         )
         .color(),
@@ -390,12 +398,12 @@ struct SkyPalette: Equatable {
       accentInk: accentInk.color(),
       accentReadable: ink.color(),
       accentSoft: accent.color(
-        opacity: interpolate(from: dayAccentSoftOpacity, to: nightAccentSoftOpacity, ratio: nightness)
+        opacity: interpolate(from: dayAccentSoftOpacity, to: nightAccentSoftOpacity, ratio: interfaceNightness)
       ),
       // 状態色もカード地と同じ境界で切り替えます。補間すると夕方に
       // カードと同程度の明るさを通過し、アイコンの輪郭が見えなくなるためです。
-      warning: (isNight ? nightWarning : dayWarning).color(),
-      positive: (isNight ? nightPositive : dayPositive).color(),
+      warning: (darkSurfaces ? nightWarning : dayWarning).color(),
+      positive: (darkSurfaces ? nightPositive : dayPositive).color(),
       celestialTint: sunTint.mixed(with: moonTint, ratio: nightness).color(),
       shore: dayShore
         .darkened(by: nightness * groundNightDarkening)
@@ -438,31 +446,38 @@ struct SkyPalette: Equatable {
 
   /// 画面の縦位置に対応する空の色を返します。
   /// - Parameter verticalRatio: 0が画面上端、1が画面下端です。
-  func skyColor(at verticalRatio: Double) -> Color {
-    skyTopComponents.mixed(with: skyBottomComponents, ratio: verticalRatio).color()
+  func skyColor(at verticalRatio: Double, weather: SkyWeather = .clear) -> Color {
+    skyComponents(at: verticalRatio, weather: weather).color()
+  }
+
+  private func skyComponents(at ratio: Double, weather: SkyWeather) -> RGBComponents {
+    let clear = skyTopComponents.mixed(with: skyBottomComponents, ratio: ratio)
+    let overcast = RGBComponents(red: 0.36, green: 0.42, blue: 0.48)
+      .darkened(by: nightness * 0.85)
+    return clear.mixed(with: overcast, ratio: weather.skyObscuration * 0.95)
   }
 
   /// 空の色を指定した段階数に量子化して返します。
   /// ドット絵は色数を絞ることで成立するため、背景はこの限られた色だけで塗ります。
   /// - Parameter steps: 作る色の数です。上端の色から下端の色までを等間隔で刻みます。
-  func quantizedSkyColors(steps: Int) -> [Color] {
-    guard steps > 1 else { return [skyTop] }
+  func quantizedSkyColors(steps: Int, weather: SkyWeather = .clear) -> [Color] {
+    guard steps > 1 else { return [skyColor(at: 0, weather: weather)] }
 
     return (0..<steps).map { index in
       let ratio = Double(index) / Double(steps - 1)
-      return skyTopComponents.mixed(with: skyBottomComponents, ratio: ratio).color()
+      return skyColor(at: ratio, weather: weather)
     }
   }
 
   /// 海面に使う色を返します。
   /// 空を映しつつ、水そのものの深さを表すために暗く沈ませ、青へ寄せます。
   /// これにより、空と水面の色が近い昼や夕方でも水際が見分けられます。
-  func quantizedWaterColors(steps: Int) -> [Color] {
+  func quantizedWaterColors(steps: Int, weather: SkyWeather = .clear) -> [Color] {
     guard steps > 1 else { return [skyTop] }
 
     return (0..<steps).map { index in
       let ratio = Double(index) / Double(steps - 1)
-      let reflected = skyTopComponents.mixed(with: skyBottomComponents, ratio: ratio)
+      let reflected = skyComponents(at: ratio, weather: weather)
       return reflected
         .darkened(by: Self.waterDarkening)
         .mixed(with: Self.waterTint, ratio: Self.waterTintStrength)

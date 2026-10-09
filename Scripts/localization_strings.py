@@ -141,12 +141,14 @@ ENTRIES = [
      {'one': 'Found %1$lld service. %2$@', 'other': 'Found %1$lld services. %2$@'},
      '找到%1$lld个班次。%2$@', ['Int', 'String']),
     ('search.criteriaArrival', '%1$@ → %2$@｜%3$@までに到着', '%1$@ → %2$@ | arriving by %3$@', '%1$@ → %2$@｜%3$@前到达', ['String', 'String', 'String']),
+    ('search.adjustedToCurrentTime', '過去の指定時刻を現在時刻に合わせました', 'The past requested time was adjusted to the current time.', '过去的指定时间已调整为当前时间。', []),
     ('search.criteriaDeparture', '%1$@ → %2$@｜%3$@以降に出発', '%1$@ → %2$@ | departing after %3$@', '%1$@ → %2$@｜%3$@后出发', ['String', 'String', 'String']),
     ('search.timetableLoadFailed', '選択された路線の時刻表を読み込めませんでした。', 'Could not load the timetable for the selected route.', '无法加载所选路线的时刻表。', []),
     ('search.reasonArrival', '%@到着・希望時刻までに到着', 'Arrives %@, within your target time', '%@到达，在期望时间之内', ['String']),
     ('search.reasonDeparture', '%@出発・指定時刻以降', 'Departs %@, after the time you set', '%@出发，在指定时间之后', ['String']),
 
     # ---- 運休の案内 ----
+    ('holiday.scheduleSuspension', '運行ダイヤの設定', 'a scheduled suspension', '运行时刻表设置', []),
     ('holiday.weekend', '土日', 'the weekend', '周末', []),
     ('holiday.publicHoliday', '祝日', 'a public holiday', '节假日', []),
     ('holiday.message', '本日は%@のため運休です。', 'There is no service today (%@).', '今日因%@停运。', ['String']),
@@ -307,9 +309,12 @@ ENTRIES = [
 
     # ---- いつのバス（運行日と時刻） ----
     ('when.serviceDayTodayName', '今日', 'Today', '今天', []),
+    ('when.serviceDayOtherServiceName', '別の運行日', 'Another service day', '其他运行日', []),
+    ('notify.unavailableOtherServiceDay', '別の運行日の時刻のため、通知は運行当日に設定してください', 'These are times for another service day. Set the alert on the day of travel.', '这是其他运行日的时刻，请在乘车当天设置提醒。', []),
     ('when.serviceDayOtherWeekdayName', '他の平日', 'Other weekday', '其他工作日', []),
 
     # ---- ホーム画面のヘッダー ----
+    ('home.serviceName', 'バス時刻表', 'Bus timetable', '公交时刻表', []),
     ('home.brandName', 'コロンブスシティ', 'コロンブスシティ', 'コロンブスシティ', []),
 
     # ---- Live Activityの残り時間 ----
@@ -341,4 +346,16 @@ ENTRIES += [
 
 ENTRIES += [
     ("result.earlierTitle", "ひとつ前の便", "Earlier service", "更早的班次", []),
+]
+
+ENTRIES += [
+    ('sync.offline', 'オフライン', 'Offline', '离线', []),
+    ('sync.savedTimetable', '保存済みの時刻表を表示しています', 'Showing the saved timetable', '正在显示已保存的时刻表', []),
+    ('sync.bundledTimetable', '同梱の時刻表を表示しています', 'Showing the bundled timetable', '正在显示应用内置时刻表', []),
+    ('sync.failed', '時刻表を更新できませんでした', 'Could not update the timetable', '无法更新时刻表', []),
+    ('sync.updating', '時刻表を確認中…', 'Checking the timetable…', '正在检查时刻表…', []),
+    ('sync.updated', '新しいダイヤに更新しました', 'The timetable has been updated', '时刻表已更新', []),
+    ('sync.lastUpdated', '最終更新: %@', 'Last updated: %@', '最后更新：%@', ['String']),
+    ('sync.stale', '3日以上前の時刻表です。通信できる場所で更新してください。', 'This timetable is at least 3 days old. Update when connected.', '此时刻表至少已有3天未更新。请在联网时更新。', []),
+    ('sync.refresh', '時刻表を更新', 'Refresh timetable', '更新时刻表', []),
 ]

@@ -84,6 +84,7 @@ struct ContentView: View {
   @StateObject private var weatherViewModel = WeatherViewModel()
   @SceneStorage("selectedMainTab") private var selectedTab: MainTab = .home
   @Environment(\.scenePhase) private var scenePhase
+  @Environment(\.colorScheme) private var systemColorScheme
   @Environment(\.dynamicTypeSize) private var dynamicTypeSize
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -91,7 +92,11 @@ struct ContentView: View {
   private let paletteAnimationDuration: Double = 0.9
 
   private var palette: SkyPalette {
-    skyClock.palette
+    SkyPalette.at(
+      hour: skyClock.palette.hour,
+      season: Season.current(date: AppDate.now()),
+      colorScheme: settingsViewModel.paletteColorScheme(systemColorScheme: systemColorScheme)
+    )
   }
 
   private var scheduledBusIDs: Set<String> {
@@ -117,8 +122,10 @@ struct ContentView: View {
           setAutomaticUpdatesActive(true)
         }
         .task {
+          await viewModel.refreshTimetables()
           await weatherViewModel.refreshIfNeeded()
         }
+        .task { await viewModel.watchTimetableConnectivity() }
         .onOpenURL { url in
           // ウィジェットのタップで開かれたときは、その経路に合わせます。
           guard let route = SharedAppData.route(from: url) else { return }
@@ -132,7 +139,10 @@ struct ContentView: View {
             viewModel.refreshForAppActivation()
             viewModel.checkLocationAndSetOrigin()
             settingsViewModel.refreshLiveActivityAvailability()
-            Task { await weatherViewModel.refreshIfNeeded() }
+            Task {
+              await viewModel.refreshTimetables()
+              await weatherViewModel.refreshIfNeeded()
+            }
           } else {
             setAutomaticUpdatesActive(false)
           }
@@ -356,6 +366,8 @@ struct ContentView: View {
           helpAction: { coordinator.send(.showTutorial) }
         )
 
+        TimetableSyncBanner(viewModel: viewModel)
+
         RouteHeaderCard(
           viewModel: viewModel,
           locationAction: viewModel.useCurrentLocationForRoute
@@ -375,6 +387,7 @@ struct ContentView: View {
       .frame(maxWidth: SkyMetrics.contentMaxWidth)
       .frame(maxWidth: .infinity)
     }
+    .refreshable { await viewModel.refreshTimetables() }
   }
 
   /// 便の情報をまとめたカードです。

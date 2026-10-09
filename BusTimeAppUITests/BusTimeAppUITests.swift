@@ -32,7 +32,8 @@ final class BusTimeAppUITests: XCTestCase {
     private func launchApp(
         contentSize: String = ContentSize.standard,
         language: String = "ja",
-        locale: String = "ja_JP"
+        locale: String = "ja_JP",
+        now: String = "1786496400"
     ) -> XCUIApplication {
         let app = XCUIApplication()
         app.launchArguments += [
@@ -40,7 +41,7 @@ final class BusTimeAppUITests: XCTestCase {
             "-AppleLocale", locale,
             "-UIPreferredContentSizeCategoryName", contentSize,
             "-SkyBackgroundStill",
-            "-UITestNow", "1786496400",
+            "-UITestNow", now,
             "-UITestResetState",
             "-forceWeather", "clear",
             "-hasSeenTutorial", "YES"
@@ -80,6 +81,29 @@ final class BusTimeAppUITests: XCTestCase {
         app.buttons["ホームタブ"].tap()
         // ホームタブだけに出る見出しで、戻れたことを確かめます。
         XCTAssertTrue(app.staticTexts["いつのバス"].waitForExistence(timeout: 5))
+    }
+
+    @MainActor
+    func testEnglishTimeHasASpaceAndOpensTheSystemPicker() throws {
+        let app = launchApp(language: "en", locale: "en_US", now: "1786528080")
+        let time = app.buttons["search-time-picker"]
+        XCTAssertTrue(time.waitForExistence(timeout: 5))
+        XCTAssertEqual(time.value as? String, "6:48 PM")
+        let attachment = XCTAttachment(screenshot: app.screenshot())
+        attachment.name = "Search-time-English-spacing"
+        attachment.lifetime = .keepAlways
+        add(attachment)
+        // A fresh simulator can present the location prompt here. Dismissing it
+        // changes the route card height, so resolve and tap the time button afterward.
+        let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
+        let denyLocation = springboard.buttons.matching(NSPredicate(
+            format: "label == %@ OR label == %@", "Don’t Allow", "Don't Allow"
+        )).firstMatch
+        if denyLocation.waitForExistence(timeout: 2) { denyLocation.tap() }
+        app.buttons["search-time-picker"].tap()
+        XCTAssertTrue(app.datePickers.firstMatch.waitForExistence(timeout: 5))
+        app.buttons["Done"].tap()
+        XCTAssertTrue(time.isHittable)
     }
 
     // MARK: - 文字サイズ
