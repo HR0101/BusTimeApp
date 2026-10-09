@@ -307,6 +307,8 @@ ENTRIES = [
 
     # ---- いつのバス（運行日と時刻） ----
     ('when.serviceDayTodayName', '今日', 'Today', '今天', []),
+    ('when.serviceDayOtherServiceName', '別の運行日', 'Another service day', '其他运行日', []),
+    ('notify.unavailableOtherServiceDay', '別の運行日の時刻のため、通知は運行当日に設定してください', 'These are times for another service day. Set the alert on the day of travel.', '这是其他运行日的时刻，请在乘车当天设置提醒。', []),
     ('when.serviceDayOtherWeekdayName', '他の平日', 'Other weekday', '其他工作日', []),
 
     # ---- ホーム画面のヘッダー ----

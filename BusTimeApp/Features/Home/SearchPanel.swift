@@ -276,7 +276,7 @@ struct ServiceDayTimeCard: View {
     DynamicTypeStack(spacing: 8) {
       ForEach(HomeViewModel.ServiceDay.allCases) { day in
         SkyChip(
-          title: day.displayName,
+          title: viewModel.serviceDayDisplayName(for: day),
           isSelected: viewModel.serviceDay == day
         ) {
           withAnimation(reduceMotion ? nil : .easeOut(duration: 0.2)) {

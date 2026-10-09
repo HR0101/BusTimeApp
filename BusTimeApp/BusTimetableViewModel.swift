@@ -907,6 +907,11 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
         return todaysServiceStart
     }
 
+    func serviceDayDisplayName(for day: ServiceDay) -> String {
+        if timetableRepository != nil && day == .otherWeekday { return L10n.When.serviceDayOtherServiceName }
+        return day.displayName
+    }
+
     // MARK: - 運行日
 
     /// 選んでいる運行日の日付です。
@@ -983,7 +988,7 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
             return L10n.Notify.unavailableSuspended
         }
         if !isViewingToday {
-            return L10n.Notify.unavailableOtherDay
+            return timetableRepository == nil ? L10n.Notify.unavailableOtherDay : L10n.Notify.unavailableOtherServiceDay
         }
         return nil
     }

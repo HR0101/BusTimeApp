@@ -1197,6 +1197,29 @@
         }
       }
     },
+    "notify.unavailableOtherServiceDay": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "These are times for another service day. Set the alert on the day of travel."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "別の運行日の時刻のため、通知は運行当日に設定してください"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "这是其他运行日的时刻，请在乘车当天设置提醒。"
+          }
+        }
+      }
+    },
     "notify.unavailableSuspended": {
       "extractionState": "manual",
       "localizations": {
@@ -5251,6 +5274,29 @@
           "stringUnit": {
             "state": "translated",
             "value": "按出发时间查找"
+          }
+        }
+      }
+    },
+    "when.serviceDayOtherServiceName": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Another service day"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "別の運行日"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "其他运行日"
           }
         }
       }
