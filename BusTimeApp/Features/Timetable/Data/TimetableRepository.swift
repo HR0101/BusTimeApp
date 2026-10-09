@@ -1,4 +1,5 @@
 import Foundation
+import Network
 
 struct RemoteStopTime: Codable, Sendable {
     let stopId: String
@@ -43,6 +44,7 @@ struct TimetableSnapshot: Codable, Sendable {
     let updatedAt: String
     let schedules: [RemoteSchedule]
     var buses: [RemoteTrip]
+    var routeName: String? = nil
 
     func schedule(on date: Date, calendar: Calendar = AppCalendar.japan) -> RemoteSchedule? {
         let parts = calendar.dateComponents([.year, .month, .day, .weekday], from: date)
@@ -106,6 +108,7 @@ private struct TimetableDelta: Decodable {
     let schedules: [RemoteSchedule]
     let upserts: [RemoteTrip]
     let deletedIds: [String]
+    let routeName: String?
 
     func applying(to previous: TimetableSnapshot) throws -> TimetableSnapshot {
         guard routeId == previous.routeId, version >= previous.version,
@@ -114,7 +117,8 @@ private struct TimetableDelta: Decodable {
         for id in deletedIds { trips.removeValue(forKey: id) }
         for trip in upserts { trips[trip.id] = trip }
         return TimetableSnapshot(schemaVersion: schemaVersion, routeId: routeId, version: version,
-                                 updatedAt: updatedAt, schedules: schedules, buses: Array(trips.values))
+                                 updatedAt: updatedAt, schedules: schedules, buses: Array(trips.values),
+                                 routeName: routeName ?? previous.routeName)
     }
 }
 
@@ -126,7 +130,14 @@ actor TimetableRepository {
     private let session: URLSession
     private var snapshots: [String: TimetableSnapshot] = [:]
     private var catalogETag: String?
-    private var refreshing = false
+    private let cacheStore: TimetableCacheStore?
+    private let nowProvider: @Sendable () -> Date
+    private var inFlight: Task<[String: TimetableSnapshot], Error>?
+    private var isOnline = true
+    private var syncInfo: TimetableSyncInfo
+    private let pathMonitor: NWPathMonitor?
+    nonisolated let connectionUpdates: AsyncStream<Bool>
+    nonisolated let initialCache: TimetableCache?
 
     static var configured: TimetableRepository? {
         var endpoint = Bundle.main.object(forInfoDictionaryKey: "TimetableAPIBaseURL") as? String
@@ -142,24 +153,91 @@ actor TimetableRepository {
         #else
         guard url.scheme == "https" else { return nil }
         #endif
-        return TimetableRepository(baseURL: url)
+        #if DEBUG
+        let offline = ProcessInfo.processInfo.arguments.contains("-UITestTimetableOffline")
+        #else
+        let offline = false
+        #endif
+        return TimetableRepository(baseURL: url, cacheStore: .standard,
+                                   nowProvider: { AppDate.now() }, monitorConnection: !offline, initiallyOnline: !offline)
     }
 
-    init(baseURL: URL, session: URLSession = .shared) {
+    init(baseURL: URL, session: URLSession = .shared, cacheStore: TimetableCacheStore? = nil,
+         nowProvider: @escaping @Sendable () -> Date = { Date() }, monitorConnection: Bool = false, initiallyOnline: Bool = true,
+         connectionStream: AsyncStream<Bool>? = nil) {
         self.baseURL = baseURL
         self.session = session
+        self.cacheStore = cacheStore
+        self.nowProvider = nowProvider
+        self.isOnline = initiallyOnline
+        let cache = cacheStore?.load(endpoint: baseURL)
+        self.initialCache = cache
+        self.snapshots = cache?.snapshots ?? [:]
+        self.catalogETag = cache?.catalogETag
+        self.syncInfo = TimetableSyncInfo(connection: initiallyOnline ? .cached : .offline,
+                                          verifiedAt: cache?.verifiedAt, hasCache: cache != nil)
+        var continuation: AsyncStream<Bool>.Continuation!
+        if let connectionStream { connectionUpdates = connectionStream }
+        else { connectionUpdates = AsyncStream(bufferingPolicy: .bufferingNewest(1)) { continuation = $0 } }
+        if monitorConnection && connectionStream == nil {
+            let monitor = NWPathMonitor()
+            let output = continuation!
+            monitor.pathUpdateHandler = { output.yield($0.status == .satisfied) }
+            monitor.start(queue: DispatchQueue(label: "TimetableConnectivity"))
+            pathMonitor = monitor
+        } else {
+            continuation?.finish()
+            pathMonitor = nil
+        }
     }
 
+    deinit { pathMonitor?.cancel() }
+
+    func setConnection(online: Bool) {
+        isOnline = online
+        if !online { syncInfo.connection = .offline }
+    }
+
+    func info() -> TimetableSyncInfo { syncInfo }
+
     func refresh() async throws -> [String: TimetableSnapshot] {
-        guard !refreshing else { return snapshots }
-        refreshing = true
-        defer { refreshing = false }
-        var request = URLRequest(url: baseURL.appendingPathComponent("routes"))
+        if let inFlight { return try await inFlight.value }
+        guard isOnline else { syncInfo.connection = .offline; return snapshots }
+        syncInfo.connection = .syncing
+        syncInfo.didUpdate = false
+        let task = Task { try await self.fetchUpdates() }
+        inFlight = task
+        defer { inFlight = nil }
+        do { return try await task.value }
+        catch {
+            syncInfo.connection = (!isOnline || (error as? URLError)?.code == .notConnectedToInternet)
+                ? .offline : .unavailable
+            throw error
+        }
+    }
+
+    private func accept(_ updated: [String: TimetableSnapshot], etag: String?, changed: Bool) throws {
+        let verifiedAt = nowProvider()
+        let cache = TimetableCache(formatVersion: 1, endpoint: baseURL.absoluteString,
+                                  snapshots: updated, catalogETag: etag, verifiedAt: verifiedAt)
+        try cacheStore?.save(cache)
+        snapshots = updated
+        catalogETag = etag
+        syncInfo = TimetableSyncInfo(connection: isOnline ? .current : .offline,
+                                    verifiedAt: verifiedAt, hasCache: !updated.isEmpty, didUpdate: changed)
+    }
+
+    private func fetchUpdates() async throws -> [String: TimetableSnapshot] {
+        var request = URLRequest(url: baseURL.appendingPathComponent("routes"), cachePolicy: .reloadIgnoringLocalCacheData)
         request.timeoutInterval = 15
         request.setValue(catalogETag, forHTTPHeaderField: "If-None-Match")
         let (data, response) = try await session.data(for: request)
         guard let response = response as? HTTPURLResponse else { throw TimetableAPIError.invalidData }
-        if response.statusCode == 304 { return snapshots }
+        if response.statusCode == 304 {
+            guard !snapshots.isEmpty else { throw TimetableAPIError.invalidData }
+            try accept(snapshots, etag: catalogETag, changed: false)
+            return snapshots
+        }
         guard response.statusCode == 200 else { throw TimetableAPIError.status(response.statusCode) }
         struct Catalog: Decodable {
             struct Route: Decodable { let id: String; let version: Int }
@@ -185,7 +263,7 @@ actor TimetableRepository {
                 components.queryItems = [URLQueryItem(name: "since_version", value: String(previous!.version))]
                 url = components.url!
             }
-            var tripRequest = URLRequest(url: url)
+            var tripRequest = URLRequest(url: url, cachePolicy: .reloadIgnoringLocalCacheData)
             tripRequest.timeoutInterval = 15
             let (body, result) = try await session.data(for: tripRequest)
             guard let http = result as? HTTPURLResponse, http.statusCode == 200 else {
@@ -197,8 +275,8 @@ actor TimetableRepository {
             try snapshot.validate(expectedRoute: route.id)
             updated[route.id] = snapshot
         }
-        snapshots = updated
-        catalogETag = response.value(forHTTPHeaderField: "ETag")
+        let changed = !snapshots.isEmpty && updated.contains { snapshots[$0.key]?.version != $0.value.version }
+        try accept(updated, etag: response.value(forHTTPHeaderField: "ETag"), changed: changed)
         return snapshots
     }
 }

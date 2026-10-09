@@ -41,6 +41,7 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
 
     // MARK: - 内部でだけ使うプロパティ
     
+    @Published private(set) var timetableSyncInfo = TimetableSyncInfo()
     private var remoteTimetables: [String: TimetableSnapshot] = [:]
     private let timetableRepository: TimetableRepository?
     private var allTimetables: [Route: [Bus]] = [:] // 全ルートの時刻表データ
@@ -179,6 +180,10 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
         self.defaults = defaults
         self.calendar = calendar
         self.timetableRepository = timetableRepository
+        if let cached = timetableRepository?.initialCache {
+            self.remoteTimetables = cached.snapshots
+            self.timetableSyncInfo = TimetableSyncInfo(verifiedAt: cached.verifiedAt, hasCache: true)
+        }
         self.availabilityReferenceDate = nowProvider()
         super.init()
         setupTimetables() // 時刻表データを準備する
@@ -571,6 +576,7 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
     @MainActor
     func refreshTimetables() async {
         guard let timetableRepository else { return }
+        timetableSyncInfo.connection = .syncing
         do {
             remoteTimetables = try await timetableRepository.refresh()
             refreshRouteAvailability()
@@ -578,6 +584,20 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
         } catch {
             // Keep the last validated timetable (or bundled fallback) on server failure.
             AppLogger.timetable.error("Timetable refresh failed: \(String(describing: error), privacy: .public)")
+        }
+        timetableSyncInfo = await timetableRepository.info()
+    }
+
+    var hasTimetableAPI: Bool { timetableRepository != nil }
+
+    @MainActor
+    func watchTimetableConnectivity() async {
+        guard let timetableRepository else { return }
+        for await online in timetableRepository.connectionUpdates {
+            guard !Task.isCancelled else { return }
+            await timetableRepository.setConnection(online: online)
+            if online { await refreshTimetables() }
+            else { timetableSyncInfo = await timetableRepository.info() }
         }
     }
 

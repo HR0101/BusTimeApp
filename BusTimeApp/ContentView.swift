@@ -120,6 +120,7 @@ struct ContentView: View {
           await viewModel.refreshTimetables()
           await weatherViewModel.refreshIfNeeded()
         }
+        .task { await viewModel.watchTimetableConnectivity() }
         .onOpenURL { url in
           // ウィジェットのタップで開かれたときは、その経路に合わせます。
           guard let route = SharedAppData.route(from: url) else { return }
@@ -360,6 +361,8 @@ struct ContentView: View {
           helpAction: { coordinator.send(.showTutorial) }
         )
 
+        TimetableSyncBanner(viewModel: viewModel)
+
         RouteHeaderCard(
           viewModel: viewModel,
           locationAction: viewModel.useCurrentLocationForRoute
@@ -379,6 +382,7 @@ struct ContentView: View {
       .frame(maxWidth: SkyMetrics.contentMaxWidth)
       .frame(maxWidth: .infinity)
     }
+    .refreshable { await viewModel.refreshTimetables() }
   }
 
   /// 便の情報をまとめたカードです。
