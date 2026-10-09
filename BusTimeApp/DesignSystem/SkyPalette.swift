@@ -446,31 +446,38 @@ struct SkyPalette: Equatable {
 
   /// 画面の縦位置に対応する空の色を返します。
   /// - Parameter verticalRatio: 0が画面上端、1が画面下端です。
-  func skyColor(at verticalRatio: Double) -> Color {
-    skyTopComponents.mixed(with: skyBottomComponents, ratio: verticalRatio).color()
+  func skyColor(at verticalRatio: Double, weather: SkyWeather = .clear) -> Color {
+    skyComponents(at: verticalRatio, weather: weather).color()
+  }
+
+  private func skyComponents(at ratio: Double, weather: SkyWeather) -> RGBComponents {
+    let clear = skyTopComponents.mixed(with: skyBottomComponents, ratio: ratio)
+    let overcast = RGBComponents(red: 0.36, green: 0.42, blue: 0.48)
+      .darkened(by: nightness * 0.85)
+    return clear.mixed(with: overcast, ratio: weather.skyObscuration * 0.95)
   }
 
   /// 空の色を指定した段階数に量子化して返します。
   /// ドット絵は色数を絞ることで成立するため、背景はこの限られた色だけで塗ります。
   /// - Parameter steps: 作る色の数です。上端の色から下端の色までを等間隔で刻みます。
-  func quantizedSkyColors(steps: Int) -> [Color] {
-    guard steps > 1 else { return [skyTop] }
+  func quantizedSkyColors(steps: Int, weather: SkyWeather = .clear) -> [Color] {
+    guard steps > 1 else { return [skyColor(at: 0, weather: weather)] }
 
     return (0..<steps).map { index in
       let ratio = Double(index) / Double(steps - 1)
-      return skyTopComponents.mixed(with: skyBottomComponents, ratio: ratio).color()
+      return skyColor(at: ratio, weather: weather)
     }
   }
 
   /// 海面に使う色を返します。
   /// 空を映しつつ、水そのものの深さを表すために暗く沈ませ、青へ寄せます。
   /// これにより、空と水面の色が近い昼や夕方でも水際が見分けられます。
-  func quantizedWaterColors(steps: Int) -> [Color] {
+  func quantizedWaterColors(steps: Int, weather: SkyWeather = .clear) -> [Color] {
     guard steps > 1 else { return [skyTop] }
 
     return (0..<steps).map { index in
       let ratio = Double(index) / Double(steps - 1)
-      let reflected = skyTopComponents.mixed(with: skyBottomComponents, ratio: ratio)
+      let reflected = skyComponents(at: ratio, weather: weather)
       return reflected
         .darkened(by: Self.waterDarkening)
         .mixed(with: Self.waterTint, ratio: Self.waterTintStrength)
