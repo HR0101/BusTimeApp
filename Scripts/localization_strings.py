@@ -309,6 +309,7 @@ ENTRIES = [
     ('when.serviceDayOtherWeekdayName', '他の平日', 'Other weekday', '其他工作日', []),
 
     # ---- ホーム画面のヘッダー ----
+    ('home.serviceName', 'バス時刻表', 'Bus timetable', '公交时刻表', []),
     ('home.brandName', 'コロンブスシティ', 'コロンブスシティ', 'コロンブスシティ', []),
 
     # ---- Live Activityの残り時間 ----

@@ -55,6 +55,8 @@ public enum L10n {
     public static var settingsButton: String { String(localized: "home.settingsButton") }
     /// 使い方を開く
     public static var tutorialButton: String { String(localized: "home.tutorialButton") }
+    /// バス時刻表
+    public static var serviceName: String { String(localized: "home.serviceName") }
     /// コロンブスシティ
     public static var brandName: String { String(localized: "home.brandName") }
   }
