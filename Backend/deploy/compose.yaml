@@ -4,15 +4,15 @@ services:
     build:
       context: ../..
       dockerfile: Backend/Dockerfile
+      network: host
     restart: unless-stopped
     env_file: .env
     environment:
       TIMETABLE_DB_PATH: /data/timetable.sqlite3
     volumes:
       - timetable-data:/data
-    # API is reachable only through the HTTPS proxy.
-    expose:
-      - '8000'
+    network_mode: host
+    command: [uvicorn, Backend.main:app, --host, 127.0.0.1, --port, '8000', --proxy-headers]
     mem_limit: 192m
     logging:
       driver: json-file
@@ -24,9 +24,7 @@ services:
     restart: unless-stopped
     environment:
       API_DOMAIN: ${API_DOMAIN:-bus-api.hr0101.dev}
-    ports:
-      - '80:80'
-      - '443:443'
+    network_mode: host
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy-data:/data
