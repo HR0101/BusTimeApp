@@ -21,4 +21,4 @@ jobs:
       - run: pip install -r Backend/requirements.lock
       - run: python Backend/generate_seed.py
       - run: git diff --exit-code Backend/seed.json
-      - run: pytest Backend/test_api.py -q
+      - run: pytest Backend/test_api.py Backend/test_security.py -q

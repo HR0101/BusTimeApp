@@ -1,3 +1,33 @@
+{
+    servers {
+        # Keep these in sync with https://www.cloudflare.com/ips-v6/ and Lightsail's firewall.
+        trusted_proxies static 2400:cb00::/32 2606:4700::/32 2803:f800::/32 2405:b500::/32 2405:8100::/32 2a06:98c0::/29 2c0f:f248::/32
+        trusted_proxies_strict
+        client_ip_headers CF-Connecting-IP
+        timeouts {
+            read_header 5s
+            read_body 30s
+            idle 60s
+        }
+        max_header_size 32KB
+    }
+}
+
 {$API_DOMAIN:bus-api.hr0101.dev} {
-    reverse_proxy 127.0.0.1:8000
+    header {
+        Strict-Transport-Security "max-age=31536000"
+        -Server
+    }
+    request_body {
+        max_size 2000000
+    }
+    tls {
+        issuer acme {
+            # Cloudflare forwards HTTP-01; TLS-ALPN-01 cannot pass through its proxy.
+            disable_tlsalpn_challenge
+        }
+    }
+    reverse_proxy 127.0.0.1:8000 {
+        header_up X-Forwarded-For {client_ip}
+    }
 }

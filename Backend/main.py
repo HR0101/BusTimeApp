@@ -12,17 +12,20 @@ from fastapi.security import APIKeyHeader
 from fastapi.staticfiles import StaticFiles
 from .database import Database
 from .models import Batch, Operation, Publication, Schedule, Trip
+from .security import RequestProtection, secure_response
 
 
 CSV_FIELDS = ['id', 'route_id', 'schedule_id', 'stops_json', 'note']
 
 
-def create_app(database_path=None, admin_key=None, now=None):
+def create_app(database_path=None, admin_key=None, now=None, protection=None):
     key = admin_key if admin_key is not None else os.environ.get('ADMIN_API_KEY', '')
     if key and len(key) < 32:
         raise RuntimeError('ADMIN_API_KEY must contain at least 32 characters')
     store = Database(database_path or os.environ.get('TIMETABLE_DB_PATH', 'data/timetable.sqlite3'), now=now)
-    app = FastAPI(title='BusTimeApp Timetable API', version='1.0.0')
+    app = FastAPI(title='BusTimeApp Timetable API', version='1.0.0',
+                  docs_url=None, redoc_url=None, openapi_url=None)
+    protection = protection if protection is not None else RequestProtection()
     app.mount('/admin-assets', StaticFiles(directory=Path(__file__).parent / 'static'), name='admin-assets')
     app.state.store = store
     scheme = APIKeyHeader(name='X-Admin-Key', auto_error=False)
@@ -35,24 +38,29 @@ def create_app(database_path=None, admin_key=None, now=None):
 
     @app.middleware('http')
     async def limit_requests(request, call_next):
+        rejected = protection.guard(request, key)
+        if rejected is not None:
+            return secure_response(rejected, request.url.path)
         # Keep JSON and CSV batches bounded, including requests without Content-Length.
-        if request.method in ('POST', 'PUT'):
+        if request.method in ('POST', 'PUT', 'PATCH'):
             try:
-                if int(request.headers.get('content-length', '0')) > 2_000_000:
-                    return JSONResponse({'detail': 'Request too large'}, status_code=413)
+                length = int(request.headers.get('content-length', '0'))
+                if length < 0:
+                    raise ValueError()
+                if length > 2_000_000:
+                    return secure_response(protection.response('Request too large', 413), request.url.path)
             except ValueError:
-                return JSONResponse({'detail': 'Invalid Content-Length'}, status_code=400)
+                return secure_response(protection.response('Invalid Content-Length', 400), request.url.path)
             body = bytearray()
             async for chunk in request.stream():
+                if len(body) + len(chunk) > 2_000_000:
+                    return secure_response(protection.response('Request too large', 413), request.url.path)
                 body.extend(chunk)
-                if len(body) > 2_000_000:
-                    return JSONResponse({'detail': 'Request too large'}, status_code=413)
             request._body = bytes(body)
         response = await call_next(request)
-        response.headers['X-Content-Type-Options'] = 'nosniff'
         if request.url.path.startswith('/api/v1/admin') or request.method != 'GET':
             response.headers['Cache-Control'] = 'no-store'
-        return response
+        return secure_response(response, request.url.path)
 
     @app.exception_handler(KeyError)
     async def missing(request, error):
@@ -153,7 +161,7 @@ def create_app(database_path=None, admin_key=None, now=None):
     @app.get('/admin', include_in_schema=False)
     def admin():
         return FileResponse(Path(__file__).parent / 'static/index.html',
-                            headers={'Cache-Control': 'no-store', 'Content-Security-Policy': "default-src 'self'; script-src 'self'; style-src 'self'; object-src 'none'; frame-ancestors 'none'"})
+                            headers={'Cache-Control': 'no-store'})
 
     return app
 

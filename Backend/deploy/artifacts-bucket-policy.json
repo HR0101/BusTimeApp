@@ -1,0 +1,21 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "DenyInsecureTransport",
+      "Effect": "Deny",
+      "Principal": "*",
+      "Action": "s3:*",
+      "Resource": [
+        "arn:aws:s3:::bustime-api-artifacts-061534656994",
+        "arn:aws:s3:::bustime-api-artifacts-061534656994/*"
+      ],
+      "Condition": {
+        "Bool": {
+          "aws:SecureTransport": "false",
+          "aws:PrincipalIsAWSService": "false"
+        }
+      }
+    }
+  ]
+}
