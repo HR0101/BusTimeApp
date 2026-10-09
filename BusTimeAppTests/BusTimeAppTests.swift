@@ -752,6 +752,49 @@ struct BusTimeAppTests {
         #expect(viewModel.searchTime == futureSearchTime)
     }
 
+    @Test @MainActor
+    func switchingToArrivalStartsWithAFutureDeadlineAndBoardableBuses() {
+        let current = makeTestDate(hour: 9)
+        let viewModel = HomeViewModel(nowProvider: { current }, defaults: makeIsolatedDefaults())
+        viewModel.setAutomaticUpdatesActive(false)
+        viewModel.selectOrigin(.mansion)
+        viewModel.searchType = .arrival
+        viewModel.performSearch()
+        #expect(viewModel.searchTime >= current.addingTimeInterval(30 * 60))
+        #expect(!viewModel.searchResults.isEmpty)
+        #expect(viewModel.searchResults.allSatisfy {
+            (BusNotificationTimeCalculator.departureDateForCurrentServiceDay(
+                for: $0.departure, from: current, calendar: AppCalendar.japan
+            ) ?? .distantPast) > current
+        })
+
+        viewModel.searchTime = makeTestDate(hour: 7)
+        viewModel.performSearch()
+        #expect(viewModel.searchResults.isEmpty)
+        #expect(viewModel.searchCriteriaDescription.contains("7:00までに到着"))
+
+        viewModel.serviceDay = .otherWeekday
+        viewModel.performSearch()
+        #expect(!viewModel.searchResults.isEmpty)
+    }
+
+    @Test @MainActor
+    func restoredArrivalModeUsesAFutureDefaultAndKeepsExplicitFutureDeadline() {
+        let current = makeTestDate(hour: 9)
+        let defaults = makeIsolatedDefaults()
+        defaults.set(HomeViewModel.SearchType.arrival.rawValue, forKey: "home.searchType")
+        defaults.set(makeTestDate(hour: 7), forKey: "home.searchTime")
+        let viewModel = HomeViewModel(nowProvider: { current }, defaults: defaults)
+        viewModel.setAutomaticUpdatesActive(false)
+        #expect(viewModel.searchTime >= current.addingTimeInterval(30 * 60))
+        #expect(!viewModel.searchResults.isEmpty)
+
+        defaults.set(makeTestDate(hour: 18), forKey: "home.searchTime")
+        let future = HomeViewModel(nowProvider: { current }, defaults: defaults)
+        future.setAutomaticUpdatesActive(false)
+        #expect(future.searchTime == makeTestDate(hour: 18))
+    }
+
     // MARK: - 時間帯からの初期経路
 
     @Test @MainActor
