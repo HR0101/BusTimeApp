@@ -18,7 +18,16 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
     @Published private(set) var selectedOrigin: Stop = .mansion
     @Published private(set) var selectedDestination: Stop = .station
     @Published var serviceDay: ServiceDay = .today              // 検索の対象にする運行日
-    @Published var searchType: SearchType = .departure          // 選択中の検索方法（出発 or 到着）
+    @Published var searchType: SearchType = .departure {
+        didSet {
+            if oldValue != searchType, searchType == .arrival,
+               isRealtimeContext, searchTime <= now() {
+                searchTime = initialArrivalDeadline(from: now())
+            }
+        }
+    }
+    /// 到着モードへ切り替えた直後に使う、現在時刻からの余裕です。
+    private static let initialArrivalLeadTime: TimeInterval = 30 * 60
     @Published var searchTime: Date = Date()
     @Published var searchResults: [Bus] = []                    // 検索結果のバスリスト
     @Published var searchCriteriaDescription: String = L10n.Search.criteriaInitial // 検索条件の説明テキスト
@@ -689,7 +698,9 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
         let currentDate = now()
         refreshRouteAvailability(at: currentDate)
         if searchTime < currentDate {
-            searchTime = currentDate
+            searchTime = searchType == .arrival && isRealtimeContext
+                ? initialArrivalDeadline(from: currentDate)
+                : currentDate
         }
         performSearch()
     }
@@ -714,6 +725,9 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
             searchTime = restored
         } else {
             searchTime = availabilityReferenceDate
+            if searchType == .arrival && isRealtimeContext {
+                searchTime = initialArrivalDeadline(from: availabilityReferenceDate)
+            }
         }
     }
 
@@ -832,6 +846,20 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
     /// 画面に並べる検索結果の最大件数です。
     private static let maximumSearchResults = 4
 
+    private func initialArrivalDeadline(from currentDate: Date) -> Date {
+        let defaultDeadline = currentDate.addingTimeInterval(Self.initialArrivalLeadTime)
+        let earliestArrival = (allTimetables[selectedRoute] ?? []).compactMap { bus -> Date? in
+            guard let departure = BusNotificationTimeCalculator.departureDateForCurrentServiceDay(
+                for: bus.departure, from: currentDate, calendar: calendar
+            ), departure > currentDate,
+            let arrival = BusNotificationTimeCalculator.departureDateForCurrentServiceDay(
+                for: bus.arrival, from: currentDate, calendar: calendar
+            ), arrival >= departure else { return nil }
+            return arrival
+        }.min()
+        return max(defaultDeadline, earliestArrival ?? defaultDeadline)
+    }
+
     // 「到着希望時刻」でバスを探すロジックです。
     private func findNextBusesByArrival(timetable: [Bus], arrivalTargetTime: Date) -> [Bus] {
         let arrivalTargetMinutes = shiftTime(timeToMinutes(arrivalTargetTime))
@@ -843,6 +871,11 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
             
             // バスが指定時刻以前に到着するかどうかをチェックします。
             if busArrivalMinutes <= arrivalTargetMinutes {
+                if isRealtimeContext {
+                    guard let departure = BusNotificationTimeCalculator.departureDateForCurrentServiceDay(
+                        for: bus.departure, from: now(), calendar: calendar
+                    ), departure > now() else { return nil }
+                }
                 return (bus, busArrivalMinutes)
             }
             return nil
