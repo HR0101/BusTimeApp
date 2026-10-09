@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="ja">
+  <meta charset="utf-8" /><meta
+    name="viewport"
+    content="width=device-width,initial-scale=1"
+  /><title>バス時刻表 管理</title>
+  <link rel="stylesheet" href="/admin-assets/admin.css" />
+  <h1>バス時刻表 管理</h1>
+  <p>変更は確認画面で内容を確認してから公開します。</p>
+  <section>
+    <label
+      >管理者キー
+      <input id="key" type="password" autocomplete="off" size="40" /></label
+    ><small
+      >キーはこの画面のメモリ内だけで使用します。共有端末では作業後に画面を閉じてください。</small
+    ><br /><button id="connect">読み込む</button>
+  </section>
+  <p id="status" role="status" aria-live="polite"></p>
+  <section>
+    <label
+      >経路
+      <select id="route"></select></label
+    ><button id="new">便を追加</button>
+    <table>
+      <thead>
+        <tr>
+          <th>ダイヤ</th>
+          <th>出発 → 到着</th>
+          <th>備考</th>
+          <th>操作</th>
+        </tr>
+      </thead>
+      <tbody id="trips"></tbody>
+    </table>
+  </section>
+  <section>
+    <h2>便の編集</h2>
+    <label
+      >便の識別名
+      <input
+        id="tripid"
+        pattern="[A-Za-z0-9_-]+"
+        placeholder="例 mansion-station-extra-0900" /></label
+    ><label
+      >ダイヤ
+      <select id="schedule"></select
+    ></label>
+    <div id="stops"></div>
+    <button id="addstop">停留所を追加</button
+    ><label>備考 <textarea id="note" maxlength="500"></textarea></label
+    ><button id="preview">変更を確認</button>
+  </section>
+  <section>
+    <h2>運行日・臨時ダイヤ・運休</h2>
+    <label
+      >既存のダイヤ
+      <select id="scheduleEdit"></select></label
+    ><label>識別名 <input id="scheduleid" /></label
+    ><label
+      >種類
+      <select id="kind">
+        <option value="weekday">平日</option>
+        <option value="weekend">土日</option>
+        <option value="holiday">祝日</option>
+        <option value="special">指定日（臨時）</option>
+      </select></label
+    ><label>指定日 <input id="serviceDate" type="date" /></label
+    ><label>有効開始日 <input id="validFrom" type="date" /></label
+    ><label>有効終了日 <input id="validUntil" type="date" /></label
+    ><label
+      >優先度
+      <input id="priority" type="number" min="0" max="100" value="0" /></label
+    ><label><input id="suspended" type="checkbox" /> 運休</label
+    ><button id="saveSchedule">この運行日設定を公開</button
+    ><small
+      >指定日は通常ダイヤより優先されます。臨時便を追加する前に、指定日のダイヤを登録してください。</small
+    >
+  </section>
+  <section>
+    <h2>CSV</h2>
+    <button id="export">全便を保存</button
+    ><input id="csv" type="file" accept=".csv,text/csv" /><button id="import">
+      取り込み内容を確認
+    </button>
+    <p>
+      既存の便は識別名が同じ場合に更新されます。CSVに含まれない便は維持されます。
+    </p>
+  </section>
+  <section id="confirmation" hidden>
+    <h2>公開前の確認</h2>
+    <div id="diff"></div>
+    <label
+      >公開日時（空欄は即時）
+      <input id="publishAt" type="datetime-local" /></label
+    ><button id="commit">この内容で公開</button
+    ><button id="cancel">キャンセル</button>
+  </section>
+  <section>
+    <h2>予約公開</h2>
+    <button id="publications">状況を更新</button>
+    <div id="publicationList"></div>
+  </section>
+  <script src="/admin-assets/admin.js"></script>
+</html>

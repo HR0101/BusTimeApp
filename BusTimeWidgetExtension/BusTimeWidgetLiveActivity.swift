@@ -3,6 +3,9 @@ import WidgetKit
 import SwiftUI
 
 struct BusTimeWidgetLiveActivity: Widget {
+    /// 残り時間は通常の情報色です。表示場所で警告の意味を変えません。
+    private let countdownColor = Color(red: 0.15, green: 0.50, blue: 0.75)
+
     var body: some WidgetConfiguration {
         ActivityConfiguration(for: BusActivityAttributes.self) { context in
             HStack(alignment: .center) {
@@ -49,7 +52,7 @@ struct BusTimeWidgetLiveActivity: Widget {
                             departureDate: context.attributes.departureDate
                         )
                             .font(.headline.bold())
-                            .foregroundColor(Color(red: 0.15, green: 0.50, blue: 0.75))
+                            .foregroundColor(countdownColor)
                             .multilineTextAlignment(.trailing)
                     }
                 }
@@ -71,7 +74,7 @@ struct BusTimeWidgetLiveActivity: Widget {
                             departureDate: context.attributes.departureDate
                         )
                             .font(.title2.bold())
-                            .foregroundColor(.red)
+                            .foregroundColor(countdownColor)
                     } else {
                         Text(L10n.Widget.departedShort)
                             .foregroundColor(.gray)
@@ -90,7 +93,7 @@ struct BusTimeWidgetLiveActivity: Widget {
                     RemainingDepartureTimeText(
                         departureDate: context.attributes.departureDate
                     )
-                        .foregroundColor(.red)
+                        .foregroundColor(countdownColor)
                         .bold()
                         .lineLimit(1)
                         .minimumScaleFactor(0.7)

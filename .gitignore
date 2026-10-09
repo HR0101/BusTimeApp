@@ -29,3 +29,9 @@ fastlane/test_output
 vendor/bundle
 __pycache__/
 *.pyc
+
+# Timetable service
+/Backend/data/
+/data/
+.venv/
+.pytest_cache/
