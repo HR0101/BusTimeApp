@@ -752,6 +752,40 @@ struct BusTimeAppTests {
         #expect(viewModel.searchTime == futureSearchTime)
     }
 
+    @Test @MainActor
+    func locationRouteChangesExplainWhyTheResultsChanged() {
+        let current = makeTestDate(hour: 8)
+        let viewModel = HomeViewModel(nowProvider: { current }, defaults: makeIsolatedDefaults())
+        viewModel.setAutomaticUpdatesActive(false)
+        #expect(viewModel.locationAdjustmentMessage == nil)
+        let station = CLLocation(latitude: 35.6485608, longitude: 140.0416924)
+        viewModel.updateOriginForCurrentLocation(station, at: current)
+        #expect(viewModel.selectedOrigin == .station)
+        #expect(viewModel.routeDecision == .automatic)
+        #expect(viewModel.locationAdjustmentMessage == L10n.Route.adjustedForLocation(
+            viewModel.selectedOrigin.rawValue, viewModel.selectedDestination.rawValue
+        ))
+        #expect(viewModel.routeDecisionDescription.contains("現在地に合わせました"))
+
+        viewModel.selectRouteFromWidget(.mansionToStation)
+        #expect(viewModel.locationAdjustmentMessage == nil)
+        viewModel.updateOriginForCurrentLocation(station, at: current)
+        #expect(viewModel.selectedRoute == .mansionToStation)
+        #expect(viewModel.locationAdjustmentMessage == nil)
+    }
+
+    @Test @MainActor
+    func anUnchangedLocationRouteDoesNotClaimAChange() {
+        let current = makeTestDate(hour: 8)
+        let viewModel = HomeViewModel(nowProvider: { current }, defaults: makeIsolatedDefaults())
+        viewModel.setAutomaticUpdatesActive(false)
+        let mansion = CLLocation(latitude: 35.6589411, longitude: 140.0357708)
+        viewModel.updateOriginForCurrentLocation(mansion, at: current)
+        #expect(viewModel.selectedRoute == .mansionToStation)
+        #expect(viewModel.locationAdjustmentMessage == nil)
+        #expect(viewModel.routeDecisionDescription == L10n.Route.decisionAutomatic)
+    }
+
     // MARK: - 時間帯からの初期経路
 
     @Test @MainActor

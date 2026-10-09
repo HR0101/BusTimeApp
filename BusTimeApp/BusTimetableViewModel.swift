@@ -34,6 +34,11 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
     @Published private(set) var availabilityReferenceDate: Date
     /// 経路がどうやって決まったかです。画面に理由を出すために持ちます。
     @Published private(set) var routeDecision: RouteDecision = .timeOfDay
+    @Published private(set) var locationAdjustmentMessage: String?
+
+    var routeDecisionDescription: String {
+        locationAdjustmentMessage ?? routeDecision.explanation
+    }
     @Published private(set) var locationAuthorizationStatus: CLAuthorizationStatus = .notDetermined
     /// 検索結果が次の運行日の便かどうかです。
     /// 深夜など、その運行日の便が終わったあとに翌朝の便を出している状態を表します。
@@ -296,13 +301,23 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
             guard let fallbackRoute = routeFromCurrentStop(origin) else { return }
             routeAvailabilityMessage = nil
             routeDecision = .automatic
-            applyRoute(fallbackRoute)
+            applyLocationRoute(fallbackRoute)
             return
         }
 
         routeAvailabilityMessage = nil
         routeDecision = .automatic
+        applyLocationRoute(route)
+    }
+
+    private func applyLocationRoute(_ route: Route) {
+        let changed = selectedRoute != route
         applyRoute(route)
+        if changed {
+            locationAdjustmentMessage = L10n.Route.adjustedForLocation(
+                route.origin.rawValue, route.destination.rawValue
+            )
+        }
     }
 
     // MARK: - 時間帯からの経路決定
@@ -318,6 +333,7 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
 
         routeAvailabilityMessage = nil
         routeDecision = .timeOfDay
+        locationAdjustmentMessage = nil
         applyRoute(route)
     }
 
@@ -547,6 +563,7 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
     /// 以降は位置情報で上書きせず、行き先の好みを次回に引き継ぎます。
     private func markManualRouteSelection() {
         hasManualRouteSelection = true
+        locationAdjustmentMessage = nil
         routeDecision = .manual
         rememberPartnerStop(for: selectedRoute)
         // 自分で選んだ経路は、ウィジェットでも同じものを出します。
@@ -554,6 +571,9 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
     }
 
     private func applyRoute(_ route: Route) {
+        if selectedRoute != route {
+            locationAdjustmentMessage = nil
+        }
         selectedRoute = route
         selectedOrigin = route.origin
         selectedDestination = route.destination

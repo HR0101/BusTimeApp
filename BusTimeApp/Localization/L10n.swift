@@ -82,6 +82,10 @@ public enum L10n {
     public static var locationPermissionDenied: String { String(localized: "route.locationPermissionDenied") }
     /// 位置情報の設定を開く
     public static var openLocationSettings: String { String(localized: "route.openLocationSettings") }
+    /// 現在地に合わせました：%1$@ → %2$@
+    public static func adjustedForLocation(_ arg0: String, _ arg1: String) -> String {
+      String.localizedStringWithFormat(String(localized: "route.adjustedForLocation"), arg0, arg1)
+    }
     /// 現在地から自動で選びました
     public static var decisionAutomatic: String { String(localized: "route.decisionAutomatic") }
     /// 時間帯と前回の行き先から選びました

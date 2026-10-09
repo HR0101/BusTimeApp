@@ -206,7 +206,7 @@ struct RouteHeaderCard: View {
           .font(.caption2.weight(.bold))
           .foregroundStyle(sky.ink)
 
-        Text(viewModel.routeDecision.explanation)
+        Text(viewModel.routeDecisionDescription)
           .dynamicFont(size: 12, relativeTo: .caption, weight: .bold)
           .foregroundStyle(sky.ink)
           .fixedSize(horizontal: false, vertical: true)
