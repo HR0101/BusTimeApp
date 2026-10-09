@@ -632,4 +632,27 @@ public enum L10n {
     public static var viaStation: String { String(localized: "busNote.viaStation") }
   }
 
+  public enum Sync {
+    /// オフライン
+    public static var offline: String { String(localized: "sync.offline") }
+    /// 保存済みの時刻表を表示しています
+    public static var savedTimetable: String { String(localized: "sync.savedTimetable") }
+    /// 同梱の時刻表を表示しています
+    public static var bundledTimetable: String { String(localized: "sync.bundledTimetable") }
+    /// 時刻表を更新できませんでした
+    public static var failed: String { String(localized: "sync.failed") }
+    /// 時刻表を確認中…
+    public static var updating: String { String(localized: "sync.updating") }
+    /// 新しいダイヤに更新しました
+    public static var updated: String { String(localized: "sync.updated") }
+    /// 最終更新: %@
+    public static func lastUpdated(_ arg0: String) -> String {
+      String.localizedStringWithFormat(String(localized: "sync.lastUpdated"), arg0)
+    }
+    /// 3日以上前の時刻表です。通信できる場所で更新してください。
+    public static var stale: String { String(localized: "sync.stale") }
+    /// 時刻表を更新
+    public static var refresh: String { String(localized: "sync.refresh") }
+  }
+
 }

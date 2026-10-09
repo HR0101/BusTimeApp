@@ -344,3 +344,15 @@ ENTRIES += [
 ENTRIES += [
     ("result.earlierTitle", "ひとつ前の便", "Earlier service", "更早的班次", []),
 ]
+
+ENTRIES += [
+    ('sync.offline', 'オフライン', 'Offline', '离线', []),
+    ('sync.savedTimetable', '保存済みの時刻表を表示しています', 'Showing the saved timetable', '正在显示已保存的时刻表', []),
+    ('sync.bundledTimetable', '同梱の時刻表を表示しています', 'Showing the bundled timetable', '正在显示应用内置时刻表', []),
+    ('sync.failed', '時刻表を更新できませんでした', 'Could not update the timetable', '无法更新时刻表', []),
+    ('sync.updating', '時刻表を確認中…', 'Checking the timetable…', '正在检查时刻表…', []),
+    ('sync.updated', '新しいダイヤに更新しました', 'The timetable has been updated', '时刻表已更新', []),
+    ('sync.lastUpdated', '最終更新: %@', 'Last updated: %@', '最后更新：%@', ['String']),
+    ('sync.stale', '3日以上前の時刻表です。通信できる場所で更新してください。', 'This timetable is at least 3 days old. Update when connected.', '此时刻表至少已有3天未更新。请在联网时更新。', []),
+    ('sync.refresh', '時刻表を更新', 'Refresh timetable', '更新时刻表', []),
+]
