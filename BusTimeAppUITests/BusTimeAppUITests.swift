@@ -106,6 +106,26 @@ final class BusTimeAppUITests: XCTestCase {
         XCTAssertTrue(time.isHittable)
     }
 
+    @MainActor
+    func testTimetableOpensNearTheNextBusAndPreservesManualScroll() throws {
+        let app = launchApp(now: "1786537980") // 2026-08-12 21:33 JST
+        app.buttons["時刻表タブ"].tap()
+        let nextBus = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "21:39発")).firstMatch
+        XCTAssertTrue(nextBus.waitForExistence(timeout: 5))
+        XCTAssertTrue(nextBus.isHittable, "夜の次の便が初期表示内にありません")
+        let attachment = XCTAttachment(screenshot: app.screenshot())
+        attachment.name = "Timetable-initial-scroll-night"
+        attachment.lifetime = .keepAlways
+        add(attachment)
+
+        app.scrollViews.firstMatch.swipeDown()
+        app.scrollViews.firstMatch.swipeDown()
+        XCTAssertFalse(nextBus.isHittable)
+        app.buttons["ホームタブ"].tap()
+        app.buttons["時刻表タブ"].tap()
+        XCTAssertFalse(nextBus.isHittable, "手動スクロール後に初期位置へ戻りました")
+    }
+
     // MARK: - 文字サイズ
 
     /// 文字を最大にしても、主要な操作が画面から消えたり押せなくなったりしないことを確かめます。

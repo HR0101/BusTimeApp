@@ -901,8 +901,8 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
             return nil
         }
 
-        // 候補のバスを、到着が遅い順（＝希望時刻に近い順）に並び替え、最初の2件を取得します。
-        return candidateBuses.sorted { $0.arrival > $1.arrival }.map { $0.bus }.prefix(2).map{$0}
+        // 候補のバスを、到着が遅い順（＝希望時刻に近い順）に並び替え、最大4件を取得します。
+        return candidateBuses.sorted { $0.arrival > $1.arrival }.map { $0.bus }.prefix(Self.maximumSearchResults).map{$0}
     }
     
     // UIに表示する検索条件の説明文を更新します。
