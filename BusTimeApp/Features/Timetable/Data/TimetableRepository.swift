@@ -13,7 +13,16 @@ struct RemoteTrip: Codable, Sendable {
     let stops: [RemoteStopTime]
     let note: String?
 
-    var bus: Bus { Bus(stops: stops.map { BusStopTime(name: $0.name, time: $0.time) }, note: note) }
+    var bus: Bus {
+        let displayedNote: String?
+        switch note {
+        case "お買い物便": displayedNote = L10n.BusNote.shopping
+        case "ヨーカドー経由": displayedNote = L10n.BusNote.viaYokado
+        case "海浜幕張駅経由": displayedNote = L10n.BusNote.viaStation
+        default: displayedNote = note
+        }
+        return Bus(stops: stops.map { BusStopTime(name: $0.name, time: $0.time) }, note: displayedNote)
+    }
 }
 
 struct RemoteSchedule: Codable, Sendable {
