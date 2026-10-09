@@ -809,7 +809,17 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
         }
         .sorted { $0.sortKey < $1.sortKey }
 
-        let upcomingBuses = sortedBuses.filter { $0.sortKey >= departureRefMinutes }
+        let currentDate = now()
+        let upcomingBuses = sortedBuses.filter { candidate in
+            guard candidate.sortKey >= departureRefMinutes else { return false }
+            // 今日の検索では、秒単位のカウントダウンと同じ境界を使います。
+            // 運休日の時刻表や他の平日は、そのまま指定時刻から表示します。
+            guard isRealtimeContext && !shouldSkipToTodaysService else { return true }
+            guard let departure = BusNotificationTimeCalculator.departureDateForCurrentServiceDay(
+                for: candidate.bus.departure, from: currentDate, calendar: calendar
+            ) else { return false }
+            return departure > currentDate
+        }
         let isNextServiceDay = upcomingBuses.isEmpty && !sortedBuses.isEmpty
         let candidates = isNextServiceDay ? sortedBuses : upcomingBuses
 
