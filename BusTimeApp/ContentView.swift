@@ -84,6 +84,7 @@ struct ContentView: View {
   @StateObject private var weatherViewModel = WeatherViewModel()
   @SceneStorage("selectedMainTab") private var selectedTab: MainTab = .home
   @Environment(\.scenePhase) private var scenePhase
+  @Environment(\.colorScheme) private var systemColorScheme
   @Environment(\.dynamicTypeSize) private var dynamicTypeSize
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -91,7 +92,11 @@ struct ContentView: View {
   private let paletteAnimationDuration: Double = 0.9
 
   private var palette: SkyPalette {
-    skyClock.palette
+    SkyPalette.at(
+      hour: skyClock.palette.hour,
+      season: Season.current(date: AppDate.now()),
+      colorScheme: settingsViewModel.paletteColorScheme(systemColorScheme: systemColorScheme)
+    )
   }
 
   private var scheduledBusIDs: Set<String> {

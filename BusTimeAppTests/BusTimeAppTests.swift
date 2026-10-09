@@ -409,6 +409,36 @@ struct BusTimeAppTests {
         }
     }
 
+    @Test @MainActor
+    func appearanceOverridesKeepControlsAndSurfacesConsistent() {
+        let settings = SettingsViewModel(defaults: makeIsolatedDefaults())
+        settings.setAppearancePreference(.automatic)
+        #expect(settings.paletteColorScheme(systemColorScheme: .dark) == nil)
+        settings.setAppearancePreference(.system)
+        #expect(settings.paletteColorScheme(systemColorScheme: .dark) == .dark)
+        #expect(settings.paletteColorScheme(systemColorScheme: .light) == .light)
+        settings.setAppearancePreference(.dark)
+        #expect(settings.paletteColorScheme(systemColorScheme: .light) == .dark)
+        settings.setAppearancePreference(.light)
+        #expect(settings.paletteColorScheme(systemColorScheme: .dark) == .light)
+
+        for scheme in [ColorScheme.light, .dark] {
+            for season in Season.allCases {
+                for step in 0..<96 {
+                    let hour = Double(step) / 4
+                    let natural = SkyPalette.at(hour: hour, season: season)
+                    let palette = SkyPalette.at(hour: hour, season: season, colorScheme: scheme)
+                    #expect(palette.skyTop == natural.skyTop)
+                    #expect(palette.skyBottom == natural.skyBottom)
+                    #expect(palette.nightness == natural.nightness)
+                    let card = blend(components(of: palette.surface), over: components(of: palette.skyTop))
+                    #expect(contrastRatio(components(of: palette.ink), card) >= 4.5)
+                    #expect(contrastRatio(components(of: palette.ink), components(of: palette.surfaceOpaque)) >= 4.5)
+                }
+            }
+        }
+    }
+
     @Test
     func weatherCodeIdentifiesRainOnly() {
         // 晴れや曇りは雨として扱いません。
