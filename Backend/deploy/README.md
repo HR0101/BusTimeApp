@@ -13,7 +13,7 @@
 
 ## ホスト準備
 
-UbuntuにDocker EngineとCompose pluginをインストールする。インスタンスのファイアウォールでIPv6のTCP 80/443を許可し、IPv6専用インスタンスでブラウザSSHを使用するには、AWSの仕様によりSSHの接続元を「Any IPv6 address」にする必要がある。SSHは鍵認証を使用する。IPv4付きプランを使う場合はAレコードと固定IPを使用する。
+UbuntuにDocker EngineとCompose pluginをインストールする。IPv6のTCP 80/443は[Cloudflareの公開IP範囲](https://www.cloudflare.com/ips-v6/)だけに許可する。IPv6専用インスタンスでブラウザSSHを使用するには、AWSの仕様により作業中だけSSHの接続元を「Any IPv6 address」にする必要がある。SSHは鍵認証を使用し、通常時は22番を閉じる。IPv4付きプランを使う場合はIPv4側にもCloudflareの制限を設ける。
 
 IPv6専用ホストからDocker Hub、GitHub、パッケージ取得先に到達できるかを確認する。到達できない場合はAWS側のIPv6接続設定を確認し、解決するまで配備を進めない。
 
@@ -55,7 +55,7 @@ curl -fsS https://bus-api.hr0101.dev/api/v1/routes
 
 ## 更新・バックアップ
 
-コード更新後に同じcomposeの`up -d --build`を実行する。DBボリュームは保持する。`down -v`はDBと証明書を削除するため実行しない。
+コード更新後に同じcomposeの`up -d --build`を実行する。Caddyfileを置き換えた場合は単一ファイルのbind mountを更新するため`up -d --force-recreate caddy`も実行する。DBボリュームは保持する。`down -v`はDBと証明書を削除するため実行しない。
 
 DBのバックアップはSQLite backup APIを使う。例えばホストにバックアップ用フォルダを作り、稼働中のコンテナで以下を実行してからファイルをホストへコピーする:
 
@@ -85,3 +85,35 @@ printf "%s\n" "17 18 * * * root /opt/bustime/Backend/deploy/backup.sh >> /var/lo
 ```
 
 2026-10-09の配備確認: Lightsail `bustime-api`、5路線・115便、health 200、ETag条件付きGET 304、管理APIの認証なしアクセス401。バックアップはホスト内7日保持。
+
+## セキュリティ設定と保守
+
+APIはlocalhost限定、80/443はCloudflareからだけ受ける。Cloudflare Full (strict)でオリジンまでHTTPSを検証する。Caddyは信頼済みCloudflare接続の`CF-Connecting-IP`を使い、Uvicornは127.0.0.1のプロキシだけを信頼する。クライアントが送ったIPヘッダーだけで回数制限を回避できない。HTTP-01をCloudflare経由で使用するため80番も維持し、TLS-ALPN-01は無効にする。
+
+本文解析より先に管理キーを確認する。1 IPあたり60秒間で公開リクエスト300件、認証済み管理リクエスト60件、認証失敗10件まで許可し、超過時は`429`と`Retry-After`を返す。認証失敗が上限に達しても正しいキーは使用できる。カウンターはメモリ内で最大2,048 IPずつ保持し、1 workerで運用する。再起動・古いIPの追い出しでカウンターはリセットされる。これは継続的なDDoSや分散攻撃の完全な防御ではない。多数の端末が同じIPを共有する環境では、利用実績を見て上限を調整する。
+
+JSON/CSV本文は2,000,000バイト、ヘッダーは32KBまで。Caddyに読み取りタイムアウトを設定し、API側もContent-Lengthのない本文を制限する。管理画面はCSP、全APIはnosniff・フレーム埋め込み禁止等を使用する。管理データ・エラーは保存しない。HSTSはAPIホストだけに設定する。
+
+APIはUID 10001、read-only root filesystem、Linux capabilitiesを全削除し、権限昇格を禁止する。Caddyもread-onlyとし、bind用の権限だけを残す。必要な書き込みはDB・証明書のボリュームと容量制限付きtmpfsで行う。管理キーは既存のroot所有600の`.env`を使う。Docker/Composeを操作できる管理者はキーへアクセスできるため、ホスト管理権限は限定する。
+
+ホストで`sudo sh /opt/bustime/Backend/deploy/harden-host.sh`を実行し、rootログイン・パスワード認証を無効にする。Ubuntu既定のsecurity対象のunattended-upgradesを毎日有効にする。カーネル等が再起動を要求した場合は`/var/run/reboot-required`を確認して保守時間に再起動する。Dockerイメージも定期的にpull/rebuildする。
+
+S3はBlock Public Accessの全項目とSSE-S3を維持し、[artifacts-bucket-policy.json](artifacts-bucket-policy.json)で非HTTPSを拒否する。AWSサービス自身はネットワーク情報が省略される場合があるため拒否条件から除外する。このポリシーはアクセス権を新しく付与しない。
+
+通常のファイアウォール設定（SSHを閉じる）:
+
+```sh
+aws lightsail put-instance-public-ports --instance-name bustime-api \
+  --port-infos file://Backend/deploy/cloudflare-ports.json \
+  --profile bustime --region ap-southeast-2
+```
+
+ブラウザSSHで保守する間だけ次を実行し、完了後に上の設定で閉じる:
+
+```sh
+aws lightsail open-instance-public-ports --instance-name bustime-api \
+  --port-info '{"fromPort":22,"toPort":22,"protocol":"tcp","cidrs":[],"ipv6Cidrs":["::/0"]}' \
+  --profile bustime --region ap-southeast-2
+```
+
+CloudflareのIP範囲に変更があれば、Caddyfileとcloudflare-ports.jsonの両方を更新する。接続障害時はファイアウォールだけを全開放する前に、DNSのプロキシ状態・証明書・IP範囲を確認する。これらの強化による追加の月額固定料金は発生しない。

@@ -15,7 +15,7 @@ export TIMETABLE_DB_PATH="$PWD/data/timetable.sqlite3"
 .venv/bin/uvicorn Backend.main:app --host 127.0.0.1 --port 8000
 ```
 
-`http://localhost:8000/admin`を開き、生成したキーを入力します。キーはパスワードマネージャーなどで管理してください。キー未設定では読み取りだけが有効で、全変更APIは503を返します。設定するキーは32文字以上が必要です。対話式API仕様は`/docs`です。
+`http://localhost:8000/admin`を開き、生成したキーを入力します。キーはパスワードマネージャーなどで管理してください。キー未設定では読み取りだけが有効で、全変更APIは503を返します。設定するキーは32文字以上が必要です。`/docs`、`/redoc`、`/openapi.json`は公開しません。
 
 管理画面では経路とダイヤを選び、便を追加・編集・削除できます。変更内容を確認して即時公開または日時指定で予約公開します。運休・臨時運行は「運行日・臨時ダイヤ・運休」で設定します。指定日のダイヤが通常ダイヤに優先し、同じ種類では優先度が高い設定を使用します。有効期間は両端を含みます。指定日に運休を設定すれば通常便も運休になります。予約公開は公開日時以降の最初の読み取りで適用されます。予約後にデータが変わり適用できなくなった場合は予約一覧に失敗を表示し、他の予約の処理は続行します。
 
@@ -63,17 +63,17 @@ docker run -d --name bustime-api --restart unless-stopped \
 
 永続ボリュームはUID 10001で読み書き可能にします（名前付きボリュームは初回のコンテナ所有権を引き継ぎます）。HTTPS終端のリバースプロキシ経由で公開し、管理画面には管理者だけがアクセスできるように運用します。1つのDBは同一ホストのローカルディスク上で使用します。複数ホストでSQLiteファイルを共有しません。DBの定期バックアップにはSQLiteのbackup APIを使ってください。稼働中の`.sqlite3`だけをコピーするとWALの内容を取りこぼします。DBを復元して版が巻き戻った場合、アプリは版の差を検知して全件再取得します。管理者キー変更は環境変数を更新して再起動します。
 
-このPRはサーバー実装と接続設定までを提供します。実際の公開先は未設定です。デプロイ後、そのURLを上記Info.plistへ設定してください。
+公開先は`https://bus-api.hr0101.dev/api/v1`です。Info.plistもこのURLを使用します。
 
 ## 検証
 
 ```sh
-.venv/bin/pytest Backend/test_api.py -q
+.venv/bin/pytest Backend/test_api.py Backend/test_security.py -q
 python3 Backend/generate_seed.py
 git diff --exit-code Backend/seed.json
 ```
 
-APIテストは認証、入力検証、CRUD、削除差分、ETag、トランザクション、予約公開、運休、CSV、再起動後の永続性を確認します。iOSの`TimetableRepositoryTests`では初期115便が同梱ダイヤと一致すること、ETag・変更経路だけの取得・削除・画面反映・臨時運休を検証します。
+APIテストは認証、入力検証、CRUD、削除差分、ETag、トランザクション、予約公開、運休、CSV、再起動後の永続性に加え、本文解析前の認証・サイズ制限・回数制限・保護ヘッダーを確認します。iOSの`TimetableRepositoryTests`では初期115便が同梱ダイヤと一致すること、ETag・変更経路だけの取得・削除・画面反映・臨時運休を検証します。
 
 ## iOSのオフラインキャッシュ
 
@@ -87,4 +87,4 @@ Debugのシミュレーター検証では`-UITestTimetableOffline`を追加す�
 
 ## hr0101.devへの配備準備
 
-Lightsail + Cloudflareで`bus-api.hr0101.dev`を公開するCompose設定と手順は[deploy/README.md](deploy/README.md)を参照してください。実際のAWSリソース作成・DNS追加・HTTPS公開は未実施です。
+Lightsail + Cloudflareで`bus-api.hr0101.dev`を公開するCompose設定と運用・セキュリティ手順は[deploy/README.md](deploy/README.md)を参照してください。
