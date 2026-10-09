@@ -1,0 +1,4 @@
+{$API_DOMAIN:bus-api.hr0101.dev} {
+    encode gzip
+    reverse_proxy api:8000
+}

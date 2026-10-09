@@ -1,0 +1,46 @@
+name: bustime-api
+services:
+  api:
+    build:
+      context: ../..
+      dockerfile: Backend/Dockerfile
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      TIMETABLE_DB_PATH: /data/timetable.sqlite3
+    volumes:
+      - timetable-data:/data
+    # API is reachable only through the HTTPS proxy.
+    expose:
+      - '8000'
+    mem_limit: 192m
+    logging:
+      driver: json-file
+      options:
+        max-size: '5m'
+        max-file: '2'
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    environment:
+      API_DOMAIN: ${API_DOMAIN:-bus-api.hr0101.dev}
+    ports:
+      - '80:80'
+      - '443:443'
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      api:
+        condition: service_healthy
+    mem_limit: 96m
+    logging:
+      driver: json-file
+      options:
+        max-size: '5m'
+        max-file: '2'
+volumes:
+  timetable-data:
+  caddy-data:
+  caddy-config:
