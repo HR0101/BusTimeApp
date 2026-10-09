@@ -752,6 +752,16 @@ struct BusTimeAppTests {
         #expect(viewModel.searchTime == futureSearchTime)
     }
 
+    @Test @MainActor
+    func departureSearchKeepsFourCandidates() {
+        let viewModel = HomeViewModel(
+            nowProvider: { makeTestDate(hour: 8) }, defaults: makeIsolatedDefaults()
+        )
+        viewModel.setAutomaticUpdatesActive(false)
+        #expect(viewModel.searchResults.count == 4)
+        #expect(Set(viewModel.searchResults.map(\.id)).count == 4)
+    }
+
     // MARK: - 時間帯からの初期経路
 
     @Test @MainActor
@@ -850,7 +860,7 @@ struct BusTimeAppTests {
 
         // 到着時間で探すと「間に合う中で最も遅い便」から並ぶため、
         // 2件目は1件目より前に出る便になります。
-        #expect(viewModel.searchResults.count == 2)
+        #expect(viewModel.searchResults.count == 4)
         #expect(viewModel.searchResults[0].departure == "8:40")
         #expect(viewModel.searchResults[1].departure == "8:30")
         // 見出しもそれに合わせて変わります。
