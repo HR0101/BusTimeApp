@@ -17,7 +17,8 @@ struct TimetableCacheStore: Sendable {
     }
 
     func load(endpoint: URL) -> TimetableCache? {
-        guard let data = try? Data(contentsOf: url), data.count <= 5_000_000 else { return nil }
+        guard let size = try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize,
+              size <= 5_000_000, let data = try? Data(contentsOf: url) else { return nil }
         do {
             let decoder = JSONDecoder()
             decoder.dateDecodingStrategy = .iso8601
@@ -38,6 +39,7 @@ struct TimetableCacheStore: Sendable {
         encoder.dateEncodingStrategy = .iso8601
         encoder.outputFormatting = [.sortedKeys]
         let data = try encoder.encode(cache)
+        guard data.count <= 5_000_000 else { throw TimetableAPIError.invalidData }
         let directory = url.deletingLastPathComponent()
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         try data.write(to: url, options: .atomic)
