@@ -39,6 +39,10 @@ struct HomeHeaderBar: View {
         .lineLimit(1)
         .minimumScaleFactor(0.8)
     }
+    .padding(.horizontal, 12)
+    .padding(.vertical, 10)
+    // 空の明るさやカード透明度に左右されず、文字との対比を確保します。
+    .background(Capsule().fill(sky.surfaceOpaque))
     .frame(maxWidth: .infinity, alignment: .leading)
     .accessibilityElement(children: .combine)
   }
