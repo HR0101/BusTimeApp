@@ -251,6 +251,8 @@ struct RouteHeaderCard: View {
 /// 並びは依存の順、つまり運行日を決めてから時刻を決める順にしています。
 /// 結果より上に置くことで、変えた場所と変わる場所が同じ視界に入ります。
 struct ServiceDayTimeCard: View {
+  @State private var showsTimePicker = false
+  @Environment(\.locale) private var locale
   @Environment(\.sky) private var sky
   @Environment(\.dynamicTypeSize) private var dynamicTypeSize
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -337,14 +339,42 @@ struct ServiceDayTimeCard: View {
 
       // ラベル文字列は渡したうえで隠します。見た目は上の見出しが担い、
       // VoiceOverには何の時刻なのかが伝わるようにするためです。
-      DatePicker(
-        viewModel.searchType.timeTitle,
-        selection: $viewModel.searchTime,
-        displayedComponents: .hourAndMinute
-      )
-      .labelsHidden()
-      .tint(sky.accent)
-      .fixedSize()
+      Button {
+        showsTimePicker = true
+      } label: {
+        Text(TimeDisplayFormatter.string(from: viewModel.searchTime, locale: locale))
+          .font(.body)
+          .monospacedDigit()
+          .foregroundStyle(sky.ink)
+          .padding(.horizontal, 12)
+          .frame(minHeight: SkyMetrics.minimumTapSize)
+          .background(RoundedRectangle(cornerRadius: 10).fill(sky.surfaceOpaque))
+      }
+      .buttonStyle(SkyPressStyle())
+      .accessibilityLabel(viewModel.searchType.timeTitle)
+      .accessibilityValue(TimeDisplayFormatter.string(from: viewModel.searchTime, locale: locale))
+      .accessibilityIdentifier("search-time-picker")
+      .sheet(isPresented: $showsTimePicker) {
+        NavigationStack {
+          DatePicker(
+            viewModel.searchType.timeTitle,
+            selection: $viewModel.searchTime,
+            displayedComponents: .hourAndMinute
+          )
+          .datePickerStyle(.wheel)
+          .labelsHidden()
+          .padding()
+          .navigationTitle(viewModel.searchType.timeTitle)
+          .navigationBarTitleDisplayMode(.inline)
+          .toolbar {
+            ToolbarItem(placement: .confirmationAction) {
+              Button(L10n.Common.done) { showsTimePicker = false }
+            }
+          }
+        }
+        .presentationDetents([.medium, .large])
+        .presentationDragIndicator(.visible)
+      }
     }
   }
 
