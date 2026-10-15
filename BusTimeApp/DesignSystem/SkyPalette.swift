@@ -629,7 +629,13 @@ struct SkyPalette: Equatable {
       offset: 0,
       skyTop: RGBComponents(red: 0.243, green: 0.243, blue: 0.541),
       skyBottom: RGBComponents(red: 0.988, green: 0.667, blue: 0.396),
-      nightness: 0.30
+      nightness: 0.30,
+      seasonal: [
+        // 春の夜明けは、かすみで淡い藤色と桃色ににじみます。
+        .spring: colors(top: (0.40, 0.36, 0.60), bottom: (0.98, 0.80, 0.70)),
+        // 秋の夜明けは澄んでいて、深い藍の空に鮮やかな橙が差します。
+        .autumn: colors(top: (0.16, 0.20, 0.50), bottom: (0.99, 0.62, 0.32))
+      ]
     ),
     SkyKeyframe(
       event: .sunrise,
@@ -676,8 +682,14 @@ struct SkyPalette: Equatable {
       skyTop: RGBComponents(red: 0.882, green: 0.482, blue: 0.310),
       skyBottom: RGBComponents(red: 0.996, green: 0.855, blue: 0.612),
       nightness: 0.10,
-      // 夏の夕焼けは、ほかの季節より濃い橙から赤へ焼けます。
-      seasonal: [.summer: colors(top: (0.93, 0.40, 0.20), bottom: (1.00, 0.78, 0.45))]
+      seasonal: [
+        // 春の夕焼けは、かすみで淡い桃色ににじみ、地平線は乳白色にぼやけます。
+        .spring: colors(top: (0.88, 0.64, 0.58), bottom: (0.99, 0.90, 0.78)),
+        // 夏の夕焼けは、ほかの季節より濃い橙から赤へ焼けます。
+        .summer: colors(top: (0.93, 0.40, 0.20), bottom: (1.00, 0.78, 0.45)),
+        // 秋の夕焼けは、澄んだ空気で紅色が冴え、地平線は琥珀色に焼けます。
+        .autumn: colors(top: (0.76, 0.30, 0.30), bottom: (0.99, 0.70, 0.40))
+      ]
     ),
     SkyKeyframe(
       event: .sunset,
@@ -685,8 +697,16 @@ struct SkyPalette: Equatable {
       skyTop: RGBComponents(red: 0.278, green: 0.157, blue: 0.353),
       skyBottom: RGBComponents(red: 0.867, green: 0.416, blue: 0.365),
       nightness: 0.74,
-      // 夏の残照は、地平線の赤が濃く残ります。
-      seasonal: [.summer: colors(top: (0.31, 0.13, 0.30), bottom: (0.92, 0.36, 0.24))]
+      seasonal: [
+        // 春の夕暮れは、くすんだ藤色と薄紅にかすみます。
+        // 地平線を明るくしすぎると、夜の配色へ切り替わった直後にカードの文字が読みにくくなるため、
+        // 明るさは共通の夕暮れと同じくらいに抑えます。
+        .spring: colors(top: (0.36, 0.27, 0.42), bottom: (0.78, 0.47, 0.50)),
+        // 夏の残照は、地平線の赤が濃く残ります。
+        .summer: colors(top: (0.31, 0.13, 0.30), bottom: (0.92, 0.36, 0.24)),
+        // 秋の夕暮れは澄んでいて、深い藍の空の下に紅の帯がくっきり残ります。
+        .autumn: colors(top: (0.16, 0.12, 0.34), bottom: (0.82, 0.30, 0.25))
+      ]
     ),
     SkyKeyframe(
       event: .sunset,

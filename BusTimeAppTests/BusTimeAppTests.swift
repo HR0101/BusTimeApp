@@ -1739,6 +1739,50 @@ struct BusTimeAppTests {
     }
 
     @Test
+    func springAndAutumnLookDifferentFromDawnToDusk() {
+        // 春はかすみ、秋は澄んだ空と早い夕暮れです。
+        // 昼の長さも季節の色も同じだったころは、同じ時刻の空がほぼ同じ色でした。
+        let threshold = 10.0
+        let spring = SeasonalDay(season: .spring)
+        let autumn = SeasonalDay(season: .autumn)
+
+        // 同じ時計の時刻で比べます。どちらも夜になる20時以降は、空の色ではなく星の見え方で比べます。
+        for hour in stride(from: 5.0, through: 19.0, by: 1.0) {
+            let difference = skyColorDifference(
+                SkyPalette.at(hour: hour, day: spring),
+                SkyPalette.at(hour: hour, day: autumn)
+            )
+            #expect(difference >= threshold, "\(hour)時の春と秋の空の色差が\(difference)でした")
+        }
+
+        // 日の出・日の入りから同じだけ離れた時刻でも比べます。
+        // 夜明けや夕焼けの色そのものが違わないと、時刻がずれているだけになるためです。
+        let moments: [(name: String, hour: (DaylightSchedule) -> Double)] = [
+            ("日の出", { $0.sunrise }),
+            ("日の出の45分後", { $0.sunrise + 0.75 }),
+            ("日の入りの45分前", { $0.sunset - 0.75 }),
+            ("日の入り", { $0.sunset }),
+            ("日の入りの30分後", { $0.sunset + 0.5 })
+        ]
+        for moment in moments {
+            let difference = skyColorDifference(
+                SkyPalette.at(hour: moment.hour(spring.daylight), day: spring),
+                SkyPalette.at(hour: moment.hour(autumn.daylight), day: autumn)
+            )
+            #expect(difference >= threshold, "\(moment.name)の春と秋の空の色差が\(difference)でした")
+        }
+
+        // 秋は春より1時間ほど早く暮れます。
+        #expect(autumn.daylight.sunset < spring.daylight.sunset - 0.75)
+        // 春の夕焼けはかすんで淡く、秋の夕焼けは澄んで鮮やかです。
+        let springGlow = SkyPalette.at(hour: spring.daylight.sunset - 0.75, day: spring)
+        let autumnGlow = SkyPalette.at(hour: autumn.daylight.sunset - 0.75, day: autumn)
+        #expect(saturation(components(of: springGlow.skyColor(at: 0))) < saturation(components(of: autumnGlow.skyColor(at: 0))))
+        // 夜は、かすむ春より澄んだ秋のほうが多くの星が見えます。
+        #expect(SkyPalette.at(hour: 22, day: autumn).starClarity > SkyPalette.at(hour: 22, day: spring).starClarity + 0.2)
+    }
+
+    @Test
     func nightSkyStaysDeepNavyInEverySeason() {
         // 夜空に季節の色を混ぜると、黒に近い紺が灰色や茶色っぽく濁ります。
         // 以前の秋の23時の空の上端は(30, 27, 39)でした。
