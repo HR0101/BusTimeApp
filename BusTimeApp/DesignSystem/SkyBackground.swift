@@ -280,7 +280,6 @@ struct SkyCanvas: View {
   private static let streetLightGlowWidth = 32
   /// 光だまりが手前へ伸びる深さです。セル数で指定します。
   private static let streetLightGlowDepth = 9
-  /// 街灯が点く時刻です。これ以降は夕方から夜として扱います。
   /// 風が最も強いとみなす速さです。これ以上は同じ扱いにします。
   private static let strongWindSpeed: Double = 15
   /// 風が最も強いときに、雨や雪が横へ流れる量です。落ちた距離に対する割合です。
@@ -316,9 +315,6 @@ struct SkyCanvas: View {
   private static let snowClearedRatio: Double = 0.45
   /// 濡れた路面で、街灯の光がどれだけ強く映るかです。
   private static let wetRoadGlowBoost: Double = 1.9
-  private static let streetLightOnHour: Double = 16
-  /// 街灯が消える時刻です。これ以降は朝として扱います。
-  private static let streetLightOffHour: Double = 4.5
   /// 点灯している街灯の、灯りの濃さの下限です。薄暮でも点いていると分かる強さにします。
   private static let streetLightBulbFloor: Double = 0.55
   /// 光だまりを道路の手前端からどれだけ奥へずらすかです。セル数で指定します。
@@ -533,15 +529,9 @@ struct SkyCanvas: View {
     min(weather.windSpeed / Self.strongWindSpeed, 1)
   }
 
-  /// 街灯が点いているかどうかです。
-  ///
-  /// 実際の街灯は暗ければ点きますが、夜明け前から朝にかけて点いていると
-  /// 「これから明るくなる」時間帯の印象と合いません。
-  /// 夕方から夜のあいだだけ点け、朝と昼は消します。
+  /// 街灯が点いているかどうかです。点灯と消灯はその日の日の出・日の入りに合わせます。
   private var isStreetLightOn: Bool {
-    let isEveningOrNight = sky.hour >= Self.streetLightOnHour
-      || sky.hour < Self.streetLightOffHour
-    return isEveningOrNight && sky.nightness > Self.starVisibilityThreshold
+    sky.isStreetLightOn
   }
 
   /// 点灯している街灯の、灯り部分の濃さです。
@@ -2004,18 +1994,19 @@ struct SkyCanvas: View {
       radiusInCells: celestialRadiusInCells(),
       color: sky.celestialTint,
       opacity: 0.92 * weather.celestialVisibility,
-      // 夜に近いほど月として扱い、実際の日付の満ち欠けで欠かします。
-      moonPhase: sky.nightness > 0.5 ? MoonPhase.phase(at: AppDate.now()) : nil
+      // 日が沈んでいるあいだは月として扱い、実際の日付の満ち欠けで欠かします。
+      moonPhase: sky.isSunUp ? nil : MoonPhase.phase(at: AppDate.now())
     )
   }
 
   /// いまの時刻に対応する太陽・月の半径をセル数で返します。
   /// 海面に落ちる光の幅も、この半径を基準にします。
+  ///
+  /// 太陽と月は、日の出と日の入りで軌道ごと入れ替わります。
+  /// 空の暗さで大きさを混ぜると、日の入り前の太陽が縮んだり、
+  /// 日の入り直後に昇る月が太陽の大きさで描かれたりするため、どちらか一方の大きさにします。
   private func celestialRadiusInCells() -> Int {
-    Int(
-      (Double(Self.sunRadiusCells)
-        + Double(Self.moonRadiusCells - Self.sunRadiusCells) * sky.nightness).rounded()
-    )
+    sky.isSunUp ? Self.sunRadiusCells : Self.moonRadiusCells
   }
 
   /// セルを敷き詰めて円を描きます。
