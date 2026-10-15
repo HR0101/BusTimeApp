@@ -1869,6 +1869,79 @@ struct BusTimeAppTests {
     }
 
     @Test
+    func seasonalMotifsAppearInTheirSeason() {
+        func motifs(_ season: Season, _ hour: Double) -> SeasonalMotifs {
+            SeasonalMotifs(palette: SkyPalette.at(hour: hour, season: season))
+        }
+
+        // 春の昼は桜の花びらが舞い、水平線がかすみます。
+        #expect(motifs(.spring, 12).petalCount > 0)
+        #expect(motifs(.spring, 12).haze > 0)
+        #expect(motifs(.summer, 12).petalCount == 0)
+        // 夏の昼は、強い日差しが道路に照り返します。
+        #expect(motifs(.summer, 12).roadGlare > 0)
+        #expect(motifs(.spring, 12).roadGlare == 0)
+        // 秋の昼は赤とんぼが飛び、夜は月明かりが強まります。
+        #expect(motifs(.autumn, 12).dragonflyCount > 0)
+        #expect(motifs(.winter, 12).dragonflyCount == 0)
+        #expect(motifs(.autumn, 23).moonlightBoost > 0)
+        #expect(motifs(.spring, 23).moonlightBoost == 0)
+        // 冬は、夜に葉のない街路樹のイルミネーションが灯り、朝は霜が降ります。
+        #expect(motifs(.winter, 22).illumination > 0)
+        #expect(motifs(.winter, 12).illumination == 0)
+        #expect(motifs(.autumn, 22).illumination == 0)
+        let winterSunrise = SkyPalette.daylight(for: .winter).sunrise
+        #expect(motifs(.winter, winterSunrise + 0.5).frost > 0)
+        #expect(motifs(.winter, 14).frost == 0)
+        #expect(motifs(.summer, SkyPalette.daylight(for: .summer).sunrise + 0.5).frost == 0)
+        // 冬の澄んだ空気では、対岸の街がくっきり見えます。
+        #expect(motifs(.winter, 12).distantClarity > motifs(.summer, 12).distantClarity)
+        // 夜は、花びらや赤とんぼを出しません。
+        #expect(motifs(.spring, 23).petalCount == 0)
+        #expect(motifs(.autumn, 23).dragonflyCount == 0)
+    }
+
+    @Test
+    func summerFireworksRiseOnlyOnSomeNights() {
+        func showsFireworks(dayOfYear: Int, hour: (DaylightSchedule) -> Double) -> Bool {
+            let day = SeasonalDay(dayOfYear: dayOfYear)
+            return SeasonalMotifs(palette: SkyPalette.at(hour: hour(day.daylight), day: day)).showsFireworks
+        }
+
+        // 夏の夜でも、花火は5日に1度だけです。7月14日（195日目）は上がり、翌日は上がりません。
+        #expect(showsFireworks(dayOfYear: 195) { $0.sunset + 1.5 })
+        #expect(!showsFireworks(dayOfYear: 196) { $0.sunset + 1.5 })
+        // 昼や、21時30分を過ぎた夜には上がりません。
+        #expect(!showsFireworks(dayOfYear: 195) { $0.solarNoon })
+        #expect(!showsFireworks(dayOfYear: 195) { _ in 22 })
+        // 冬は、間隔の日に当たっても上がりません。
+        #expect(!showsFireworks(dayOfYear: 15) { $0.sunset + 1.5 })
+    }
+
+    @Test
+    func streetTreeChangesThroughTheYear() {
+        // 春は桜、夏は青葉、秋は紅葉が茂り、冬は葉を落とします。
+        for season in [Season.spring, .summer, .autumn] {
+            #expect(SkyPalette.at(hour: 12, season: season).foliageDensity == 1)
+        }
+        #expect(SkyPalette.at(hour: 12, season: .winter).foliageDensity == 0)
+
+        let blossom = components(of: SkyPalette.at(hour: 12, season: .spring).foliage)
+        let leaves = components(of: SkyPalette.at(hour: 12, season: .summer).foliage)
+        let autumnLeaves = components(of: SkyPalette.at(hour: 12, season: .autumn).foliage)
+        #expect(blossom.r > blossom.g)
+        #expect(leaves.g > leaves.r)
+        #expect(autumnLeaves.r > autumnLeaves.g * 1.5)
+
+        // 11月末は紅葉から冬への途中です。葉は紅葉の色のまま、半分ほど散っています。
+        let lateNovember = SkyPalette.at(hour: 12, day: SeasonalDay(dayOfYear: 334))
+        let fallingLeaves = components(of: lateNovember.foliage)
+        #expect(lateNovember.foliageDensity > 0.3)
+        #expect(lateNovember.foliageDensity < 0.7)
+        #expect(fallingLeaves.r > fallingLeaves.g * 1.5)
+    }
+
+    @Test
     func nightSkyStaysDeepNavyInEverySeason() {
         // 夜空に季節の色を混ぜると、黒に近い紺が灰色や茶色っぽく濁ります。
         // 以前の秋の23時の空の上端は(30, 27, 39)でした。

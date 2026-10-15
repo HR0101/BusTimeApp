@@ -147,6 +147,39 @@ enum Season: CaseIterable {
     }
   }
 
+  /// 街路樹の葉の、季節ごとの色です。
+  ///
+  /// 春は桜、夏は青葉、秋は紅葉にし、冬は葉を落として枝だけにします。
+  fileprivate var foliage: SeasonalFoliage {
+    switch self {
+    case .spring:
+      return SeasonalFoliage(
+        color: RGBComponents(red: 0.96, green: 0.72, blue: 0.80),
+        highlight: RGBComponents(red: 1.00, green: 0.88, blue: 0.92),
+        density: 1
+      )
+    case .summer:
+      return SeasonalFoliage(
+        color: RGBComponents(red: 0.20, green: 0.45, blue: 0.24),
+        highlight: RGBComponents(red: 0.34, green: 0.60, blue: 0.30),
+        density: 1
+      )
+    case .autumn:
+      return SeasonalFoliage(
+        color: RGBComponents(red: 0.84, green: 0.34, blue: 0.15),
+        highlight: RGBComponents(red: 0.96, green: 0.62, blue: 0.20),
+        density: 1
+      )
+    case .winter:
+      // 葉はありません。色は秋から移るあいだの補間にだけ使います。
+      return SeasonalFoliage(
+        color: RGBComponents(red: 0.55, green: 0.40, blue: 0.25),
+        highlight: RGBComponents(red: 0.65, green: 0.50, blue: 0.32),
+        density: 0
+      )
+    }
+  }
+
   /// 夜空の澄み具合です。1で最も澄み、暗い星まで見えます。
   ///
   /// 夜は空に季節の色を混ぜると、黒に近い紺が灰色や茶色に濁ります。
@@ -540,6 +573,38 @@ private struct SeasonalScenery: Equatable {
   }
 }
 
+/// 街路樹の葉の色と茂り具合です。
+private struct SeasonalFoliage {
+  let color: RGBComponents
+  let highlight: RGBComponents
+  /// 葉の茂り具合です。1で茂り、0で葉を落とした枝だけになります。
+  let density: Double
+
+  init(color: RGBComponents, highlight: RGBComponents, density: Double) {
+    self.color = color
+    self.highlight = highlight
+    self.density = density
+  }
+
+  /// 隣り合う季節のあいだの葉です。
+  ///
+  /// 色は茂っている側に寄せて混ぜます。紅葉から冬へ移るときに、
+  /// 葉の色が冬の仮の色へ近づかず、紅葉のまま散っていくようにするためです。
+  init(blend: SeasonBlend) {
+    let earlier = blend.earlier.foliage
+    let later = blend.later.foliage
+    let earlierWeight = earlier.density * (1 - blend.ratio)
+    let laterWeight = later.density * blend.ratio
+    let total = earlierWeight + laterWeight
+    let colorRatio = total > 0 ? laterWeight / total : blend.ratio
+    self.init(
+      color: earlier.color.mixed(with: later.color, ratio: colorRatio),
+      highlight: earlier.highlight.mixed(with: later.highlight, ratio: colorRatio),
+      density: total
+    )
+  }
+}
+
 /// 空の上端と下端の色の組です。
 private struct SkyColors {
   let top: RGBComponents
@@ -599,6 +664,14 @@ struct SkyPalette: Equatable {
   let signboard: Color
   /// バス停の標識の縁と、板に引く線の色です。
   let signboardInk: Color
+  /// 街路樹の葉の色です。
+  let foliage: Color
+  /// 街路樹の葉の、光の当たる部分の色です。
+  let foliageHighlight: Color
+  /// 街路樹の葉の茂り具合です。1で茂り、0で葉を落とした枝だけになります。
+  let foliageDensity: Double
+  /// 街路樹の幹と枝の色です。
+  let treeTrunk: Color
   /// この配色が表す時刻です。0以上24未満で持ちます。
   let hour: Double
   /// 太陽・月の水平位置です。0が画面左端、1が画面右端に対応します。
@@ -826,6 +899,8 @@ struct SkyPalette: Equatable {
   private static let sunTint = RGBComponents(red: 1.0, green: 0.973, blue: 0.867)
   /// 月の色です。海面に落ちる光を温かく見せるため、わずかに黄みを含ませます。
   private static let moonTint = RGBComponents(red: 0.988, green: 0.961, blue: 0.867)
+  /// 街路樹の幹と枝の色です。
+  private static let treeTrunk = RGBComponents(red: 0.34, green: 0.26, blue: 0.20)
   /// 昼の道路の色です。
   private static let dayRoad = RGBComponents(red: 0.353, green: 0.361, blue: 0.376)
   /// 昼の道路の白線の色です。色あせを見込んで、白より灰色に寄せます。
@@ -908,6 +983,7 @@ struct SkyPalette: Equatable {
     let blend = day.seasonBlend
     // 海と砂浜も、空と同じ割合で隣の季節へ移ります。
     let scenery = SeasonalScenery(blend: blend)
+    let foliage = SeasonalFoliage(blend: blend)
     let earlierSky = skyColors(between: previous, and: next, ratio: ratio, season: blend.earlier)
     let laterSky = skyColors(between: previous, and: next, ratio: ratio, season: blend.later)
     let skyTop = earlierSky.top.mixed(with: laterSky.top, ratio: blend.ratio)
@@ -982,6 +1058,20 @@ struct SkyPalette: Equatable {
       signboardInk: daySignboardInk
         .darkened(by: nightness * groundNightDarkening * 0.4)
         .mixed(with: skyBottom, ratio: groundAmbientBlend * 0.3)
+        .color(),
+      // 街路樹も地上のものと同じく、夜は沈ませ、空の色を少し受けます。
+      foliage: foliage.color
+        .darkened(by: nightness * groundNightDarkening)
+        .mixed(with: skyBottom, ratio: groundAmbientBlend * 0.5)
+        .color(),
+      foliageHighlight: foliage.highlight
+        .darkened(by: nightness * groundNightDarkening)
+        .mixed(with: skyBottom, ratio: groundAmbientBlend * 0.5)
+        .color(),
+      foliageDensity: foliage.density,
+      treeTrunk: treeTrunk
+        .darkened(by: nightness * groundNightDarkening)
+        .mixed(with: skyBottom, ratio: groundAmbientBlend * 0.5)
         .color(),
       hour: normalizedHour,
       celestialProgress: daylight.celestialProgress(at: normalizedHour),
