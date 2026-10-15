@@ -146,6 +146,75 @@ enum SeasonalCloudStyle: Equatable {
   }
 }
 
+/// 背景に添える、季節を象徴するモチーフの出し方です。
+///
+/// 景色の雰囲気を壊さず、カードの文字の読みやすさに響かないよう、小さく淡く加えます。
+/// 動くものは数を抑え、「視差効果を減らす」が有効なときは止めた一枚として描きます。
+/// 隣り合う季節のあいだは、それぞれの季節の割合に応じて少しずつ現れ、消えていきます。
+struct SeasonalMotifs: Equatable {
+  /// 春に舞う桜の花びらの数です。
+  let petalCount: Int
+  /// 春霞の濃さです。水平線のあたりを白くかすませます。
+  let haze: Double
+  /// 夏の強い日差しが、道路に照り返す濃さです。
+  let roadGlare: Double
+  /// 夏の夜に、対岸で花火が上がるかどうかです。
+  let showsFireworks: Bool
+  /// 秋の昼に飛ぶ赤とんぼの数です。
+  let dragonflyCount: Int
+  /// 秋の澄んだ月夜に、海に落ちる月明かりを強める割合です。
+  let moonlightBoost: Double
+  /// 冬に葉を落とした街路樹に灯す、イルミネーションの濃さです。
+  let illumination: Double
+  /// 冬の朝、砂浜と道路に降りる霜の濃さです。
+  let frost: Double
+  /// 冬の澄んだ空気で、対岸の街をくっきり見せる度合いです。
+  let distantClarity: Double
+
+  /// 花びらの最大数です。数を抑えて、文字の上を横切るものを減らします。
+  static let maximumPetals = 14
+  /// 赤とんぼの最大数です。
+  static let maximumDragonflies = 3
+  /// 花火を上げる日の間隔です。夏の毎晩ではなく、5日に1度だけにします。
+  static let fireworksDayInterval = 5
+  /// 花火を上げ終える時刻です。
+  static let fireworksEndHour: Double = 21.5
+  /// 霜が解けきるまでの、日の出からの時間です。
+  static let frostMeltHours: Double = 2.5
+  /// 霜が降り始める時刻です。
+  static let frostStartHour: Double = 3
+
+  init(palette: SkyPalette) {
+    let blend = palette.day.seasonBlend
+    let spring = blend.weight(of: .spring)
+    let summer = blend.weight(of: .summer)
+    let autumn = blend.weight(of: .autumn)
+    let winter = blend.weight(of: .winter)
+    let daylight = 1 - palette.nightness
+    let isDaytime = palette.nightness < 0.3
+
+    petalCount = Int((Double(Self.maximumPetals) * spring * daylight).rounded())
+    haze = 0.12 * spring * daylight
+    // 照り返しは日が高いほど強くなります。
+    roadGlare = palette.isSunUp ? 0.16 * summer * palette.celestialAltitude : 0
+    showsFireworks = summer >= 0.5
+      && palette.day.dayOfYear % Self.fireworksDayInterval == 0
+      && palette.nightness > 0.9
+      && palette.hour >= palette.daylight.sunset
+      && palette.hour < Self.fireworksEndHour
+    dragonflyCount = isDaytime ? Int((Double(Self.maximumDragonflies) * autumn).rounded()) : 0
+    moonlightBoost = palette.isSunUp ? 0 : 0.4 * autumn
+    // イルミネーションは暗くなってから灯します。
+    illumination = winter * min(max((palette.nightness - 0.5) / 0.3, 0), 1)
+    // 霜は夜明け前に降り、日の出のあと少しずつ解けます。
+    let untilMelt = palette.daylight.sunrise + Self.frostMeltHours - palette.hour
+    frost = palette.hour >= Self.frostStartHour && untilMelt > 0
+      ? winter * min(untilMelt / Self.frostMeltHours, 1)
+      : 0
+    distantClarity = winter + autumn * 0.4
+  }
+}
+
 /// アプリ全体の背景です。画面いっぱいにドット絵の空を敷きます。
 struct SkyBackground: View {
   var body: some View {
@@ -496,6 +565,60 @@ struct SkyCanvas: View {
   /// 薄く描く雲の濃さです。普通の雲に対する割合で持ちます。
   private static let faintCloudOpacity: Double = 0.6
 
+  // MARK: 季節のモチーフ
+
+  /// 街路樹を立てる横位置です。2本の電柱のあいだに立てます。
+  private static let streetTreeRatio: Double = 0.60
+  /// 街路樹の幹の高さです。セル数で指定します。
+  private static let streetTreeTrunkHeight = 9
+  /// 街路樹の枝です。幹の先端を基準にした(横, 縦)のセル位置です。
+  /// 葉を落とした冬に、この枝がそのまま見えます。
+  private static let streetTreeBranches: [(dx: Int, dy: Int)] = [
+    (0, -1), (1, -2), (1, -3), (0, -4), (1, -5), (1, -6),
+    (-1, -1), (-2, -2), (-3, -2), (-4, -3), (-5, -4),
+    (2, -1), (3, -2), (4, -2), (5, -3), (6, -4),
+    (-2, -4), (-3, -5), (3, -4), (4, -5), (0, -7)
+  ]
+  /// 街路樹の葉の形です。幹の先端を基準にした円の(中心の横, 中心の縦, 半径)です。
+  private static let streetTreeCrown: [(dx: Int, dy: Int, radius: Int)] = [
+    (1, -4, 5),
+    (-3, -2, 4),
+    (5, -2, 4)
+  ]
+  /// イルミネーションを灯す割合です。葉の形の内側のマスのうち、この割合に灯ります。
+  private static let illuminationChance: Double = 0.14
+  /// イルミネーションの色です。
+  private static let illuminationColor = Color(red: 1.0, green: 0.90, blue: 0.62)
+  /// 花びらの色です。
+  private static let petalColor = Color(red: 1.0, green: 0.84, blue: 0.89)
+  /// 花びらが舞う範囲の上端です。画面高さに対する割合です。
+  private static let petalTopRatio: Double = 0.30
+  /// 春霞を広げる範囲です。水平線から上下へ、画面高さに対する割合で指定します。
+  private static let hazeBand: Double = 0.08
+  /// 花火が一度上がってから次が上がるまでの、描き直しの回数です。
+  private static let fireworksCycleTicks = 10
+  /// 花火が開いてから消えるまでの、描き直しの回数です。
+  private static let fireworksBurstTicks = 7
+  /// 背景を止めているときに見せる、花火の開き具合です。
+  private static let fireworksStillPhase = 4
+  /// 花火の光の粒の数です。
+  private static let fireworkSparks = 12
+  /// 花火の色です。上がるたびに順に変えます。
+  private static let fireworkColors = [
+    Color(red: 1.0, green: 0.55, blue: 0.45),
+    Color(red: 1.0, green: 0.86, blue: 0.45),
+    Color(red: 0.62, green: 0.92, blue: 0.70),
+    Color(red: 0.78, green: 0.70, blue: 1.0)
+  ]
+  /// 赤とんぼの体の色です。
+  private static let dragonflyColor = Color(red: 0.82, green: 0.20, blue: 0.14)
+  /// 赤とんぼの羽の色です。
+  private static let dragonflyWingColor = Color(red: 0.95, green: 0.95, blue: 1.0)
+  /// 霜の色です。
+  private static let frostColor = Color(red: 0.92, green: 0.96, blue: 1.0)
+  /// 冬の澄んだ空気で、対岸の街をどれだけ濃く見せるかです。
+  private static let distantClarityDarkening: Double = 0.12
+
   /// 雲を置く位置と大きさです。位置は画面に対する比率、大きさはセルの倍率です。
   private static let cloudLayout: [(x: Double, y: Double, scale: Int)] = [
     (0.06, 0.09, 4),
@@ -566,15 +689,29 @@ struct SkyCanvas: View {
     drawShoreEdge(in: &context, size: size)
     drawSurf(in: &context, size: size, tick: tick)
     drawShip(in: &context, size: size, elapsed: Double(tick) * Self.animationInterval)
-    // 街灯とバス停は海より手前です。静止した層に描くと、
+    // 花火は対岸の街の上、春霞は水平線のあたりに重ねます。
+    drawFireworks(in: &context, size: size, tick: tick)
+    drawSpringHaze(in: &context, size: size)
+    // 街路樹、街灯、バス停は海より手前です。静止した層に描くと、
     // 支柱の上半分が海に覆われて見えなくなります。
+    drawStreetTree(in: &context, size: size, tick: tick)
     drawUtilityPoles(in: &context, size: size)
     drawStreetLights(in: &context, size: size)
     drawBusStop(in: &context, size: size)
-    // 積もった雪は地面の上、霧の下に重ねます。
+    drawRoadGlare(in: &context, size: size)
+    // 霜と積もった雪は地面の上、霧の下に重ねます。
+    drawFrost(in: &context, size: size)
     drawSnowCover(in: &context, size: size)
-    // 霧はいちばん最後に重ね、遠くのものほど霞ませます。
+    // 霧は風景のいちばん最後に重ね、遠くのものほど霞ませます。
     drawFog(in: &context, size: size)
+    // 舞う花びらと飛ぶ赤とんぼは、いちばん手前です。
+    drawPetals(in: &context, size: size, tick: tick)
+    drawDragonflies(in: &context, size: size, tick: tick)
+  }
+
+  /// いまの配色に添える、季節のモチーフです。
+  private var motifs: SeasonalMotifs {
+    SeasonalMotifs(palette: sky)
   }
 
   /// 潮の満ち引きを含めた、海と砂浜の境目の行です。
@@ -1391,7 +1528,10 @@ struct SkyCanvas: View {
     // 月が細いほど、道も淡くなります。
     context.fill(
       path,
-      with: .color(sky.celestialTint.opacity(Self.reflectionOpacity * strength))
+      // 秋の澄んだ月夜は、月明かりを強めます。
+      with: .color(
+        sky.celestialTint.opacity(min(Self.reflectionOpacity * strength * (1 + motifs.moonlightBoost), 1))
+      )
     )
   }
 
@@ -1922,6 +2062,254 @@ struct SkyCanvas: View {
     }
   }
 
+  // MARK: - 季節のモチーフ
+
+  /// 道路沿いの街路樹です。春は桜、夏は青葉、秋は紅葉が茂り、冬は葉を落とした枝になります。
+  ///
+  /// 季節が移るあいだは葉の粒をまばらにし、芽吹きや散り際を表します。
+  /// 冬の夜は、葉のない枝にイルミネーションを灯します。
+  private func drawStreetTree(in context: inout GraphicsContext, size: CGSize, tick: Int) {
+    let cell = Self.cellSize
+    let rowCount = max(Int(ceil(size.height / cell)), 1)
+    let baseRow = Int(Self.roadRatio * Double(rowCount))
+    let trunkColumn = Int(Self.streetTreeRatio * size.width / cell)
+    let crownRow = baseRow - Self.streetTreeTrunkHeight
+
+    // 幹は2マスの太さで立て、先端から枝を伸ばします。
+    var trunkPath = Path()
+    for row in crownRow..<baseRow {
+      for offset in 0..<2 {
+        trunkPath.addRect(cellRect(column: trunkColumn + offset, row: row))
+      }
+    }
+    for branch in Self.streetTreeBranches {
+      trunkPath.addRect(cellRect(column: trunkColumn + branch.dx, row: crownRow + branch.dy))
+    }
+    context.fill(trunkPath, with: .color(sky.treeTrunk))
+
+    let crownCells = streetTreeCrownCells(trunkColumn: trunkColumn, crownRow: crownRow)
+
+    let density = sky.foliageDensity
+    if density > 0.01 {
+      var leafPath = Path()
+      var highlightPath = Path()
+      for (column, row) in crownCells {
+        // 茂り具合が低いほど、葉の粒がまばらになります。
+        guard pseudoRandom(row &* 211 &+ column &* 17 &+ 5) < density else { continue }
+        let rect = cellRect(column: column, row: row)
+        // 左上から光が当たる面を明るくし、丸みを出します。
+        let isLit = column - trunkColumn < 0 && row - crownRow < -3
+          && Self.ditherMatrix[(row % 4 + 4) % 4][(column % 4 + 4) % 4] < 8
+        if isLit {
+          highlightPath.addRect(rect)
+        } else {
+          leafPath.addRect(rect)
+        }
+      }
+      context.fill(leafPath, with: .color(sky.foliage))
+      context.fill(highlightPath, with: .color(sky.foliageHighlight))
+    }
+
+    let illumination = motifs.illumination
+    guard illumination > 0.01 else { return }
+    var lightPath = Path()
+    for (index, cell) in crownCells.enumerated() {
+      guard pseudoRandom(index &* 13 &+ 7) < Self.illuminationChance else { continue }
+      // 一部の灯りだけがゆっくり瞬きます。
+      guard pseudoRandom(index &* 31 &+ tick / 3) > 0.15 else { continue }
+      lightPath.addRect(cellRect(column: cell.column, row: cell.row))
+    }
+    context.fill(lightPath, with: .color(Self.illuminationColor.opacity(illumination)))
+  }
+
+  /// 街路樹の葉が茂るマスです。いくつかの円を重ねた形にします。
+  private func streetTreeCrownCells(trunkColumn: Int, crownRow: Int) -> [(column: Int, row: Int)] {
+    var cells: [(column: Int, row: Int)] = []
+    let minimumColumn = Self.streetTreeCrown.map { $0.dx - $0.radius }.min() ?? 0
+    let maximumColumn = Self.streetTreeCrown.map { $0.dx + $0.radius }.max() ?? 0
+    let minimumRow = Self.streetTreeCrown.map { $0.dy - $0.radius }.min() ?? 0
+    let maximumRow = Self.streetTreeCrown.map { $0.dy + $0.radius }.max() ?? 0
+
+    for dy in minimumRow...maximumRow {
+      for dx in minimumColumn...maximumColumn {
+        let isInside = Self.streetTreeCrown.contains { circle in
+          let x = dx - circle.dx
+          let y = dy - circle.dy
+          return Double(x * x + y * y) <= Self.squaredDiscLimit(forRadius: circle.radius)
+        }
+        guard isInside else { continue }
+        cells.append((trunkColumn + dx, crownRow + dy))
+      }
+    }
+    return cells
+  }
+
+  /// 春に舞う桜の花びらです。風に乗って、斜めにゆっくり落ちていきます。
+  private func drawPetals(in context: inout GraphicsContext, size: CGSize, tick: Int) {
+    let count = motifs.petalCount
+    guard count > 0 else { return }
+
+    let cell = Self.cellSize
+    let columnCount = Double(max(Int(ceil(size.width / cell)), 1))
+    let rowCount = Double(max(Int(ceil(size.height / cell)), 1))
+    let top = rowCount * Self.petalTopRatio
+    let span = rowCount * Self.roadRatio - top
+    guard span > 0 else { return }
+
+    var path = Path()
+    for index in 0..<count {
+      // 花びらごとに速さと揺れ方を変え、同じ動きに見えないようにします。
+      let speed = 0.6 + pseudoRandom(index &* 7 &+ 1) * 0.6
+      let travel = Double(tick) * speed + pseudoRandom(index &* 7 &+ 2) * span
+      let row = top + travel.truncatingRemainder(dividingBy: span)
+      let sway = sin(Double(tick) * 0.35 + Double(index)) * 2
+      var column = (pseudoRandom(index &* 7 &+ 3) * columnCount - travel * 0.5 + sway)
+        .truncatingRemainder(dividingBy: columnCount)
+      // 左端より外へ流れた花びらは、右端から入り直させます。
+      if column < 0 { column += columnCount }
+
+      path.addRect(cellRect(column: Int(column), row: Int(row)))
+    }
+    context.fill(path, with: .color(Self.petalColor.opacity(0.9)))
+  }
+
+  /// 春霞です。水平線のあたりを白くかすませ、遠くの街をぼかします。
+  private func drawSpringHaze(in context: inout GraphicsContext, size: CGSize) {
+    let strength = motifs.haze
+    guard strength > 0.005 else { return }
+
+    let cell = Self.cellSize
+    let rowCount = max(Int(ceil(size.height / cell)), 1)
+    let horizonRow = Int(Self.horizonRatio * Double(rowCount))
+    let band = max(Int(Self.hazeBand * Double(rowCount)), 1)
+
+    for offset in -band...band {
+      let row = horizonRow + offset
+      guard row >= 0, row < rowCount else { continue }
+      // 水平線で最も濃く、離れるほど薄くします。
+      let opacity = strength * (1 - Double(abs(offset)) / Double(band))
+      guard opacity > 0.005 else { continue }
+      context.fill(
+        Path(CGRect(x: 0, y: CGFloat(row) * cell, width: size.width, height: cell)),
+        with: .color(Color.white.opacity(opacity))
+      )
+    }
+  }
+
+  /// 夏の強い日差しが、道路の奥に白く照り返す様子です。
+  private func drawRoadGlare(in context: inout GraphicsContext, size: CGSize) {
+    let strength = motifs.roadGlare
+    guard strength > 0.01 else { return }
+
+    let cell = Self.cellSize
+    let columnCount = max(Int(ceil(size.width / cell)), 1)
+    let rowCount = max(Int(ceil(size.height / cell)), 1)
+    let roadRow = Int(Self.roadRatio * Double(rowCount))
+
+    var path = Path()
+    // 照り返しは道路の奥ほど強く見えるので、奥の数行だけに散らします。
+    for row in (roadRow + 1)...(roadRow + 4) where row < rowCount {
+      for column in 0..<columnCount {
+        guard pseudoRandom(row &* 389 &+ column &* 47 &+ 11) < 0.35 else { continue }
+        path.addRect(cellRect(column: column, row: row))
+      }
+    }
+    context.fill(path, with: .color(Color.white.opacity(strength)))
+  }
+
+  /// 夏の夜、対岸で上がる遠くの花火です。
+  ///
+  /// 一度に1つだけ、小さく開いては消えます。
+  /// 背景を止めているときは、開いた途中の一瞬を描きます。
+  private func drawFireworks(in context: inout GraphicsContext, size: CGSize, tick: Int) {
+    guard motifs.showsFireworks, !weather.isRaining else { return }
+
+    let cycle = tick / Self.fireworksCycleTicks
+    let phase = isStill ? Self.fireworksStillPhase : tick % Self.fireworksCycleTicks
+    guard phase < Self.fireworksBurstTicks else { return }
+
+    let cell = Self.cellSize
+    let columnCount = Double(max(Int(ceil(size.width / cell)), 1))
+    let rowCount = max(Int(ceil(size.height / cell)), 1)
+    let horizonRow = Int(Self.horizonRatio * Double(rowCount))
+    // 上がる位置は毎回変えます。対岸の建物より上で開きます。
+    let centerColumn = Int((0.2 + pseudoRandom(cycle &* 17 &+ 3) * 0.6) * columnCount)
+    let centerRow = horizonRow - 12 - Int(pseudoRandom(cycle &* 17 &+ 5) * 6)
+    let radius = Double(1 + phase)
+    // 開ききってから、ゆっくり消えます。
+    let fade = phase < 4 ? 1 : 1 - Double(phase - 3) / 4
+
+    var path = Path()
+    for spark in 0..<Self.fireworkSparks {
+      let angle = 2 * Double.pi * Double(spark) / Double(Self.fireworkSparks)
+      let column = centerColumn + Int((cos(angle) * radius).rounded())
+      let row = centerRow + Int((sin(angle) * radius).rounded())
+      path.addRect(cellRect(column: column, row: row))
+    }
+    let color = Self.fireworkColors[cycle % Self.fireworkColors.count]
+    context.fill(path, with: .color(color.opacity(0.85 * fade)))
+  }
+
+  /// 秋の昼、海辺を飛ぶ赤とんぼです。水平線の少し上を、ゆらゆらと行き来します。
+  private func drawDragonflies(in context: inout GraphicsContext, size: CGSize, tick: Int) {
+    let count = motifs.dragonflyCount
+    guard count > 0 else { return }
+
+    let cell = Self.cellSize
+    let elapsed = Double(tick) * Self.animationInterval
+    var bodyPath = Path()
+    var wingPath = Path()
+
+    for index in 0..<count {
+      let baseX = 0.15 + pseudoRandom(index &* 11 &+ 1) * 0.7
+      let baseY = 0.40 + pseudoRandom(index &* 11 &+ 2) * 0.12
+      let x = baseX + sin(elapsed * 0.6 + Double(index) * 2) * 0.08
+      let y = baseY + sin(elapsed * 1.3 + Double(index)) * 0.02
+      let column = Int(x * size.width / cell)
+      let row = Int(y * size.height / cell)
+
+      // 胴は3マス、羽は胴の上下に1マスずつです。描き直すたびに羽を上下させます。
+      for offset in 0..<3 {
+        bodyPath.addRect(cellRect(column: column + offset, row: row))
+      }
+      let wingRow = (tick + index) % 2 == 0 ? row - 1 : row + 1
+      wingPath.addRect(cellRect(column: column + 1, row: wingRow))
+    }
+    context.fill(wingPath, with: .color(Self.dragonflyWingColor.opacity(0.55)))
+    context.fill(bodyPath, with: .color(Self.dragonflyColor))
+  }
+
+  /// 冬の朝、砂浜と道路に降りる霜です。日の出のあと、少しずつ解けていきます。
+  private func drawFrost(in context: inout GraphicsContext, size: CGSize) {
+    let strength = motifs.frost
+    guard strength > 0.01 else { return }
+
+    let cell = Self.cellSize
+    let columnCount = max(Int(ceil(size.width / cell)), 1)
+    let rowCount = max(Int(ceil(size.height / cell)), 1)
+    let startRow = tidalShoreRow(rowCount: rowCount)
+    guard startRow < rowCount else { return }
+
+    var path = Path()
+    for row in startRow..<rowCount {
+      for column in 0..<columnCount {
+        guard pseudoRandom(row &* 7_703 &+ column &* 59 &+ 3) < 0.07 else { continue }
+        path.addRect(cellRect(column: column, row: row))
+      }
+    }
+    context.fill(path, with: .color(Self.frostColor.opacity(0.35 * strength)))
+  }
+
+  /// 指定したマスの矩形です。
+  private func cellRect(column: Int, row: Int) -> CGRect {
+    CGRect(
+      x: CGFloat(column) * Self.cellSize,
+      y: CGFloat(row) * Self.cellSize,
+      width: Self.cellSize,
+      height: Self.cellSize
+    )
+  }
+
   // MARK: - 遠景と近景
 
   /// 水平線の向こうに見える対岸です。
@@ -1948,7 +2336,9 @@ struct SkyCanvas: View {
 
     // 空の色を暗くして作るので、時刻が変わっても風景から浮きません。
     context.fill(path, with: .color(sky.skyBottom))
-    context.fill(path, with: .color(Color.black.opacity(Self.distantShoreDarkening)))
+    // 冬の澄んだ空気では、対岸の影が濃く、くっきり見えます。
+    let darkening = Self.distantShoreDarkening + motifs.distantClarity * Self.distantClarityDarkening
+    context.fill(path, with: .color(Color.black.opacity(darkening)))
 
     drawDistantLights(in: &context, size: size, horizonRow: horizonRow, columnCount: columnCount)
   }
