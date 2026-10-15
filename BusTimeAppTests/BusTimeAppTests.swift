@@ -1767,6 +1767,55 @@ struct BusTimeAppTests {
     }
 
     @Test
+    func nightSkyStaysDeepNavyInEverySeason() {
+        // 夜空に季節の色を混ぜると、黒に近い紺が灰色や茶色っぽく濁ります。
+        // 以前の秋の23時の空の上端は(30, 27, 39)でした。
+        for season in Season.allCases {
+            for hour in [23.0, 0, 2] {
+                let top = components(of: SkyPalette.at(hour: hour, season: season).skyColor(at: 0))
+                #expect(top.r < 0.06, "\(season)の\(hour)時の空が明るく濁っています")
+                #expect(top.g < 0.08, "\(season)の\(hour)時の空が明るく濁っています")
+                #expect(top.b > max(top.r, top.g) + 0.05, "\(season)の\(hour)時の空が紺ではありません")
+            }
+        }
+    }
+
+    @Test
+    func summerSunsetGlowsDeepOrange() {
+        // 夏の夕焼けに夏の青を混ぜると、空の上端が(150, 141, 164)の灰紫になっていました。
+        // 夏は青を混ぜず、ほかの季節より濃い橙に焼けます。
+        func sunsetGlow(_ season: Season) -> (r: Double, g: Double, b: Double, a: Double) {
+            let day = SeasonalDay(season: season)
+            let palette = SkyPalette.at(hour: day.daylight.sunset - 0.75, day: day)
+            return components(of: palette.skyColor(at: 0))
+        }
+
+        let summer = sunsetGlow(.summer)
+        #expect(summer.r > 0.85)
+        #expect(summer.b < 0.3)
+        for season in [Season.spring, .autumn, .winter] {
+            #expect(saturation(summer) > saturation(sunsetGlow(season)))
+        }
+    }
+
+    @Test
+    func starsShowHowClearTheNightAirIs() {
+        // 夜空の色は変えず、星の見え方で季節を表します。
+        // 乾いた冬が最も澄み、秋、湿った夏、かすみの出る春の順に暗い星が隠れます。
+        let order: [Season] = [.winter, .autumn, .summer, .spring]
+        for (clearer, hazier) in zip(order, order.dropFirst()) {
+            #expect(
+                SkyPalette.at(hour: 23, season: clearer).starClarity
+                    > SkyPalette.at(hour: 23, season: hazier).starClarity
+            )
+        }
+        // 季節のあいだの日は、2つの季節の澄み具合のあいだになります。
+        let lateMay = SkyPalette.at(hour: 23, day: SeasonalDay(dayOfYear: 151)).starClarity
+        #expect(lateMay > Season.spring.starClarity)
+        #expect(lateMay < Season.summer.starClarity)
+    }
+
+    @Test
     func skyChangesGraduallyFromDayToDay() {
         // 隣り合う日の同じ時刻で、空の色がほとんど変わらないことを確かめます。
         // 季節を月で切り替えていたころは、8月31日から9月1日のような境目で
@@ -1848,11 +1897,6 @@ struct BusTimeAppTests {
             let palette = SkyPalette.at(hour: 12, season: season)
             return (components(of: palette.skyColor(at: 0)), components(of: palette.skyColor(at: 1)))
         }
-        func saturation(_ color: RGBA) -> Double {
-            let highest = max(color.r, color.g, color.b)
-            return highest > 0 ? (highest - min(color.r, color.g, color.b)) / highest : 0
-        }
-
         // 夏は濃く高い青、秋は澄んだ青、春はかすんだ淡い空、冬は低く白っぽい空です。
         // 空の上端の鮮やかさが、この順に下がります。
         let order: [Season] = [.summer, .autumn, .spring, .winter]
@@ -2252,6 +2296,12 @@ private func cieLab(_ color: (r: Double, g: Double, b: Double, a: Double)) -> (l
     let y = 0.2126 * red + 0.7152 * green + 0.0722 * blue
     let z = (0.0193 * red + 0.1192 * green + 0.9505 * blue) / 1.08883
     return (116 * f(y) - 16, 500 * (f(x) - f(y)), 200 * (f(y) - f(z)))
+}
+
+/// 色の鮮やかさ（HSVの彩度）です。0が灰色、1が最も鮮やかです。
+private func saturation(_ color: (r: Double, g: Double, b: Double, a: Double)) -> Double {
+    let highest = max(color.r, color.g, color.b)
+    return highest > 0 ? (highest - min(color.r, color.g, color.b)) / highest : 0
 }
 
 /// WCAGの相対輝度です。
