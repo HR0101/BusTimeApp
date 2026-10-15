@@ -65,8 +65,10 @@ enum Season: CaseIterable {
 
   /// 今日の季節です。
   ///
+  /// 運行判定と同じく、アプリ内の現在時刻と日本時間の暦で判定します。
+  /// 端末のタイムゾーンで判定すると、月末から月初の数時間だけ季節がずれるためです。
   /// Debugビルドで季節を固定する起動引数が渡されていれば、その季節を返します。
-  static func current(date: Date = Date(), calendar: Calendar = .current) -> Season {
+  static func current(date: Date = AppDate.now(), calendar: Calendar = AppCalendar.japan) -> Season {
     from(month: calendar.component(.month, from: SeasonalDate.resolve(date, calendar: calendar)))
   }
 
@@ -305,6 +307,9 @@ struct SkyPalette: Equatable {
   let nightness: Double
   /// 空が夜であるかどうかです。ステータスバーの明暗切り替えに使います。
   let isNight: Bool
+  /// この配色を作った季節です。
+  /// 設定画面のプレビューなど、別の時刻の配色を作るときに同じ季節を引き継ぎます。
+  let season: Season
 
   // MARK: - 時刻から配色を生成する
 
@@ -551,12 +556,16 @@ struct SkyPalette: Equatable {
       celestialProgress: celestialProgress(at: normalizedHour),
       celestialAltitude: celestialAltitude(at: normalizedHour),
       nightness: nightness,
-      isNight: isNight
+      isNight: isNight,
+      season: season
     )
   }
 
   /// 指定した日時の配色を作ります。
-  static func at(date: Date, calendar: Calendar = .current) -> SkyPalette {
+  ///
+  /// 時刻と季節は日本時間の暦で求めます。背景は海浜幕張の空を描いているので、
+  /// 端末のタイムゾーンが違っても、運行判定や天気と同じ現地の時刻に合わせます。
+  static func at(date: Date, calendar: Calendar = AppCalendar.japan) -> SkyPalette {
     let components = calendar.dateComponents([.hour, .minute], from: date)
     let hour = Double(components.hour ?? 0)
     let minute = Double(components.minute ?? 0)

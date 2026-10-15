@@ -92,9 +92,10 @@ struct ContentView: View {
   private let paletteAnimationDuration: Double = 0.9
 
   private var palette: SkyPalette {
+    // 季節は背景の時計と同じ日付から求めたものを使い、時刻と季節を同じ瞬間に揃えます。
     SkyPalette.at(
       hour: skyClock.palette.hour,
-      season: Season.current(date: AppDate.now()),
+      season: skyClock.palette.season,
       colorScheme: settingsViewModel.paletteColorScheme(systemColorScheme: systemColorScheme)
     )
   }
