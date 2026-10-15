@@ -1824,25 +1824,52 @@ struct BusTimeAppTests {
     func seasonsLookDifferentAtNoon() {
         // 同じ正午の空を季節どうしで比べ、どの組み合わせも見分けられる色差があることを確かめます。
         // 色差はCIELABのΔE（CIE76）です。2.3前後が見分けられる最小の差で、10を超えると別の色に見えます。
+        // 季節の色を一律に混ぜていたころは0.8〜8.4しかなく、春と冬はほぼ同じ色でした。
         let threshold = 10.0
 
-        withKnownIssue("季節ごとの空の基本色を設計し直すまでは、春・秋・冬の正午がほぼ同じ色です（#65）") {
-            for (index, first) in Season.allCases.enumerated() {
-                for second in Season.allCases.dropFirst(index + 1) {
-                    let difference = skyColorDifference(
-                        SkyPalette.at(hour: 12, season: first),
-                        SkyPalette.at(hour: 12, season: second)
-                    )
-                    #expect(
-                        difference >= threshold,
-                        "正午の\(first)と\(second)の空の色差が\(difference)でした"
-                    )
-                }
+        for (index, first) in Season.allCases.enumerated() {
+            for second in Season.allCases.dropFirst(index + 1) {
+                let difference = skyColorDifference(
+                    SkyPalette.at(hour: 12, season: first),
+                    SkyPalette.at(hour: 12, season: second)
+                )
+                #expect(
+                    difference >= threshold,
+                    "正午の\(first)と\(second)の空の色差が\(difference)でした"
+                )
             }
         }
     }
 
-    // MARK: - ショートカット（Siri）
+    @Test
+    func daytimeSkyShowsEachSeasonsCharacter() {
+        typealias RGBA = (r: Double, g: Double, b: Double, a: Double)
+        func noonSky(_ season: Season) -> (top: RGBA, bottom: RGBA) {
+            let palette = SkyPalette.at(hour: 12, season: season)
+            return (components(of: palette.skyColor(at: 0)), components(of: palette.skyColor(at: 1)))
+        }
+        func saturation(_ color: RGBA) -> Double {
+            let highest = max(color.r, color.g, color.b)
+            return highest > 0 ? (highest - min(color.r, color.g, color.b)) / highest : 0
+        }
+
+        // 夏は濃く高い青、秋は澄んだ青、春はかすんだ淡い空、冬は低く白っぽい空です。
+        // 空の上端の鮮やかさが、この順に下がります。
+        let order: [Season] = [.summer, .autumn, .spring, .winter]
+        for (vivid, pale) in zip(order, order.dropFirst()) {
+            #expect(
+                saturation(noonSky(vivid).top) > saturation(noonSky(pale).top),
+                "\(vivid)の空は\(pale)より鮮やかにします"
+            )
+        }
+        // 冬の空がいちばん明るく白っぽくなります。
+        for season in [Season.spring, .summer, .autumn] {
+            #expect(relativeLuminance(noonSky(.winter).top) > relativeLuminance(noonSky(season).top))
+        }
+        // 春の地平線は桃色を帯びたかすみ、冬の地平線は冷たい白です。
+        #expect(noonSky(.spring).bottom.r > noonSky(.spring).bottom.b)
+        #expect(noonSky(.winter).bottom.b > noonSky(.winter).bottom.r)
+    }
 
     @Test
     func shortcutAnswerNamesTheRouteAndTheNextDeparture() {
