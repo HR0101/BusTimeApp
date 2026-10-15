@@ -1545,6 +1545,35 @@ struct BusTimeAppTests {
     }
 
     @Test
+    func cardTextStaysReadableOverTheSeaAndGround() {
+        // カードは画面の下半分では、空ではなく海・砂浜・道路の上に重なります。
+        // 季節で海と砂浜の色を変えたので、それらの上でも文字が読めることを確かめます。
+        let coverage = SkyCardOpacity.coverage(for: SkyCardOpacity.standard, isDense: false)
+        var worst = (ratio: Double.infinity, season: Season.spring, hour: 0.0)
+
+        for season in Season.allCases {
+            for step in 0..<(24 * 4) {
+                let hour = Double(step) / 4
+                let palette = SkyPalette.at(hour: hour, season: season)
+                let grounds = palette.quantizedWaterColors(steps: 6) + [palette.shore, palette.road]
+                for ground in grounds {
+                    let onSurface = blend(components(of: palette.surface), over: components(of: ground))
+                    let card = blend(components(of: palette.surfaceOpaque, alpha: coverage), over: onSurface)
+                    let ratio = contrastRatio(blend(components(of: palette.ink), over: card), card)
+                    if ratio < worst.ratio {
+                        worst = (ratio, season, hour)
+                    }
+                }
+            }
+        }
+
+        #expect(
+            worst.ratio >= 4.5,
+            "海・砂浜・道路の上の文字が最も読みにくいのは\(worst.season)の\(worst.hour)時で、比は\(worst.ratio)でした"
+        )
+    }
+
+    @Test
     func accentTextStaysReadableAtEveryHourAndSeason() {
         var worstRatio = Double.infinity
         var worstReadableRatio = Double.infinity
@@ -1780,6 +1809,63 @@ struct BusTimeAppTests {
         #expect(saturation(components(of: springGlow.skyColor(at: 0))) < saturation(components(of: autumnGlow.skyColor(at: 0))))
         // 夜は、かすむ春より澄んだ秋のほうが多くの星が見えます。
         #expect(SkyPalette.at(hour: 22, day: autumn).starClarity > SkyPalette.at(hour: 22, day: spring).starClarity + 0.2)
+    }
+
+    @Test
+    func seaAndShoreChangeWithTheSeason() {
+        typealias RGBA = (r: Double, g: Double, b: Double, a: Double)
+        func water(_ season: Season) -> RGBA {
+            components(of: SkyPalette.at(hour: 12, season: season).quantizedWaterColors(steps: 6)[3])
+        }
+        func shore(_ season: Season) -> RGBA {
+            components(of: SkyPalette.at(hour: 12, season: season).shore)
+        }
+
+        // 夏の海は明るい青緑、冬の海は深く暗い青です。
+        #expect(colorDifference(water(.summer), water(.winter)) >= 10)
+        #expect(relativeLuminance(water(.summer)) > relativeLuminance(water(.winter)))
+        #expect(water(.summer).g / water(.summer).b > water(.winter).g / water(.winter).b)
+        // 冬の海がいちばん暗く沈みます。
+        for season in [Season.spring, .summer, .autumn] {
+            #expect(relativeLuminance(water(.winter)) < relativeLuminance(water(season)))
+        }
+        // 砂浜は、夏は白く乾いて明るく、冬は冷たく灰色がかります。
+        #expect(relativeLuminance(shore(.summer)) > relativeLuminance(shore(.winter)))
+        #expect(saturation(shore(.summer)) > saturation(shore(.winter)))
+    }
+
+    @Test
+    func cloudsChangeShapeWithTheSeason() {
+        func pieces(_ season: Season) -> [SeasonalCloudStyle.Piece] {
+            let style = SeasonalCloudStyle(season: season)
+            return (0..<3).flatMap { style.pieces(forSlot: $0, baseScale: 4) }
+        }
+
+        // 夏は、地平線の上から高く湧き上がる入道雲が出ます。
+        #expect(pieces(.summer).contains { $0.rows.count >= 6 && $0.bottomRatio != nil })
+        #expect(!pieces(.spring).contains { $0.rows.count >= 6 })
+        // 秋は、高い空に細かな雲が鱗のように並び、細く伸びるすじ雲が出ます。
+        #expect(pieces(.autumn).filter { $0.rows.count == 1 }.count >= 10)
+        #expect(pieces(.autumn).contains { $0.rows.first.map { $0.width >= 12 } == true })
+        // 冬は雲が少なく、薄くなります。
+        #expect(pieces(.winter).count < pieces(.spring).count)
+        #expect(pieces(.winter).allSatisfy { $0.isFaint })
+    }
+
+    @Test
+    func cloudShapesMoveToTheNextSeasonOneByOne() {
+        // 季節の代表日は、すべての雲がその季節の形です。
+        for season in Season.allCases {
+            let blend = SeasonalDay(season: season).seasonBlend
+            for slot in 0..<3 {
+                #expect(SeasonalCloudStyle(slot: slot, slotCount: 3, blend: blend) == SeasonalCloudStyle(season: season))
+            }
+        }
+        // 隣の季節へ移るあいだは、雲ごとに切り替わる日がずれます。一度にすべては入れ替わりません。
+        let halfway = SeasonBlend(earlier: .spring, later: .summer, ratio: 0.5)
+        let styles = (0..<3).map { SeasonalCloudStyle(slot: $0, slotCount: 3, blend: halfway) }
+        #expect(styles.contains(.soft))
+        #expect(styles.contains(.towering))
     }
 
     @Test

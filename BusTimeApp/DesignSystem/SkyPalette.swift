@@ -107,6 +107,46 @@ enum Season: CaseIterable {
     }
   }
 
+  /// 海と砂浜の、季節ごとの色です。
+  ///
+  /// 空だけが季節で変わり、画面の下半分が一年中同じだと季節が伝わりにくいためです。
+  /// - 春: やわらかく霞んだ青緑の海と、明るい砂浜です。
+  /// - 夏: 日差しで明るく澄んだ青緑の海と、白く乾いた砂浜です。
+  /// - 秋: 深い青の海と、少し色づいた茶色の砂浜です。
+  /// - 冬: 深く暗い紺の海と、冷たく灰色がかった砂浜です。
+  fileprivate var scenery: SeasonalScenery {
+    switch self {
+    case .spring:
+      return SeasonalScenery(
+        waterTint: RGBComponents(red: 0.10, green: 0.26, blue: 0.30),
+        waterTintStrength: 0.24,
+        waterDarkening: 0.20,
+        shore: RGBComponents(red: 0.640, green: 0.580, blue: 0.480)
+      )
+    case .summer:
+      return SeasonalScenery(
+        waterTint: RGBComponents(red: 0.00, green: 0.52, blue: 0.46),
+        waterTintStrength: 0.40,
+        waterDarkening: 0.16,
+        shore: RGBComponents(red: 0.720, green: 0.640, blue: 0.500)
+      )
+    case .autumn:
+      return SeasonalScenery(
+        waterTint: RGBComponents(red: 0.03, green: 0.17, blue: 0.28),
+        waterTintStrength: 0.28,
+        waterDarkening: 0.24,
+        shore: RGBComponents(red: 0.600, green: 0.520, blue: 0.400)
+      )
+    case .winter:
+      return SeasonalScenery(
+        waterTint: RGBComponents(red: 0.02, green: 0.07, blue: 0.24),
+        waterTintStrength: 0.34,
+        waterDarkening: 0.30,
+        shore: RGBComponents(red: 0.580, green: 0.560, blue: 0.520)
+      )
+    }
+  }
+
   /// 夜空の澄み具合です。1で最も澄み、暗い星まで見えます。
   ///
   /// 夜は空に季節の色を混ぜると、黒に近い紺が灰色や茶色に濁ります。
@@ -467,6 +507,39 @@ private struct SkyKeyframe {
 
 }
 
+/// 海と砂浜の、季節ごとの色です。
+private struct SeasonalScenery: Equatable {
+  /// 水そのものの色です。海面の色をこの色へ寄せます。
+  let waterTint: RGBComponents
+  /// 海面に水の色を混ぜる強さです。
+  let waterTintStrength: Double
+  /// 海面を空より沈ませる度合いです。
+  let waterDarkening: Double
+  /// 昼の砂浜の色です。
+  let shore: RGBComponents
+
+  /// 隣り合う季節のあいだの色です。
+  init(blend: SeasonBlend) {
+    let earlier = blend.earlier.scenery
+    let later = blend.later.scenery
+    let ratio = blend.ratio
+    self.init(
+      waterTint: earlier.waterTint.mixed(with: later.waterTint, ratio: ratio),
+      waterTintStrength: earlier.waterTintStrength
+        + (later.waterTintStrength - earlier.waterTintStrength) * ratio,
+      waterDarkening: earlier.waterDarkening + (later.waterDarkening - earlier.waterDarkening) * ratio,
+      shore: earlier.shore.mixed(with: later.shore, ratio: ratio)
+    )
+  }
+
+  init(waterTint: RGBComponents, waterTintStrength: Double, waterDarkening: Double, shore: RGBComponents) {
+    self.waterTint = waterTint
+    self.waterTintStrength = waterTintStrength
+    self.waterDarkening = waterDarkening
+    self.shore = shore
+  }
+}
+
 /// 空の上端と下端の色の組です。
 private struct SkyColors {
   let top: RGBComponents
@@ -487,6 +560,8 @@ struct SkyPalette: Equatable {
   fileprivate let skyTopComponents: RGBComponents
   /// 空を段階的に塗り分けるための、下端の色の成分です。
   fileprivate let skyBottomComponents: RGBComponents
+  /// この日の海と砂浜の色です。
+  fileprivate let scenery: SeasonalScenery
   /// 見出しや時刻など、主要な文字の色です。
   let ink: Color
   /// 補足説明など、副次的な文字の色です。
@@ -751,11 +826,6 @@ struct SkyPalette: Equatable {
   private static let sunTint = RGBComponents(red: 1.0, green: 0.973, blue: 0.867)
   /// 月の色です。海面に落ちる光を温かく見せるため、わずかに黄みを含ませます。
   private static let moonTint = RGBComponents(red: 0.988, green: 0.961, blue: 0.867)
-  /// 水そのものの色です。海面の色をこの色へ少し寄せます。
-  /// 湖より緑を含ませ、外洋の深い青緑に近づけます。
-  private static let waterTint = RGBComponents(red: 0.039, green: 0.169, blue: 0.204)
-  /// 昼の岸辺の色です。
-  private static let dayShore = RGBComponents(red: 0.616, green: 0.561, blue: 0.463)
   /// 昼の道路の色です。
   private static let dayRoad = RGBComponents(red: 0.353, green: 0.361, blue: 0.376)
   /// 昼の道路の白線の色です。色あせを見込んで、白より灰色に寄せます。
@@ -769,10 +839,6 @@ struct SkyPalette: Equatable {
   private static let groundNightDarkening: Double = 0.52
   /// 地上が周囲の光を受ける度合いです。空の色を混ぜて、風景から浮かないようにします。
   private static let groundAmbientBlend: Double = 0.30
-  /// 海面を空より沈ませる度合いです。
-  private static let waterDarkening: Double = 0.22
-  /// 海面に水の色を混ぜる強さです。
-  private static let waterTintStrength: Double = 0.24
 
   /// 昼のカード地の不透明度です。明るい空の上では白を濃いめに乗せます。
   private static let daySurfaceOpacity: Double = 0.70
@@ -840,6 +906,8 @@ struct SkyPalette: Equatable {
 
     // 隣り合う2つの季節の空をそれぞれ作り、日付に応じて混ぜ合わせます。
     let blend = day.seasonBlend
+    // 海と砂浜も、空と同じ割合で隣の季節へ移ります。
+    let scenery = SeasonalScenery(blend: blend)
     let earlierSky = skyColors(between: previous, and: next, ratio: ratio, season: blend.earlier)
     let laterSky = skyColors(between: previous, and: next, ratio: ratio, season: blend.later)
     let skyTop = earlierSky.top.mixed(with: laterSky.top, ratio: blend.ratio)
@@ -867,6 +935,7 @@ struct SkyPalette: Equatable {
       skyBottom: skyBottom.color(),
       skyTopComponents: skyTop,
       skyBottomComponents: skyBottom,
+      scenery: scenery,
       ink: ink.color(),
       inkSecondary: ink.color(opacity: secondaryInkOpacity),
       inkFaint: ink.color(opacity: faintInkOpacity),
@@ -894,7 +963,7 @@ struct SkyPalette: Equatable {
       warning: (darkSurfaces ? nightWarning : dayWarning).color(),
       positive: (darkSurfaces ? nightPositive : dayPositive).color(),
       celestialTint: sunTint.mixed(with: moonTint, ratio: nightness).color(),
-      shore: dayShore
+      shore: scenery.shore
         .darkened(by: nightness * groundNightDarkening)
         .mixed(with: skyBottom, ratio: groundAmbientBlend)
         .color(),
@@ -974,9 +1043,11 @@ struct SkyPalette: Equatable {
     return (0..<steps).map { index in
       let ratio = Double(index) / Double(steps - 1)
       let reflected = skyComponents(at: ratio, weather: weather)
+      // 水の色も夜は沈ませます。夏の明るい青緑のまま混ぜると、夜の海だけが明るく浮くためです。
+      let waterTint = scenery.waterTint.darkened(by: nightness * Self.groundNightDarkening)
       return reflected
-        .darkened(by: Self.waterDarkening)
-        .mixed(with: Self.waterTint, ratio: Self.waterTintStrength)
+        .darkened(by: scenery.waterDarkening)
+        .mixed(with: waterTint, ratio: scenery.waterTintStrength)
         .color()
     }
   }

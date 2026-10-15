@@ -23,6 +23,129 @@ enum MoonPhase {
   }
 }
 
+/// 季節ごとの雲の形です。
+///
+/// 天気による雲量の増減とは別に、晴れた日の空の表情で季節を伝えます。
+/// 夏は入道雲、秋はうろこ雲とすじ雲、冬は少なく薄い雲にします。
+enum SeasonalCloudStyle: Equatable {
+  /// 春の、丸くやわらかい積雲です。
+  case soft
+  /// 夏の、地平線から高く湧き上がる入道雲です。
+  case towering
+  /// 秋の、高い空に細かく並ぶうろこ雲と、細く伸びるすじ雲です。
+  case mackerel
+  /// 冬の、少なく薄い雲です。
+  case sparse
+
+  init(season: Season) {
+    switch season {
+    case .spring:
+      self = .soft
+    case .summer:
+      self = .towering
+    case .autumn:
+      self = .mackerel
+    case .winter:
+      self = .sparse
+    }
+  }
+
+  /// 基本の配置の何番目かに置く雲の形を、季節の混ざり具合から決めます。
+  ///
+  /// 隣の季節へ移るあいだは、配置ごとに切り替わる日をずらし、
+  /// 空の雲が一度にすべて入れ替わらないようにします。
+  init(slot: Int, slotCount: Int, blend: SeasonBlend) {
+    let switchRatio = Double(slot + 1) / Double(slotCount + 1)
+    self.init(season: blend.ratio >= switchRatio ? blend.later : blend.earlier)
+  }
+
+  /// 雲の形の1行です。
+  struct Row: Equatable {
+    /// 左端のセル位置です。
+    let offsetX: Int
+    /// 幅のセル数です。
+    let width: Int
+  }
+
+  /// 雲のひとかたまりです。
+  struct Piece: Equatable {
+    /// 基本の配置からの横のずれです。画面幅に対する割合です。
+    let offsetX: Double
+    /// 基本の配置からの縦のずれです。画面高さに対する割合です。
+    let offsetY: Double
+    /// 1マスを何セルぶんの大きさで描くかです。
+    let scale: Int
+    /// 上から順に並べた行です。
+    let rows: [Row]
+    /// 薄く描くかどうかです。
+    let isFaint: Bool
+    /// 雲の底を置く高さです。画面高さに対する割合で、指定があれば縦のずれより優先します。
+    var bottomRatio: Double?
+  }
+
+  /// 丸くやわらかい積雲の形です。
+  static let softRows = [Row(offsetX: 2, width: 3), Row(offsetX: 1, width: 6), Row(offsetX: 0, width: 9)]
+  /// 入道雲の形です。上へ行くほど細く、もくもくと積み上がります。
+  static let toweringRows = [
+    Row(offsetX: 4, width: 3),
+    Row(offsetX: 3, width: 5),
+    Row(offsetX: 2, width: 6),
+    Row(offsetX: 2, width: 8),
+    Row(offsetX: 1, width: 9),
+    Row(offsetX: 1, width: 10),
+    Row(offsetX: 0, width: 12)
+  ]
+  /// うろこ雲のひと粒です。
+  static let scaleRows = [Row(offsetX: 0, width: 3)]
+  /// すじ雲です。細く長く伸びます。
+  static let streakRows = [Row(offsetX: 0, width: 16)]
+
+  /// 入道雲の底を置く高さです。水平線（0.55）の少し上で、対岸の街に重ならない高さです。
+  private static let toweringBottomRatio: Double = 0.47
+  /// うろこ雲を並べる数です。
+  private static let scaleColumns = 4
+  private static let scaleRowsCount = 2
+
+  /// 基本の配置のその位置に置く雲です。何も置かない場合は空の配列を返します。
+  func pieces(forSlot slot: Int, baseScale: Int) -> [Piece] {
+    let soft = Piece(offsetX: 0, offsetY: 0, scale: baseScale, rows: Self.softRows, isFaint: false)
+
+    switch self {
+    case .soft:
+      return [soft]
+    case .towering:
+      // 2つめの雲を入道雲にします。地平線の近くから空高く湧き上がるよう、底を水平線の上に揃えます。
+      guard slot == 1 else { return [soft] }
+      var tower = Piece(offsetX: -0.04, offsetY: 0, scale: 5, rows: Self.toweringRows, isFaint: false)
+      tower.bottomRatio = Self.toweringBottomRatio
+      return [tower]
+    case .mackerel:
+      // 3つめは細く伸びるすじ雲にし、それ以外は小さな雲を鱗のように互い違いに並べます。
+      if slot == 2 {
+        return [
+          Piece(offsetX: -0.12, offsetY: -0.02, scale: 2, rows: Self.streakRows, isFaint: true),
+          Piece(offsetX: 0.02, offsetY: 0.02, scale: 2, rows: [Row(offsetX: 0, width: 11)], isFaint: true)
+        ]
+      }
+      return (0..<(Self.scaleColumns * Self.scaleRowsCount)).map { index in
+        let column = index % Self.scaleColumns
+        let row = index / Self.scaleColumns
+        return Piece(
+          offsetX: Double(column) * 0.09 + (row % 2 == 1 ? 0.045 : 0),
+          offsetY: Double(row) * 0.025,
+          scale: 2,
+          rows: Self.scaleRows,
+          isFaint: false
+        )
+      }
+    case .sparse:
+      // 冬は1つだけ、薄く浮かべます。
+      guard slot == 0 else { return [] }
+      return [Piece(offsetX: 0, offsetY: 0, scale: baseScale, rows: Self.softRows, isFaint: true)]
+    }
+  }
+}
+
 /// アプリ全体の背景です。画面いっぱいにドット絵の空を敷きます。
 struct SkyBackground: View {
   var body: some View {
@@ -370,12 +493,8 @@ struct SkyCanvas: View {
   /// バス停の支柱の太さです。セル数で指定します。
   private static let poleWidth = 1
 
-  /// ドット絵の雲の形です。各行の(左端のセル位置, 幅のセル数)を上から順に並べます。
-  private static let cloudRows: [(offsetX: Int, width: Int)] = [
-    (2, 3),
-    (1, 6),
-    (0, 9)
-  ]
+  /// 薄く描く雲の濃さです。普通の雲に対する割合で持ちます。
+  private static let faintCloudOpacity: Double = 0.6
 
   /// 雲を置く位置と大きさです。位置は画面に対する比率、大きさはセルの倍率です。
   private static let cloudLayout: [(x: Double, y: Double, scale: Int)] = [
@@ -1741,39 +1860,66 @@ struct SkyCanvas: View {
     let drift = elapsed * weather.windSpeed * Self.cloudDriftPerWind
 
     var path = Path()
+    var faintPath = Path()
 
-    // 雲量が多いほど、雲の数を増やします。
+    // 晴れた日の雲は季節で形を変えます。
+    let blend = sky.day.seasonBlend
+    var pieces: [(x: Double, y: Double, piece: SeasonalCloudStyle.Piece)] = []
+    for (slot, cloud) in Self.cloudLayout.enumerated() {
+      let style = SeasonalCloudStyle(slot: slot, slotCount: Self.cloudLayout.count, blend: blend)
+      for piece in style.pieces(forSlot: slot, baseScale: cloud.scale) {
+        pieces.append((cloud.x + piece.offsetX, cloud.y + piece.offsetY, piece))
+      }
+    }
+    // 雲量が多いほど、雲の数を増やします。曇りの雲は季節を問わず同じ形です。
     let extra = Int((weather.cloudCover * Double(Self.extraCloudCount)).rounded())
-    let clouds = Self.cloudLayout + Self.extraCloudLayout.prefix(extra)
+    for cloud in Self.extraCloudLayout.prefix(extra) {
+      let piece = SeasonalCloudStyle.Piece(
+        offsetX: 0,
+        offsetY: 0,
+        scale: cloud.scale,
+        rows: SeasonalCloudStyle.softRows,
+        isFaint: false
+      )
+      pieces.append((cloud.x, cloud.y, piece))
+    }
 
-    for cloud in clouds {
-      let unit = Self.cellSize * CGFloat(cloud.scale)
+    for (x, y, piece) in pieces {
+      let unit = Self.cellSize * CGFloat(piece.scale)
       // 画面の外へ出たら反対側から戻します。
-      let driftedX = (cloud.x + drift).truncatingRemainder(dividingBy: 1.4) - 0.2
+      let driftedX = (x + drift).truncatingRemainder(dividingBy: 1.4) - 0.2
       let baseX = snapped(CGFloat(driftedX) * size.width)
-      let baseY = snapped(CGFloat(cloud.y) * size.height)
+      let baseY = piece.bottomRatio.map {
+        snapped(CGFloat($0) * size.height) - CGFloat(piece.rows.count) * unit
+      } ?? snapped(CGFloat(y) * size.height)
 
-      for (rowIndex, row) in Self.cloudRows.enumerated() {
-        path.addRect(
-          CGRect(
-            x: baseX + CGFloat(row.offsetX) * unit,
-            y: baseY + CGFloat(rowIndex) * unit,
-            width: CGFloat(row.width) * unit,
-            height: unit
-          )
+      for (rowIndex, row) in piece.rows.enumerated() {
+        let rect = CGRect(
+          x: baseX + CGFloat(row.offsetX) * unit,
+          y: baseY + CGFloat(rowIndex) * unit,
+          width: CGFloat(row.width) * unit,
+          height: unit
         )
+        if piece.isFaint {
+          faintPath.addRect(rect)
+        } else {
+          path.addRect(rect)
+        }
       }
     }
 
     // 雲が多いほど厚く見せます。
     let thickness = 0.38 + weather.cloudCover * 0.34
-    context.fill(path, with: .color(Color.white.opacity(visibility * thickness)))
-    // 白のままでは夕焼けの空から浮くので、水平線の色で染めます。
-    // 昼は淡い青なので白のまま、夕方は橙に寄ります。
-    context.fill(
-      path,
-      with: .color(sky.skyBottom.opacity(visibility * thickness * Self.cloudTintStrength))
-    )
+    for (cloudPath, opacity) in [(path, 1.0), (faintPath, Self.faintCloudOpacity)] {
+      let strength = visibility * thickness * opacity
+      context.fill(cloudPath, with: .color(Color.white.opacity(strength)))
+      // 白のままでは夕焼けの空から浮くので、水平線の色で染めます。
+      // 昼は淡い青なので白のまま、夕方は橙に寄ります。
+      context.fill(
+        cloudPath,
+        with: .color(sky.skyBottom.opacity(strength * Self.cloudTintStrength))
+      )
+    }
   }
 
   // MARK: - 遠景と近景
