@@ -1506,6 +1506,93 @@ struct BusTimeAppTests {
         }
     }
 
+    @Test
+    func forcedSeasonChangesOnlyTheDateUsedForSeasons() {
+        let defaults = makeIsolatedDefaults()
+        let calendar = AppCalendar.japan
+        let summerEvening = makeTestDate(hour: 17, minute: 45)
+
+        // 指定がなければ、渡した日付をそのまま使います。
+        #expect(SeasonalDate.forcedDate(for: summerEvening, calendar: calendar, defaults: defaults) == nil)
+
+        // 季節を指定すると、時刻は残したまま月日だけをその季節の代表日へ移します。
+        defaults.set("winter", forKey: SeasonalDate.forceSeasonKey)
+        let forced = SeasonalDate.forcedDate(for: summerEvening, calendar: calendar, defaults: defaults)
+        let components = forced.map { calendar.dateComponents([.year, .month, .day, .hour, .minute], from: $0) }
+        #expect(components?.year == 2026)
+        #expect(components?.month == 1)
+        #expect(components?.day == 15)
+        #expect(components?.hour == 17)
+        #expect(components?.minute == 45)
+        #expect(forced.map { Season.current(date: $0, calendar: calendar) } == .winter)
+
+        // どの季節も、代表日がその季節に含まれます。
+        for season in Season.allCases {
+            #expect(Season.from(month: season.representativeMonthDay.month) == season)
+        }
+    }
+
+    @Test
+    func forcedDayOfYearPicksThatDayAndOutranksTheSeason() {
+        let defaults = makeIsolatedDefaults()
+        let calendar = AppCalendar.japan
+        let date = makeTestDate(hour: 9, minute: 30)
+        defaults.set("summer", forKey: SeasonalDate.forceSeasonKey)
+
+        // 起動引数は文字列で届きます。2026年はうるう年ではないので、60日目は3月1日です。
+        defaults.set("60", forKey: SeasonalDate.forceDayOfYearKey)
+        let forced = SeasonalDate.forcedDate(for: date, calendar: calendar, defaults: defaults)
+        let components = forced.map { calendar.dateComponents([.month, .day, .hour, .minute], from: $0) }
+        #expect(components?.month == 3)
+        #expect(components?.day == 1)
+        #expect(components?.hour == 9)
+        #expect(components?.minute == 30)
+
+        // 年の日数を超える値は大晦日に丸めます。
+        defaults.set(400, forKey: SeasonalDate.forceDayOfYearKey)
+        let lastDay = SeasonalDate.forcedDate(for: date, calendar: calendar, defaults: defaults)
+            .map { calendar.dateComponents([.month, .day], from: $0) }
+        #expect(lastDay?.month == 12)
+        #expect(lastDay?.day == 31)
+    }
+
+    @Test
+    func seasonOverrideIgnoresUnknownValues() {
+        let defaults = makeIsolatedDefaults()
+        let calendar = AppCalendar.japan
+        let date = makeTestDate(hour: 12)
+
+        // 綴りを誤った指定や範囲外の日数では、日付を差し替えません。
+        defaults.set("rainy", forKey: SeasonalDate.forceSeasonKey)
+        #expect(SeasonalDate.forcedDate(for: date, calendar: calendar, defaults: defaults) == nil)
+        defaults.set("0", forKey: SeasonalDate.forceDayOfYearKey)
+        #expect(SeasonalDate.forcedDate(for: date, calendar: calendar, defaults: defaults) == nil)
+        #expect(Season(launchArgument: "Autumn") == .autumn)
+        #expect(Season(launchArgument: "fall") == .autumn)
+    }
+
+    @Test
+    func seasonsLookDifferentAtNoon() {
+        // 同じ正午の空を季節どうしで比べ、どの組み合わせも見分けられる色差があることを確かめます。
+        // 色差はCIELABのΔE（CIE76）です。2.3前後が見分けられる最小の差で、10を超えると別の色に見えます。
+        let threshold = 10.0
+
+        withKnownIssue("季節ごとの空の基本色を設計し直すまでは、春・秋・冬の正午がほぼ同じ色です（#65）") {
+            for (index, first) in Season.allCases.enumerated() {
+                for second in Season.allCases.dropFirst(index + 1) {
+                    let difference = skyColorDifference(
+                        SkyPalette.at(hour: 12, season: first),
+                        SkyPalette.at(hour: 12, season: second)
+                    )
+                    #expect(
+                        difference >= threshold,
+                        "正午の\(first)と\(second)の空の色差が\(difference)でした"
+                    )
+                }
+            }
+        }
+    }
+
     // MARK: - ショートカット（Siri）
 
     @Test
@@ -1838,6 +1925,44 @@ private func blend(
         b: bottom.b + (top.b - bottom.b) * top.a,
         a: 1
     )
+}
+
+/// 2つの配色の空の色差です。
+///
+/// 上端と下端のそれぞれで色差を測り、平均を返します。
+/// 背景の空はこの2色のあいだを段階的に塗り分けるため、両端を比べれば空全体の違いが分かります。
+private func skyColorDifference(_ first: SkyPalette, _ second: SkyPalette) -> Double {
+    let top = colorDifference(components(of: first.skyColor(at: 0)), components(of: second.skyColor(at: 0)))
+    let bottom = colorDifference(components(of: first.skyColor(at: 1)), components(of: second.skyColor(at: 1)))
+    return (top + bottom) / 2
+}
+
+/// CIELAB色空間での色差（ΔE*ab、CIE76）です。人の目に見える違いの大きさに近い値になります。
+private func colorDifference(
+    _ first: (r: Double, g: Double, b: Double, a: Double),
+    _ second: (r: Double, g: Double, b: Double, a: Double)
+) -> Double {
+    let a = cieLab(first)
+    let b = cieLab(second)
+    return ((a.l - b.l) * (a.l - b.l) + (a.a - b.a) * (a.a - b.a) + (a.b - b.b) * (a.b - b.b)).squareRoot()
+}
+
+/// sRGBの色をCIELAB（D65白色点）へ変換します。
+private func cieLab(_ color: (r: Double, g: Double, b: Double, a: Double)) -> (l: Double, a: Double, b: Double) {
+    func linear(_ value: Double) -> Double {
+        value <= 0.04045 ? value / 12.92 : pow((value + 0.055) / 1.055, 2.4)
+    }
+    func f(_ value: Double) -> Double {
+        let epsilon = pow(6.0 / 29.0, 3)
+        return value > epsilon ? cbrt(value) : value / (3 * pow(6.0 / 29.0, 2)) + 4.0 / 29.0
+    }
+    let red = linear(color.r)
+    let green = linear(color.g)
+    let blue = linear(color.b)
+    let x = (0.4124 * red + 0.3576 * green + 0.1805 * blue) / 0.95047
+    let y = 0.2126 * red + 0.7152 * green + 0.0722 * blue
+    let z = (0.0193 * red + 0.1192 * green + 0.9505 * blue) / 1.08883
+    return (116 * f(y) - 16, 500 * (f(x) - f(y)), 200 * (f(y) - f(z)))
 }
 
 /// WCAGの相対輝度です。

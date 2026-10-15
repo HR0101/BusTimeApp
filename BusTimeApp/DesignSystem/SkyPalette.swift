@@ -64,8 +64,42 @@ enum Season: CaseIterable {
   }
 
   /// 今日の季節です。
+  ///
+  /// Debugビルドで季節を固定する起動引数が渡されていれば、その季節を返します。
   static func current(date: Date = Date(), calendar: Calendar = .current) -> Season {
-    from(month: calendar.component(.month, from: date))
+    from(month: calendar.component(.month, from: SeasonalDate.resolve(date, calendar: calendar)))
+  }
+
+  /// 季節を代表する月日です。季節だけを差し替えて確かめるときに使います。
+  ///
+  /// 季節を構成する3か月のうち、真ん中の月の中ほどにします。
+  var representativeMonthDay: (month: Int, day: Int) {
+    switch self {
+    case .spring:
+      return (4, 15)
+    case .summer:
+      return (7, 16)
+    case .autumn:
+      return (10, 16)
+    case .winter:
+      return (1, 15)
+    }
+  }
+
+  /// 起動引数に書かれた季節の名前から季節を作ります。知らない名前ならnilを返します。
+  init?(launchArgument value: String) {
+    switch value.lowercased() {
+    case "spring":
+      self = .spring
+    case "summer":
+      self = .summer
+    case "autumn", "fall":
+      self = .autumn
+    case "winter":
+      self = .winter
+    default:
+      return nil
+    }
   }
 
   /// 昼の長さの伸び縮みです。
@@ -109,6 +143,94 @@ enum Season: CaseIterable {
     case .summer, .winter:
       return 0.13
     }
+  }
+}
+
+/// 背景の季節を決めるための日付です。
+///
+/// 通常は渡された日付をそのまま使います。Debugビルドだけは起動引数で月日を差し替え、
+/// 時刻はそのままに季節の見た目だけを確かめられるようにします。
+/// `-UITestNow`で日付ごと固定すると、時刻表や運行日の判定まで変わってしまうためです。
+///
+/// - `-forceSeason spring|summer|autumn|winter`: その季節を代表する日に差し替えます。
+/// - `-forceDayOfYear <1〜366>`: その年の何日目かを指定します。季節の境目を確かめるときに使います。
+///
+/// 両方を渡した場合は、細かく指定できる`-forceDayOfYear`を優先します。
+enum SeasonalDate {
+  /// 季節を固定する起動引数の名前です。先頭のハイフンを除いた形でUserDefaultsに入ります。
+  static let forceSeasonKey = "forceSeason"
+  /// 年内の日付を固定する起動引数の名前です。
+  static let forceDayOfYearKey = "forceDayOfYear"
+
+  /// 季節の判定に使う日付を返します。
+  static func resolve(_ date: Date, calendar: Calendar, defaults: UserDefaults = .standard) -> Date {
+#if DEBUG
+    if let forced = forcedDate(for: date, calendar: calendar, defaults: defaults) {
+      return forced
+    }
+#endif
+    return date
+  }
+
+  /// 起動引数で指定された月日へ差し替えた日付です。指定がなければnilを返します。
+  ///
+  /// 年と時刻は元の日付のものを残し、月日だけを入れ替えます。
+  static func forcedDate(for date: Date, calendar: Calendar, defaults: UserDefaults) -> Date? {
+    let time = calendar.dateComponents([.year, .hour, .minute, .second, .nanosecond], from: date)
+    guard let year = time.year else { return nil }
+
+    let monthDay: (month: Int, day: Int)
+    if let dayOfYear = forcedDayOfYear(defaults: defaults) {
+      guard let resolved = monthAndDay(ofDayOfYear: dayOfYear, year: year, calendar: calendar) else {
+        return nil
+      }
+      monthDay = resolved
+    } else if let value = defaults.string(forKey: forceSeasonKey),
+              let season = Season(launchArgument: value) {
+      monthDay = season.representativeMonthDay
+    } else {
+      return nil
+    }
+
+    var components = time
+    components.month = monthDay.month
+    components.day = monthDay.day
+    return calendar.date(from: components)
+  }
+
+  /// 起動引数で指定された年内の日数です。
+  ///
+  /// 起動引数は文字列で、テストなどから直接入れた値は数値で届くため、両方を受け付けます。
+  private static func forcedDayOfYear(defaults: UserDefaults) -> Int? {
+    switch defaults.object(forKey: forceDayOfYearKey) {
+    case let number as NSNumber:
+      return number.intValue
+    case let string as String:
+      return Int(string)
+    default:
+      return nil
+    }
+  }
+
+  /// その年の何日目にあたる月日かを返します。年の日数を超える値は大晦日に丸めます。
+  private static func monthAndDay(
+    ofDayOfYear dayOfYear: Int,
+    year: Int,
+    calendar: Calendar
+  ) -> (month: Int, day: Int)? {
+    guard dayOfYear >= 1,
+          let startOfYear = calendar.date(from: DateComponents(year: year, month: 1, day: 1)),
+          let daysInYear = calendar.range(of: .day, in: .year, for: startOfYear)?.count,
+          let day = calendar.date(
+            byAdding: .day,
+            value: min(dayOfYear, daysInYear) - 1,
+            to: startOfYear
+          ) else {
+      return nil
+    }
+    let components = calendar.dateComponents([.month, .day], from: day)
+    guard let month = components.month, let dayOfMonth = components.day else { return nil }
+    return (month, dayOfMonth)
   }
 }
 
