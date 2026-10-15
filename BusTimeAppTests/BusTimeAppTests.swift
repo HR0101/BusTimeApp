@@ -673,10 +673,44 @@ struct BusTimeAppTests {
     @Test
     func celestialBodyRisesAtDawnAndPeaksAtNoon() {
         // 日の出直後は地平線近く、正午前後で最も高くなります。
-        let dawn = SkyPalette.at(hour: 5.5)
-        let noon = SkyPalette.at(hour: 12)
-        #expect(dawn.celestialAltitude < 0.1)
-        #expect(noon.celestialAltitude > 0.9)
+        // 日の出の時刻は季節で変わるので、季節ごとの日の出で確かめます。
+        for season in Season.allCases {
+            let daylight = SkyPalette.daylight(for: season)
+            let dawn = SkyPalette.at(hour: daylight.sunrise, season: season)
+            let noon = SkyPalette.at(hour: daylight.solarNoon, season: season)
+            #expect(dawn.celestialAltitude < 0.1)
+            #expect(noon.celestialAltitude > 0.9)
+        }
+    }
+
+    @Test
+    func celestialOrbitSharesTheSeasonalDaylightWithTheSky() {
+        // 空の色と太陽の軌道は同じ日の出・日の入りを使います。
+        // どの季節でも、日の入りの瞬間の空は同じ暗さで、太陽はちょうど地平線にあります。
+        let sunsetNightness = SkyPalette.at(
+            hour: SkyPalette.daylight(for: .spring).sunset,
+            season: .spring
+        ).nightness
+        for season in Season.allCases {
+            let daylight = SkyPalette.daylight(for: season)
+            let sunset = SkyPalette.at(hour: daylight.sunset, season: season)
+            #expect(abs(sunset.nightness - sunsetNightness) < 0.000_001)
+            #expect(sunset.celestialAltitude < 0.000_001)
+            #expect(sunset.daylight == daylight)
+        }
+
+        // 冬は日が短く、夏は長くなります。
+        #expect(SkyPalette.daylight(for: .winter).sunset < SkyPalette.daylight(for: .spring).sunset)
+        #expect(SkyPalette.daylight(for: .summer).sunset > SkyPalette.daylight(for: .spring).sunset)
+        #expect(SkyPalette.daylight(for: .summer).sunrise < SkyPalette.daylight(for: .winter).sunrise)
+
+        // 冬の17時45分は、空が夕焼けから夜へ移るころです。太陽はもう空の中ほどにはありません。
+        let winterEvening = SkyPalette.at(hour: 17.75, season: .winter)
+        #expect(winterEvening.celestialAltitude < 0.05)
+        // 夏の19時は空がまだ明るく、太陽も沈みきっていません。
+        let summerEvening = SkyPalette.at(hour: 19, season: .summer)
+        #expect(summerEvening.daylight.isSunUp(at: 19))
+        #expect(summerEvening.isNight == false)
     }
 
     @Test

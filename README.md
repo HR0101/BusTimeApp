@@ -130,7 +130,7 @@
 背景は画像の差し替えではなく、SwiftUIの`Canvas`で4 pt単位のピクセルアートとして描画しています。
 
 - 0時、明け方、朝、昼、夕方、夜のキーフレーム間を連続補間し、空・水面・地面・カード・文字・アクセントを同じ時刻から生成します。
-- 春夏秋冬の色味と日照時間を反映し、夏は日が長く、冬は短くなるよう太陽・月の軌道を調整します。季節と背景の時刻は、運行判定と同じ日本時間の暦とアプリ内の現在時刻（`AppDate`）で決めます。
+- 春夏秋冬の色味と日照時間を反映し、夏は日が長く、冬は短くなるよう太陽・月の軌道を調整します。空の色の移り変わりと太陽・月の軌道は同じ日の出・日の入り（`DaylightSchedule`）を共有し、空と天体の位置が食い違わないようにしています。季節と背景の時刻は、運行判定と同じ日本時間の暦とアプリ内の現在時刻（`AppDate`）で決めます。
 - 空と海は色数を量子化し、ベイヤーディザと決定的な疑似乱数で、毎フレームちらつかないピクセル表現にしています。
 - 太陽と月は時刻に沿って移動します。月は朔望月から月齢と照らされる面を計算し、新月・満月の実日付に対するテストもあります。
 - 星の瞬き、流れ星、雲、遠景の街と夜景、海を進む船を重ねています。
@@ -1135,7 +1135,8 @@ UIテストでは、ホーム／時刻表の遷移、最大Dynamic Typeでの主
 - `skyPaletteSwitchesBetweenDayAndNight`: 昼夜のPalette切替
 - `skyPaletteIsContinuousAcrossMidnight`: 24時境界の連続補間
 - `celestialPositionStaysWithinScreen`: 太陽・月の描画範囲
-- `celestialBodyRisesAtDawnAndPeaksAtNoon`: 天体軌道の代表点
+- `celestialBodyRisesAtDawnAndPeaksAtNoon`: 季節ごとの日の出と南中での天体軌道の代表点
+- `celestialOrbitSharesTheSeasonalDaylightWithTheSky`: 空の色と太陽・月の軌道が同じ日の出・日の入りを使う
 - `paletteCarriesTheHourForTimeBasedEffects`: 時刻依存Effectへのhour伝播
 - `streetLightHoursCoverEveningAndNightOnly`: 16:00〜4:30の点灯範囲
 - `seasonFollowsTheMonth`: 月から四季を決定
