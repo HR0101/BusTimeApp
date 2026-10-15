@@ -148,6 +148,48 @@ enum Season: CaseIterable {
   }
 }
 
+/// 日の出と日の入りの時刻です。
+///
+/// 空の色の移り変わりと太陽・月の軌道は、どちらもこの値を基準にします。
+/// 別々の時刻を使うと、空は夕焼けなのに太陽がまだ高い、
+/// 太陽が沈んだのに空がまだ明るい、といった食い違いが起きるためです。
+struct DaylightSchedule: Equatable {
+  /// 日の出の時刻です。0時からの経過時間を、24時間表記の小数で表します。
+  let sunrise: Double
+  /// 日の入りの時刻です。
+  let sunset: Double
+
+  /// 太陽がいちばん高くなる時刻です。
+  var solarNoon: Double {
+    (sunrise + sunset) / 2
+  }
+
+  /// 太陽が地平線より上にあるかどうかです。
+  func isSunUp(at hour: Double) -> Bool {
+    hour >= sunrise && hour <= sunset
+  }
+
+  /// 太陽・月の水平位置です。0が画面左端、1が画面右端に対応します。
+  ///
+  /// 昼は日の出から日の入りまでで太陽が、夜は日の入りから翌日の日の出までで月が、
+  /// それぞれ左から右へ渡ります。
+  func celestialProgress(at hour: Double) -> Double {
+    if isSunUp(at: hour) {
+      return (hour - sunrise) / (sunset - sunrise)
+    }
+
+    // 夜は日の入りから翌日の日の出までを一区間として扱います。
+    let nightSpan = 24 - sunset + sunrise
+    let elapsed = hour > sunset ? hour - sunset : hour + (24 - sunset)
+    return elapsed / nightSpan
+  }
+
+  /// 太陽・月の高さです。区間の両端で地平線、中央で天頂になる弧を描きます。
+  func celestialAltitude(at hour: Double) -> Double {
+    sin(celestialProgress(at: hour) * Double.pi)
+  }
+}
+
 /// 背景の季節を決めるための日付です。
 ///
 /// 通常は渡された日付をそのまま使います。Debugビルドだけは起動引数で月日を差し替え、
@@ -310,6 +352,8 @@ struct SkyPalette: Equatable {
   /// この配色を作った季節です。
   /// 設定画面のプレビューなど、別の時刻の配色を作るときに同じ季節を引き継ぎます。
   let season: Season
+  /// この配色の日の出と日の入りです。空の色と太陽・月の軌道が共有します。
+  let daylight: DaylightSchedule
 
   // MARK: - 時刻から配色を生成する
 
@@ -452,10 +496,13 @@ struct SkyPalette: Equatable {
   /// 夜の強調色の淡い背景の不透明度です。
   private static let nightAccentSoftOpacity: Double = 0.30
 
-  /// 日の出の時刻です。太陽の軌道の起点になります。
-  private static let sunriseHour: Double = 5.5
-  /// 日の入りの時刻です。太陽の軌道の終点になります。
-  private static let sunsetHour: Double = 18.5
+  /// キーフレーム上の日の出の時刻です。
+  ///
+  /// キーフレームは昼の長さが標準の日を基準に並べてあり、その日の日の出がこの時刻です。
+  /// 季節ごとの実際の日の出は、昼の長さの伸び縮みに合わせてここから求めます。
+  private static let keyframeSunriseHour: Double = 5.5
+  /// キーフレーム上の日の入りの時刻です。
+  private static let keyframeSunsetHour: Double = 18.5
   /// 昼の配色から夜の配色へ切り替える境界です。
   ///
   /// カードの地と文字色は、この一点で同時に入れ替えます。
@@ -475,6 +522,8 @@ struct SkyPalette: Equatable {
     // 昼の長さを季節で伸び縮みさせます。
     // 冬は同じ17時でも暗く、夏は明るく見えるようにするためです。
     let daylightHour = normalize(hour: 12 + (normalizedHour - 12) * season.daylightScale)
+    // 太陽・月の軌道も、空の色と同じ伸び縮みから求めた日の出・日の入りを使います。
+    let daylight = Self.daylight(for: season)
     let (previous, next, ratio) = surroundingKeyframes(for: daylightHour)
 
     let baseSkyTop = previous.skyTop.mixed(with: next.skyTop, ratio: ratio)
@@ -553,11 +602,12 @@ struct SkyPalette: Equatable {
         .mixed(with: skyBottom, ratio: groundAmbientBlend * 0.3)
         .color(),
       hour: normalizedHour,
-      celestialProgress: celestialProgress(at: normalizedHour),
-      celestialAltitude: celestialAltitude(at: normalizedHour),
+      celestialProgress: daylight.celestialProgress(at: normalizedHour),
+      celestialAltitude: daylight.celestialAltitude(at: normalizedHour),
       nightness: nightness,
       isNight: isNight,
-      season: season
+      season: season,
+      daylight: daylight
     )
   }
 
@@ -649,23 +699,15 @@ struct SkyPalette: Equatable {
     return start + (end - start) * clamped
   }
 
-  /// 太陽・月の水平位置を求めます。昼と夜でそれぞれ左から右へ一周します。
-  private static func celestialProgress(at hour: Double) -> Double {
-    if hour >= sunriseHour, hour <= sunsetHour {
-      return (hour - sunriseHour) / (sunsetHour - sunriseHour)
-    }
-
-    // 夜は日の入りから翌日の日の出までを一区間として扱います。
-    let nightSpan = 24 - sunsetHour + sunriseHour
-    let elapsed = hour > sunsetHour ? hour - sunsetHour : hour + (24 - sunsetHour)
-    return elapsed / nightSpan
-  }
-
-  /// 太陽・月の高さを求めます。区間の中央で最も高くなる弧を描きます。
-  private static func celestialAltitude(at hour: Double) -> Double {
-    let progress = celestialProgress(at: hour)
-    // sinカーブで、区間の両端が地平線、中央が天頂になります。
-    return sin(progress * Double.pi)
+  /// その季節の日の出と日の入りです。
+  ///
+  /// 空の色は、実際の時刻を正午を中心に`daylightScale`倍してキーフレームの時刻へ写しています。
+  /// その逆をたどり、キーフレーム上の日の出・日の入りが実際に何時になるかを求めます。
+  static func daylight(for season: Season) -> DaylightSchedule {
+    DaylightSchedule(
+      sunrise: 12 - (12 - keyframeSunriseHour) / season.daylightScale,
+      sunset: 12 + (keyframeSunsetHour - 12) / season.daylightScale
+    )
   }
 }
 
