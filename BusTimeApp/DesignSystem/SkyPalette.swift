@@ -104,21 +104,6 @@ enum Season: CaseIterable {
     }
   }
 
-  /// 昼の長さの伸び縮みです。
-  ///
-  /// 1より大きいほど、正午から離れた時刻が「より進んだ時刻」として扱われ、
-  /// 早く暗くなります。冬は昼が短く、夏は長くなります。
-  var daylightScale: Double {
-    switch self {
-    case .winter:
-      return 1.13
-    case .spring, .autumn:
-      return 1.0
-    case .summer:
-      return 0.90
-    }
-  }
-
   /// 空に混ぜる季節の色です。
   fileprivate var tint: RGBComponents {
     switch self {
@@ -145,6 +130,106 @@ enum Season: CaseIterable {
     case .summer, .winter:
       return 0.13
     }
+  }
+}
+
+/// 背景の季節を決める、年内の日付です。
+///
+/// 日の出・日の入りは日付から求めるため、季節の代わりに年内の何日目かを持ちます。
+struct SeasonalDay: Equatable {
+  /// 1月1日を1とした、年内の通し日数です。
+  let dayOfYear: Int
+  /// その年の日数です。365か366です。
+  let daysInYear: Int
+
+  /// 平年の各月の1日が、年内の何日目にあたるかです。
+  private static let monthStartDays = [1, 32, 60, 91, 121, 152, 182, 213, 244, 274, 305, 335]
+
+  init(dayOfYear: Int, daysInYear: Int = 365) {
+    self.daysInYear = daysInYear == 366 ? 366 : 365
+    self.dayOfYear = min(max(dayOfYear, 1), self.daysInYear)
+  }
+
+  /// その日時が属する日です。
+  init(date: Date, calendar: Calendar) {
+    let dayOfYear = calendar.ordinality(of: .day, in: .year, for: date) ?? 1
+    let daysInYear = calendar.range(of: .day, in: .year, for: date)?.count ?? 365
+    self.init(dayOfYear: dayOfYear, daysInYear: daysInYear)
+  }
+
+  /// その季節を代表する日です。平年の日付として扱います。
+  init(season: Season) {
+    let monthDay = season.representativeMonthDay
+    self.init(dayOfYear: Self.monthStartDays[monthDay.month - 1] + monthDay.day - 1)
+  }
+
+  /// その日の月です。
+  var month: Int {
+    let leapShift = daysInYear == 366 && dayOfYear >= 60 ? 1 : 0
+    let index = Self.monthStartDays.lastIndex { $0 <= dayOfYear - leapShift } ?? 0
+    return index + 1
+  }
+
+  /// その日の季節です。
+  var season: Season {
+    Season.from(month: month)
+  }
+
+  /// 海浜幕張でのその日の日の出と日の入りです。
+  var daylight: DaylightSchedule {
+    MakuhariSun.daylight(dayOfYear: dayOfYear, daysInYear: daysInYear)
+  }
+}
+
+/// 海浜幕張での太陽の動きを、日付から求めます。
+///
+/// アメリカ海洋大気庁（NOAA）が公開している太陽位置の近似式を使います。
+/// 国立天文台の暦と比べた日の出・日の入りのずれは数分以内で、背景を描くには十分な精度です。
+/// https://gml.noaa.gov/grad/solcalc/solareqns.PDF
+enum MakuhariSun {
+  /// 海浜幕張駅付近の緯度です。
+  static let latitude: Double = 35.648
+  /// 海浜幕張駅付近の経度です。
+  static let longitude: Double = 140.042
+  /// 日本標準時の協定世界時からの差です。時間単位で持ちます。
+  static let utcOffsetHours: Double = 9
+  /// 日の出・日の入りとみなす太陽の天頂距離です。
+  /// 大気による屈折と太陽の半径を見込み、地平線より0.833度下に中心が来た時点とします。
+  private static let sunriseZenithDegrees: Double = 90.833
+
+  /// その日の日の出と日の入りです。時刻は日本時間です。
+  static func daylight(dayOfYear: Int, daysInYear: Int = 365) -> DaylightSchedule {
+    // 1年を一周とした角度です。正午の値を使います。
+    let fractionalYear = 2 * Double.pi / Double(daysInYear) * Double(dayOfYear - 1)
+    let equationOfTimeMinutes = 229.18 * (
+      0.000075
+        + 0.001868 * cos(fractionalYear)
+        - 0.032077 * sin(fractionalYear)
+        - 0.014615 * cos(2 * fractionalYear)
+        - 0.040849 * sin(2 * fractionalYear)
+    )
+    let declination = 0.006918
+      - 0.399912 * cos(fractionalYear)
+      + 0.070257 * sin(fractionalYear)
+      - 0.006758 * cos(2 * fractionalYear)
+      + 0.000907 * sin(2 * fractionalYear)
+      - 0.002697 * cos(3 * fractionalYear)
+      + 0.00148 * sin(3 * fractionalYear)
+
+    let latitudeRadians = latitude * Double.pi / 180
+    let zenithRadians = sunriseZenithDegrees * Double.pi / 180
+    let cosineHourAngle = cos(zenithRadians) / (cos(latitudeRadians) * cos(declination))
+      - tan(latitudeRadians) * tan(declination)
+    // 海浜幕張の緯度では白夜も極夜も起きませんが、念のため範囲内に収めます。
+    let hourAngleDegrees = acos(min(max(cosineHourAngle, -1), 1)) * 180 / Double.pi
+
+    // 経度1度あたり4分で、南中時刻が日本標準時の正午からずれます。
+    let solarNoonMinutes = 720 - 4 * longitude - equationOfTimeMinutes + utcOffsetHours * 60
+    let halfDaylightMinutes = 4 * hourAngleDegrees
+    return DaylightSchedule(
+      sunrise: (solarNoonMinutes - halfDaylightMinutes) / 60,
+      sunset: (solarNoonMinutes + halfDaylightMinutes) / 60
+    )
   }
 }
 
@@ -278,14 +363,52 @@ enum SeasonalDate {
   }
 }
 
+/// キーフレームの時刻の基準にする、太陽の動きの節目です。
+private enum SolarEvent {
+  /// 南中の12時間前です。その日の夜の始まりとして扱います。
+  case previousMidnight
+  case sunrise
+  case solarNoon
+  case sunset
+  /// 南中の12時間後です。
+  case nextMidnight
+
+  /// その日のこの節目の時刻です。0時より前や24時より後になることがあります。
+  func hour(in daylight: DaylightSchedule) -> Double {
+    switch self {
+    case .previousMidnight:
+      return daylight.solarNoon - 12
+    case .sunrise:
+      return daylight.sunrise
+    case .solarNoon:
+      return daylight.solarNoon
+    case .sunset:
+      return daylight.sunset
+    case .nextMidnight:
+      return daylight.solarNoon + 12
+    }
+  }
+}
+
 /// 1日の中の特定の時刻における空の色を定義します。
+///
+/// 時刻は固定の時計の時刻ではなく、日の出・南中・日の入りからの前後で持ちます。
+/// 日の出が4時台の夏も6時台の冬も、日の出の空は同じ色になり、
+/// 昼の長さの違いがそのまま空の移り変わりに表れます。
 private struct SkyKeyframe {
-  /// 0時からの経過時間です。24時間表記の小数（例: 6.5は6時30分）で指定します。
-  let hour: Double
+  /// 時刻の基準にする太陽の動きの節目です。
+  let event: SolarEvent
+  /// 節目からの前後です。時間単位で、負の値は節目より前を表します。
+  let offset: Double
   let skyTop: RGBComponents
   let skyBottom: RGBComponents
   /// 空の暗さです。0が完全な昼、1が完全な夜を表し、文字色やカード色の決定に使います。
   let nightness: Double
+
+  /// その日のこのキーフレームの時刻です。
+  func hour(in daylight: DaylightSchedule) -> Double {
+    event.hour(in: daylight) + offset
+  }
 }
 
 /// 時刻に応じて連続的に変化するアプリ全体の配色です。
@@ -349,72 +472,108 @@ struct SkyPalette: Equatable {
   let nightness: Double
   /// 空が夜であるかどうかです。ステータスバーの明暗切り替えに使います。
   let isNight: Bool
-  /// この配色を作った季節です。
-  /// 設定画面のプレビューなど、別の時刻の配色を作るときに同じ季節を引き継ぎます。
-  let season: Season
+  /// この配色を作った日です。
+  /// 設定画面のプレビューなど、別の時刻の配色を作るときに同じ日を引き継ぎます。
+  let day: SeasonalDay
   /// この配色の日の出と日の入りです。空の色と太陽・月の軌道が共有します。
   let daylight: DaylightSchedule
+
+  /// この配色を作った季節です。
+  var season: Season {
+    day.season
+  }
+
+  /// 太陽が地平線より上にあるかどうかです。太陽と月のどちらを描くかを決めます。
+  var isSunUp: Bool {
+    daylight.isSunUp(at: hour)
+  }
+
+  /// 街灯が点いているかどうかです。
+  ///
+  /// 日の入りが近づいて空が暗くなると点け、夜明けの30分前に消します。
+  /// 夜明け前から朝まで点いていると、「これから明るくなる」時間帯の印象と合わないためです。
+  /// 日の出・日の入りに合わせるので、日の短い冬は早く点いて遅く消えます。
+  var isStreetLightOn: Bool {
+    guard nightness > Self.streetLightNightness else { return false }
+    let isEvening = hour >= daylight.solarNoon
+    return isEvening || hour < daylight.sunrise - Self.streetLightDawnLead
+  }
 
   // MARK: - 時刻から配色を生成する
 
   /// 1日の空の色を定義するキーフレームです。時刻順に並べる必要があります。
+  ///
+  /// 日の出の前後は、空が白み始める薄明（約1時間15分前）から、
+  /// 朝の青空になる1時間30分後までを描き分けます。日の入りの前後も同じく、
+  /// 45分前の夕焼けから1時間30分後の夜空までを描き分けます。
+  /// 薄明の長さは季節であまり変わらないので、昼の長さだけが季節で伸び縮みします。
   private static let keyframes: [SkyKeyframe] = [
     SkyKeyframe(
-      hour: 0,
+      event: .previousMidnight,
+      offset: 0,
       skyTop: RGBComponents(red: 0.016, green: 0.024, blue: 0.086),
       skyBottom: RGBComponents(red: 0.161, green: 0.196, blue: 0.384),
       nightness: 1.0
     ),
     SkyKeyframe(
-      hour: 4.5,
+      event: .sunrise,
+      offset: -1.25,
       skyTop: RGBComponents(red: 0.043, green: 0.063, blue: 0.180),
       skyBottom: RGBComponents(red: 0.353, green: 0.286, blue: 0.478),
       nightness: 0.94
     ),
     SkyKeyframe(
-      hour: 6.0,
+      event: .sunrise,
+      offset: 0,
       skyTop: RGBComponents(red: 0.243, green: 0.243, blue: 0.541),
       skyBottom: RGBComponents(red: 0.988, green: 0.667, blue: 0.396),
       nightness: 0.30
     ),
     SkyKeyframe(
-      hour: 7.5,
+      event: .sunrise,
+      offset: 1.5,
       skyTop: RGBComponents(red: 0.318, green: 0.596, blue: 0.910),
       skyBottom: RGBComponents(red: 0.878, green: 0.941, blue: 0.988),
       nightness: 0.0
     ),
     SkyKeyframe(
-      hour: 11.0,
+      event: .solarNoon,
+      offset: -1,
       skyTop: RGBComponents(red: 0.400, green: 0.671, blue: 0.941),
       skyBottom: RGBComponents(red: 0.851, green: 0.937, blue: 0.996),
       nightness: 0.0
     ),
     SkyKeyframe(
-      hour: 15.0,
+      event: .solarNoon,
+      offset: 3,
       skyTop: RGBComponents(red: 0.353, green: 0.635, blue: 0.914),
       skyBottom: RGBComponents(red: 0.980, green: 0.929, blue: 0.831),
       nightness: 0.0
     ),
     SkyKeyframe(
-      hour: 17.0,
+      event: .sunset,
+      offset: -0.75,
       skyTop: RGBComponents(red: 0.882, green: 0.482, blue: 0.310),
       skyBottom: RGBComponents(red: 0.996, green: 0.855, blue: 0.612),
       nightness: 0.10
     ),
     SkyKeyframe(
-      hour: 18.5,
+      event: .sunset,
+      offset: 0.5,
       skyTop: RGBComponents(red: 0.278, green: 0.157, blue: 0.353),
       skyBottom: RGBComponents(red: 0.867, green: 0.416, blue: 0.365),
       nightness: 0.74
     ),
     SkyKeyframe(
-      hour: 20.0,
+      event: .sunset,
+      offset: 1.5,
       skyTop: RGBComponents(red: 0.055, green: 0.071, blue: 0.204),
       skyBottom: RGBComponents(red: 0.231, green: 0.251, blue: 0.443),
       nightness: 1.0
     ),
     SkyKeyframe(
-      hour: 24.0,
+      event: .nextMidnight,
+      offset: 0,
       skyTop: RGBComponents(red: 0.016, green: 0.024, blue: 0.086),
       skyBottom: RGBComponents(red: 0.161, green: 0.196, blue: 0.384),
       nightness: 1.0
@@ -496,13 +655,10 @@ struct SkyPalette: Equatable {
   /// 夜の強調色の淡い背景の不透明度です。
   private static let nightAccentSoftOpacity: Double = 0.30
 
-  /// キーフレーム上の日の出の時刻です。
-  ///
-  /// キーフレームは昼の長さが標準の日を基準に並べてあり、その日の日の出がこの時刻です。
-  /// 季節ごとの実際の日の出は、昼の長さの伸び縮みに合わせてここから求めます。
-  private static let keyframeSunriseHour: Double = 5.5
-  /// キーフレーム上の日の入りの時刻です。
-  private static let keyframeSunsetHour: Double = 18.5
+  /// 街灯を点ける空の暗さの下限です。星が見え始める暗さに揃えます。
+  private static let streetLightNightness: Double = 0.22
+  /// 街灯を消す時刻を、日の出の何時間前にするかです。
+  private static let streetLightDawnLead: Double = 0.5
   /// 昼の配色から夜の配色へ切り替える境界です。
   ///
   /// カードの地と文字色は、この一点で同時に入れ替えます。
@@ -514,17 +670,26 @@ struct SkyPalette: Equatable {
   /// 指定した時刻の配色を作ります。
   /// - Parameters:
   ///   - hour: 0以上24未満の時刻です。範囲外の値は24時間周期に丸めます。
-  ///   - season: 季節です。省略すると今日の季節を使います。
+  ///   - season: 季節です。省略すると今日の季節を使います。季節を代表する日の配色になります。
   static func at(
     hour: Double, season: Season = Season.current(), colorScheme: ColorScheme? = nil
   ) -> SkyPalette {
+    at(hour: hour, day: SeasonalDay(season: season), colorScheme: colorScheme)
+  }
+
+  /// 指定した日の、指定した時刻の配色を作ります。
+  /// - Parameters:
+  ///   - hour: 0以上24未満の時刻です。範囲外の値は24時間周期に丸めます。
+  ///   - day: 日の出・日の入りと季節を決める日です。
+  static func at(
+    hour: Double, day: SeasonalDay, colorScheme: ColorScheme? = nil
+  ) -> SkyPalette {
     let normalizedHour = normalize(hour: hour)
-    // 昼の長さを季節で伸び縮みさせます。
-    // 冬は同じ17時でも暗く、夏は明るく見えるようにするためです。
-    let daylightHour = normalize(hour: 12 + (normalizedHour - 12) * season.daylightScale)
-    // 太陽・月の軌道も、空の色と同じ伸び縮みから求めた日の出・日の入りを使います。
-    let daylight = Self.daylight(for: season)
-    let (previous, next, ratio) = surroundingKeyframes(for: daylightHour)
+    let season = day.season
+    // 空の色と太陽・月の軌道は、その日の日の出・日の入りを共有します。
+    // 冬は同じ17時でも暗く、夏は明るく見えます。
+    let daylight = day.daylight
+    let (previous, next, ratio) = surroundingKeyframes(for: normalizedHour, in: daylight)
 
     let baseSkyTop = previous.skyTop.mixed(with: next.skyTop, ratio: ratio)
     let baseSkyBottom = previous.skyBottom.mixed(with: next.skyBottom, ratio: ratio)
@@ -606,7 +771,7 @@ struct SkyPalette: Equatable {
       celestialAltitude: daylight.celestialAltitude(at: normalizedHour),
       nightness: nightness,
       isNight: isNight,
-      season: season,
+      day: day,
       daylight: daylight
     )
   }
@@ -619,9 +784,11 @@ struct SkyPalette: Equatable {
     let components = calendar.dateComponents([.hour, .minute], from: date)
     let hour = Double(components.hour ?? 0)
     let minute = Double(components.minute ?? 0)
+    // Debugビルドで季節を固定する起動引数が渡されていれば、その日に差し替えます。
+    let seasonalDate = SeasonalDate.resolve(date, calendar: calendar)
     return at(
       hour: hour + minute / 60,
-      season: Season.current(date: date, calendar: calendar)
+      day: SeasonalDay(date: seasonalDate, calendar: calendar)
     )
   }
 
@@ -676,16 +843,29 @@ struct SkyPalette: Equatable {
 
   /// 指定時刻を挟む2つのキーフレームと、その間の位置（0〜1）を返します。
   private static func surroundingKeyframes(
-    for hour: Double
+    for hour: Double,
+    in daylight: DaylightSchedule
   ) -> (previous: SkyKeyframe, next: SkyKeyframe, ratio: Double) {
-    // キーフレームは時刻順に並んでおり、末尾が24時なので必ず区間が見つかります。
+    // キーフレームは南中の12時間前から12時間後までの24時間に並んでいます。
+    // 南中は正午より少し早いので、0時の直前などはこの範囲へ移してから探します。
+    let start = SolarEvent.previousMidnight.hour(in: daylight)
+    var shiftedHour = hour
+    if shiftedHour < start {
+      shiftedHour += 24
+    } else if shiftedHour >= start + 24 {
+      shiftedHour -= 24
+    }
+
+    // キーフレームは時刻順に並んでおり、両端が南中の12時間前後なので必ず区間が見つかります。
     for index in 0..<(keyframes.count - 1) {
       let previous = keyframes[index]
       let next = keyframes[index + 1]
-      guard hour >= previous.hour, hour <= next.hour else { continue }
+      let previousHour = previous.hour(in: daylight)
+      let nextHour = next.hour(in: daylight)
+      guard shiftedHour >= previousHour, shiftedHour <= nextHour else { continue }
 
-      let span = next.hour - previous.hour
-      let ratio = span > 0 ? (hour - previous.hour) / span : 0
+      let span = nextHour - previousHour
+      let ratio = span > 0 ? (shiftedHour - previousHour) / span : 0
       return (previous, next, ratio)
     }
     // 丸め誤差などで区間から外れた場合は、最後のキーフレームを使います。
@@ -699,15 +879,9 @@ struct SkyPalette: Equatable {
     return start + (end - start) * clamped
   }
 
-  /// その季節の日の出と日の入りです。
-  ///
-  /// 空の色は、実際の時刻を正午を中心に`daylightScale`倍してキーフレームの時刻へ写しています。
-  /// その逆をたどり、キーフレーム上の日の出・日の入りが実際に何時になるかを求めます。
+  /// その季節を代表する日の、日の出と日の入りです。
   static func daylight(for season: Season) -> DaylightSchedule {
-    DaylightSchedule(
-      sunrise: 12 - (12 - keyframeSunriseHour) / season.daylightScale,
-      sunset: 12 + (keyframeSunsetHour - 12) / season.daylightScale
-    )
+    SeasonalDay(season: season).daylight
   }
 }
 

@@ -732,13 +732,84 @@ struct BusTimeAppTests {
         #expect(SkyPalette.daylight(for: .summer).sunset > SkyPalette.daylight(for: .spring).sunset)
         #expect(SkyPalette.daylight(for: .summer).sunrise < SkyPalette.daylight(for: .winter).sunrise)
 
-        // 冬の17時45分は、空が夕焼けから夜へ移るころです。太陽はもう空の中ほどにはありません。
+        // 冬の17時45分は日が沈んで暮れており、太陽は描かれません。
         let winterEvening = SkyPalette.at(hour: 17.75, season: .winter)
-        #expect(winterEvening.celestialAltitude < 0.05)
-        // 夏の19時は空がまだ明るく、太陽も沈みきっていません。
-        let summerEvening = SkyPalette.at(hour: 19, season: .summer)
-        #expect(summerEvening.daylight.isSunUp(at: 19))
+        #expect(!winterEvening.isSunUp)
+        #expect(winterEvening.nightness > 0.5)
+        // 夏の18時45分は空がまだ明るく、太陽も沈みきっていません。
+        let summerEvening = SkyPalette.at(hour: 18.75, season: .summer)
+        #expect(summerEvening.isSunUp)
         #expect(summerEvening.isNight == false)
+    }
+
+    @Test
+    func daylightFollowsTheDateAtMakuhari() {
+        // 国立天文台の暦（千葉）の日の出・日の入りと、4分以内で一致することを確かめます。
+        let references: [(dayOfYear: Int, sunrise: Double, sunset: Double)] = [
+            // 夏至（6月21日）: 4時25分、19時0分
+            (172, 4 + 25.0 / 60, 19),
+            // 冬至（12月22日）: 6時45分、16時30分
+            (356, 6 + 45.0 / 60, 16 + 30.0 / 60),
+            // 春分（3月20日）: 5時43分、17時52分
+            (79, 5 + 43.0 / 60, 17 + 52.0 / 60)
+        ]
+        for reference in references {
+            let daylight = SeasonalDay(dayOfYear: reference.dayOfYear).daylight
+            #expect(abs(daylight.sunrise - reference.sunrise) * 60 <= 4, "\(reference.dayOfYear)日目の日の出")
+            #expect(abs(daylight.sunset - reference.sunset) * 60 <= 4, "\(reference.dayOfYear)日目の日の入り")
+        }
+
+        // 海浜幕張は日本標準時の基準より東にあるため、南中は一年を通して正午より前です。
+        for dayOfYear in stride(from: 1, through: 365, by: 7) {
+            let solarNoon = SeasonalDay(dayOfYear: dayOfYear).daylight.solarNoon
+            #expect(solarNoon > 11 + 20.0 / 60)
+            #expect(solarNoon < 12)
+        }
+    }
+
+    @Test
+    func skyFollowsTheSunriseAndSunsetOfTheDay() {
+        let summer = SeasonalDay(dayOfYear: 172)
+        let winter = SeasonalDay(dayOfYear: 356)
+
+        // 日の出の空は、季節にかかわらず同じ明るさです。
+        let summerSunrise = SkyPalette.at(hour: summer.daylight.sunrise, day: summer)
+        let winterSunrise = SkyPalette.at(hour: winter.daylight.sunrise, day: winter)
+        #expect(abs(summerSunrise.nightness - winterSunrise.nightness) < 0.000_001)
+
+        // 冬至の16時45分は日が沈み、空は暮れています（日の入りは16時30分ごろ）。
+        let winterDusk = SkyPalette.at(hour: 16.75, day: winter)
+        #expect(!winterDusk.isSunUp)
+        #expect(winterDusk.nightness > SkyPalette.at(hour: 16.75, day: summer).nightness + 0.4)
+        // 夏至の4時30分はもう日が出ており、空も明るくなっています（日の出は4時25分ごろ）。
+        let summerDawn = SkyPalette.at(hour: 4.5, day: summer)
+        #expect(summerDawn.isSunUp)
+        #expect(summerDawn.nightness < SkyPalette.at(hour: 4.5, day: winter).nightness - 0.4)
+
+        // 南中のころは、どの日も完全な昼の空です。
+        for day in [summer, winter] {
+            #expect(SkyPalette.at(hour: day.daylight.solarNoon, day: day).nightness == 0)
+        }
+    }
+
+    @Test
+    func seasonalDayKnowsItsMonthInLeapYears() {
+        #expect(SeasonalDay(dayOfYear: 59).month == 2)
+        // 平年の60日目は3月1日、うるう年の60日目は2月29日です。
+        #expect(SeasonalDay(dayOfYear: 60).month == 3)
+        #expect(SeasonalDay(dayOfYear: 60, daysInYear: 366).month == 2)
+        #expect(SeasonalDay(dayOfYear: 61, daysInYear: 366).month == 3)
+        #expect(SeasonalDay(dayOfYear: 365).month == 12)
+        #expect(SeasonalDay(dayOfYear: 366, daysInYear: 366).month == 12)
+
+        // 日付からは、日本時間の暦で年内の何日目かを数えます。2026年8月12日は224日目です。
+        let date = makeTestDate(hour: 12)
+        #expect(SeasonalDay(date: date, calendar: AppCalendar.japan).dayOfYear == 224)
+
+        // 季節を代表する日は、その季節に含まれます。
+        for season in Season.allCases {
+            #expect(SeasonalDay(season: season).season == season)
+        }
     }
 
     @Test
@@ -1397,25 +1468,28 @@ struct BusTimeAppTests {
     }
 
     @Test
-    func streetLightHoursCoverEveningAndNightOnly() {
-        // 街灯が点くのは夕方16時から翌朝4時半までです。
-        // 判定に使う暗さも合わせて確かめます。
-        func isEveningOrNight(_ hour: Double) -> Bool {
-            hour >= 16 || hour < 4.5
+    func streetLightsFollowSunsetAndSunrise() {
+        for season in Season.allCases {
+            let daylight = SkyPalette.daylight(for: season)
+            func isOn(_ hour: Double) -> Bool {
+                SkyPalette.at(hour: hour, season: season).isStreetLightOn
+            }
+
+            // 昼と、日の入りの1時間前はまだ消えています。
+            #expect(!isOn(daylight.solarNoon), "\(season)の南中")
+            #expect(!isOn(daylight.sunset - 1), "\(season)の日の入り1時間前")
+            // 日が沈んで暗くなってから、夜のあいだは点いています。
+            #expect(isOn(daylight.sunset + 0.5), "\(season)の日の入り30分後")
+            #expect(isOn(22), "\(season)の22時")
+            #expect(isOn(2), "\(season)の2時")
+            // 夜明けの30分前に消え、朝は消えたままです。
+            #expect(!isOn(daylight.sunrise - 0.25), "\(season)の日の出15分前")
+            #expect(!isOn(daylight.sunrise + 1), "\(season)の日の出1時間後")
         }
 
-        // 朝と昼は消えています。
-        #expect(!isEveningOrNight(6))
-        #expect(!isEveningOrNight(12))
-        #expect(!isEveningOrNight(15))
-        // 夕方と夜は点きます。
-        #expect(isEveningOrNight(18))
-        #expect(isEveningOrNight(22))
-        #expect(isEveningOrNight(2))
-
-        // 朝6時は空が暗くても点けません。
-        #expect(SkyPalette.at(hour: 6, season: .spring).nightness > 0.22)
-        #expect(!isEveningOrNight(6))
+        // 冬は日の出が遅いので、5時45分でも点いています。
+        // 4時30分で一律に消していたころは、冬の夜明け前が暗いままでした。
+        #expect(SkyPalette.at(hour: 5.75, season: .winter).isStreetLightOn)
     }
 
     // MARK: - 文字の読みやすさ
