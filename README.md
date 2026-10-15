@@ -131,6 +131,7 @@
 
 - 0時、明け方、朝、昼、夕方、夜のキーフレーム間を連続補間し、空・水面・地面・カード・文字・アクセントを同じ時刻から生成します。
 - 日の出・日の入りは、海浜幕張駅付近の緯度経度とその日の日付から計算します（NOAAの太陽位置の近似式）。夏至はおよそ4:25〜19:00、冬至は6:45〜16:30で、南中は経度と均時差により11:23〜11:54です。
+- 季節の色は月で切り替えず、各季節の代表日（4/15、7/16、10/16、1/15）で最も強く、隣の季節の代表日へ向けて日ごとになだらかに移します。5月末・8月末・11月末・2月末が2つの季節のちょうど中間です。
 - 空のキーフレームは時計の時刻ではなく、日の出・南中・日の入りからの前後で持ちます。薄明の長さは季節であまり変わらないため、昼の長さだけが日付に応じて伸び縮みします。空の色、太陽・月の軌道、太陽と月の入れ替わり、街灯は同じ日の出・日の入り（`DaylightSchedule`）を共有し、空と天体の位置が食い違わないようにしています。季節と背景の時刻は、運行判定と同じ日本時間の暦とアプリ内の現在時刻（`AppDate`）で決めます。
 - 空と海は色数を量子化し、ベイヤーディザと決定的な疑似乱数で、毎フレームちらつかないピクセル表現にしています。
 - 太陽と月は時刻に沿って移動します。月は朔望月から月齢と照らされる面を計算し、新月・満月の実日付に対するテストもあります。
@@ -1153,6 +1154,8 @@ UIテストでは、ホーム／時刻表の遷移、最大Dynamic Typeでの主
 - `forcedSeasonChangesOnlyTheDateUsedForSeasons`: `-forceSeason`が時刻を残したまま月日だけを季節の代表日へ移す
 - `forcedDayOfYearPicksThatDayAndOutranksTheSeason`: `-forceDayOfYear`の日付指定と優先順位
 - `seasonOverrideIgnoresUnknownValues`: 不明な季節名や範囲外の日数を無視
+- `skyChangesGraduallyFromDayToDay`: 隣り合う日の同じ時刻の空の色差（ΔE）が一年を通して2.0以下
+- `seasonsBlendBetweenTheirRepresentativeDays`: 季節の色が代表日で最も強く、隣の季節へ連続して移る
 - `seasonsLookDifferentAtNoon`: 同じ正午の空が季節どうしで見分けられる色差（ΔE）を持つ
 - `moonPhaseMatchesRealNewAndFullMoons`: 実日付の新月・満月との整合
 - `inkSwitchesAtOnceInsteadOfFadingThroughGrey`: 文字色を灰色経由で補間しない
@@ -1161,6 +1164,7 @@ UIテストでは、ホーム／時刻表の遷移、最大Dynamic Typeでの主
 #### Contrast・意味色
 
 - `cardTextStaysReadableAtEveryHourAndSeason`: 24時間×四季の本文Contrast
+- `cardTextStaysReadableOnEveryDayOfTheYear`: 5日おき×24時間の本文Contrast。季節が移る途中の日も確かめる
 - `accentTextStaysReadableAtEveryHourAndSeason`: 24時間×四季のAccent Label Contrast
 - `semanticStatusColorsStayDistinguishableOnCards`: 警告・成功など意味色の識別性
 

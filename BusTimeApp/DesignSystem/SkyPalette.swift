@@ -72,6 +72,9 @@ enum Season: CaseIterable {
     from(month: calendar.component(.month, from: SeasonalDate.resolve(date, calendar: calendar)))
   }
 
+  /// 一年の中で季節が移っていく順番です。年の初めの冬から並べます。
+  static let yearOrder: [Season] = [.winter, .spring, .summer, .autumn]
+
   /// 季節を代表する月日です。季節だけを差し替えて確かめるときに使います。
   ///
   /// 季節を構成する3か月のうち、真ん中の月の中ほどにします。
@@ -170,14 +173,67 @@ struct SeasonalDay: Equatable {
     return index + 1
   }
 
-  /// その日の季節です。
+  /// その日の季節です。月で区切った季節を返します。
   var season: Season {
     Season.from(month: month)
+  }
+
+  /// その日の季節の混ざり具合です。
+  ///
+  /// 各季節の代表日（4月15日、7月16日、10月16日、1月15日）でその季節の色が最も強く、
+  /// 次の季節の代表日へ向けてなだらかに移ります。月で区切って切り替えると、
+  /// 2月末から3月1日のような境目で、一晩のうちに空の色が変わってしまうためです。
+  /// ちょうど中間（5月末、8月末、11月末、2月末）で、2つの季節が半分ずつになります。
+  var seasonBlend: SeasonBlend {
+    let length = Double(daysInYear)
+    let day = Double(dayOfYear)
+    let order = Season.yearOrder
+
+    for (index, earlier) in order.enumerated() {
+      let later = order[(index + 1) % order.count]
+      let start = Double(SeasonalDay(season: earlier).dayOfYear)
+      var end = Double(SeasonalDay(season: later).dayOfYear)
+      // 秋から冬へは年をまたぐので、翌年の代表日として扱います。
+      if end <= start {
+        end += length
+      }
+      let position = day < start ? day + length : day
+      guard position < end else { continue }
+
+      let progress = (position - start) / (end - start)
+      // 代表日の前後では色をあまり動かさず、季節の中間でいちばん速く移ります。
+      let eased = progress * progress * (3 - 2 * progress)
+      return SeasonBlend(earlier: earlier, later: later, ratio: eased)
+    }
+    // 上の区間で一年を覆っているので、ここへは来ません。
+    return SeasonBlend(earlier: season, later: season, ratio: 0)
   }
 
   /// 海浜幕張でのその日の日の出と日の入りです。
   var daylight: DaylightSchedule {
     MakuhariSun.daylight(dayOfYear: dayOfYear, daysInYear: daysInYear)
+  }
+}
+
+/// 隣り合う2つの季節の混ざり具合です。
+struct SeasonBlend: Equatable {
+  /// 前の季節です。
+  let earlier: Season
+  /// 後の季節です。
+  let later: Season
+  /// 後の季節の割合です。0なら前の季節だけ、1なら後の季節だけになります。
+  let ratio: Double
+
+  /// その季節がどれだけ混ざっているかです。0から1で表します。
+  func weight(of season: Season) -> Double {
+    var weight = 0.0
+    if season == earlier {
+      weight += 1 - ratio
+    }
+    if season == later {
+      weight += ratio
+    }
+    return weight
   }
 }
 
@@ -655,6 +711,9 @@ struct SkyPalette: Equatable {
   /// 夜の強調色の淡い背景の不透明度です。
   private static let nightAccentSoftOpacity: Double = 0.30
 
+  /// 空の下端に混ぜる季節の色の強さです。上端に対する割合で持ちます。
+  /// 地平線付近は時刻による色の変化が大きいので、季節の色は控えめにします。
+  private static let horizonTintScale: Double = 0.6
   /// 街灯を点ける空の暗さの下限です。星が見え始める暗さに揃えます。
   private static let streetLightNightness: Double = 0.22
   /// 街灯を消す時刻を、日の出の何時間前にするかです。
@@ -663,9 +722,13 @@ struct SkyPalette: Equatable {
   ///
   /// カードの地と文字色は、この一点で同時に入れ替えます。
   /// 空の暗さに合わせて少しずつ混ぜていくと、夕方に地も文字も中間の明るさになり、
-  /// 互いに近づいて読めなくなるためです。境界を0.78に置くと、
-  /// 標準の濃さで最も条件の悪い時刻でもコントラスト比4.9を保てます。
-  private static let nightThreshold: Double = 0.78
+  /// 互いに近づいて読めなくなるためです。
+  ///
+  /// 夜の地は空を暗くして作るので、境界の直後（夕暮れから夜へ移る途中）が最も読みにくくなります。
+  /// 境界を0.82に置くと、空の暗さがどの値でも、標準の濃さでコントラスト比4.9以上を保てます。
+  /// 日の出・日の入りは日付で毎日少しずつ動くため、15分おきの時刻だけでなく、
+  /// 境界のすぐ手前とすぐ後の暗さになる時刻がいずれかの日に必ず訪れます。
+  private static let nightThreshold: Double = 0.82
 
   /// 指定した時刻の配色を作ります。
   /// - Parameters:
@@ -685,7 +748,6 @@ struct SkyPalette: Equatable {
     hour: Double, day: SeasonalDay, colorScheme: ColorScheme? = nil
   ) -> SkyPalette {
     let normalizedHour = normalize(hour: hour)
-    let season = day.season
     // 空の色と太陽・月の軌道は、その日の日の出・日の入りを共有します。
     // 冬は同じ17時でも暗く、夏は明るく見えます。
     let daylight = day.daylight
@@ -694,8 +756,10 @@ struct SkyPalette: Equatable {
     let baseSkyTop = previous.skyTop.mixed(with: next.skyTop, ratio: ratio)
     let baseSkyBottom = previous.skyBottom.mixed(with: next.skyBottom, ratio: ratio)
     // 季節の色をうっすら混ぜます。夏は青く、秋は暖かく、冬は白っぽくなります。
-    let skyTop = baseSkyTop.mixed(with: season.tint, ratio: season.tintStrength)
-    let skyBottom = baseSkyBottom.mixed(with: season.tint, ratio: season.tintStrength * 0.6)
+    // 隣り合う季節のあいだでは、それぞれの色を混ぜた空を日付に応じて混ぜ合わせます。
+    let blend = day.seasonBlend
+    let skyTop = seasonalSky(baseSkyTop, blend: blend, strengthScale: 1)
+    let skyBottom = seasonalSky(baseSkyBottom, blend: blend, strengthScale: horizonTintScale)
     let nightness = previous.nightness + (next.nightness - previous.nightness) * ratio
 
     // 外観指定はカードと操作部品に適用し、時刻による風景は維持します。
@@ -871,6 +935,25 @@ struct SkyPalette: Equatable {
     // 丸め誤差などで区間から外れた場合は、最後のキーフレームを使います。
     let last = keyframes[keyframes.count - 1]
     return (last, last, 0)
+  }
+
+  /// 季節の色を混ぜた空の色です。
+  ///
+  /// 隣り合う2つの季節の色をそれぞれ混ぜた空を作り、その2つを季節の割合で混ぜます。
+  private static func seasonalSky(
+    _ base: RGBComponents,
+    blend: SeasonBlend,
+    strengthScale: Double
+  ) -> RGBComponents {
+    let earlier = base.mixed(
+      with: blend.earlier.tint,
+      ratio: blend.earlier.tintStrength * strengthScale
+    )
+    let later = base.mixed(
+      with: blend.later.tint,
+      ratio: blend.later.tintStrength * strengthScale
+    )
+    return earlier.mixed(with: later, ratio: blend.ratio)
   }
 
   /// 数値を比率で補間します。

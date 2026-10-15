@@ -1515,6 +1515,36 @@ struct BusTimeAppTests {
     }
 
     @Test
+    func cardTextStaysReadableOnEveryDayOfTheYear() {
+        // 季節の色は日ごとに隣の季節へ移るので、四季の代表日のあいだの日も確かめます。
+        let coverage = SkyCardOpacity.coverage(for: SkyCardOpacity.standard, isDense: false)
+        var worst = (ratio: Double.infinity, dayOfYear: 0, hour: 0.0)
+
+        for dayOfYear in stride(from: 1, through: 365, by: 5) {
+            let day = SeasonalDay(dayOfYear: dayOfYear)
+            for step in 0..<(24 * 4) {
+                let hour = Double(step) / 4
+                let palette = SkyPalette.at(hour: hour, day: day)
+                let background = components(of: palette.skyBottom)
+                let onSurface = blend(components(of: palette.surface), over: background)
+                let card = blend(
+                    components(of: palette.surfaceOpaque, alpha: coverage),
+                    over: onSurface
+                )
+                let ratio = contrastRatio(blend(components(of: palette.ink), over: card), card)
+                if ratio < worst.ratio {
+                    worst = (ratio, dayOfYear, hour)
+                }
+            }
+        }
+
+        #expect(
+            worst.ratio >= 4.5,
+            "主な文字が最も読みにくいのは\(worst.dayOfYear)日目の\(worst.hour)時で、比は\(worst.ratio)でした"
+        )
+    }
+
+    @Test
     func accentTextStaysReadableAtEveryHourAndSeason() {
         var worstRatio = Double.infinity
         var worstReadableRatio = Double.infinity
@@ -1706,6 +1736,60 @@ struct BusTimeAppTests {
         #expect(SeasonalDate.forcedDate(for: date, calendar: calendar, defaults: defaults) == nil)
         #expect(Season(launchArgument: "Autumn") == .autumn)
         #expect(Season(launchArgument: "fall") == .autumn)
+    }
+
+    @Test
+    func skyChangesGraduallyFromDayToDay() {
+        // 隣り合う日の同じ時刻で、空の色がほとんど変わらないことを確かめます。
+        // 季節を月で切り替えていたころは、8月31日から9月1日のような境目で
+        // 一晩のうちにΔEが8〜11も変わっていました。
+        // 2.0は、並べて見比べても違いに気づきにくい大きさです。
+        let threshold = 2.0
+        var worst = (difference: 0.0, dayOfYear: 0, hour: 0.0)
+
+        for dayOfYear in 1...365 {
+            // 12月31日の次は、翌年の1月1日と比べます。
+            let nextDayOfYear = dayOfYear == 365 ? 1 : dayOfYear + 1
+            for hour in [7, 12, 17.75, 22] {
+                let today = SkyPalette.at(hour: hour, day: SeasonalDay(dayOfYear: dayOfYear))
+                let tomorrow = SkyPalette.at(hour: hour, day: SeasonalDay(dayOfYear: nextDayOfYear))
+                let difference = skyColorDifference(today, tomorrow)
+                if difference > worst.difference {
+                    worst = (difference, dayOfYear, hour)
+                }
+            }
+        }
+
+        #expect(
+            worst.difference <= threshold,
+            "\(worst.dayOfYear)日目から翌日への\(worst.hour)時の空の色差が\(worst.difference)でした"
+        )
+    }
+
+    @Test
+    func seasonsBlendBetweenTheirRepresentativeDays() {
+        // 季節の代表日は、その季節の色だけになります。
+        for season in Season.allCases {
+            #expect(SeasonalDay(season: season).seasonBlend.weight(of: season) == 1)
+        }
+
+        // 5月31日は春と夏のちょうど中間です。4月15日の春の色から、夏の色へ半分近づきます。
+        let lateMay = SeasonalDay(dayOfYear: 151).seasonBlend
+        #expect(lateMay.earlier == .spring)
+        #expect(lateMay.later == .summer)
+        #expect(abs(lateMay.ratio - 0.5) < 0.05)
+
+        // 秋から冬へは年をまたいで移ります。1月1日はほぼ冬の色です。
+        let newYear = SeasonalDay(dayOfYear: 1).seasonBlend
+        #expect(newYear.earlier == .autumn)
+        #expect(newYear.later == .winter)
+        #expect(newYear.weight(of: .winter) > 0.9)
+        // 1年を通して、2つの季節の割合の合計は1です。
+        for dayOfYear in stride(from: 1, through: 365, by: 3) {
+            let blend = SeasonalDay(dayOfYear: dayOfYear).seasonBlend
+            let total = Season.allCases.map(blend.weight(of:)).reduce(0, +)
+            #expect(abs(total - 1) < 0.000_001)
+        }
     }
 
     @Test
