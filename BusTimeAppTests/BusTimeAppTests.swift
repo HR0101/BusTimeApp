@@ -1506,6 +1506,35 @@ struct BusTimeAppTests {
         }
     }
 
+    @Test @MainActor
+    func seasonFollowsJapanTimeAtTheEndOfTheMonth() {
+        // 2026年2月28日16時（協定世界時）は、日本時間では3月1日1時です。
+        var utc = Calendar(identifier: .gregorian)
+        utc.timeZone = TimeZone(secondsFromGMT: 0)!
+        let date = utc.date(from: DateComponents(year: 2026, month: 2, day: 28, hour: 16))!
+
+        // 端末のタイムゾーンにかかわらず、運行判定と同じ日本時間の暦で春とします。
+        #expect(Season.current(date: date) == .spring)
+        #expect(Season.current(date: date, calendar: utc) == .winter)
+
+        // 背景の時計も、日本時間の時刻と季節で配色を作ります。
+        let clock = SkyClock(nowProvider: { date })
+        clock.setAutomaticUpdatesActive(false)
+        #expect(clock.palette.season == .spring)
+        #expect(clock.palette.hour == 1)
+    }
+
+    @Test
+    func previewPalettesKeepTheSeasonOfTheBackground() {
+        // 設定画面のプレビューは、背景本体の季節を引き継いで別の時刻を描きます。
+        // 今日の季節を改めて求めると、-UITestNowで固定した日付とずれることがあるためです。
+        let background = SkyPalette.at(hour: 12, season: .winter)
+        let morning = SkyPalette.at(hour: 7, season: background.season)
+
+        #expect(morning.season == .winter)
+        #expect(morning == SkyPalette.at(hour: 7, season: .winter))
+    }
+
     @Test
     func forcedSeasonChangesOnlyTheDateUsedForSeasons() {
         let defaults = makeIsolatedDefaults()
