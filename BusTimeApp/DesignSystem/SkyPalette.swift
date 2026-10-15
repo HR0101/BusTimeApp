@@ -107,31 +107,21 @@ enum Season: CaseIterable {
     }
   }
 
-  /// 空に混ぜる季節の色です。
-  fileprivate var tint: RGBComponents {
+  /// 夜空の澄み具合です。1で最も澄み、暗い星まで見えます。
+  ///
+  /// 夜は空に季節の色を混ぜると、黒に近い紺が灰色や茶色に濁ります。
+  /// そこで空の色は変えず、星の見え方で季節の空気の違いを表します。
+  /// 乾いた冬と秋は澄み、湿った夏と、かすみの出る春は暗い星が隠れます。
+  var starClarity: Double {
     switch self {
-    case .spring:
-      // 霞んだ淡い桃色です。
-      return RGBComponents(red: 0.98, green: 0.90, blue: 0.92)
-    case .summer:
-      // 濃く澄んだ青です。
-      return RGBComponents(red: 0.30, green: 0.55, blue: 0.95)
-    case .autumn:
-      // 夕暮れに寄せた橙です。
-      return RGBComponents(red: 0.95, green: 0.72, blue: 0.48)
     case .winter:
-      // 冷たく白い青です。
-      return RGBComponents(red: 0.82, green: 0.88, blue: 0.97)
-    }
-  }
-
-  /// 季節の色をどれだけ混ぜるかです。強すぎると時刻ごとの変化が消えます。
-  var tintStrength: Double {
-    switch self {
-    case .spring, .autumn:
-      return 0.10
-    case .summer, .winter:
-      return 0.13
+      return 1.0
+    case .autumn:
+      return 0.9
+    case .summer:
+      return 0.7
+    case .spring:
+      return 0.55
     }
   }
 }
@@ -475,12 +465,6 @@ private struct SkyKeyframe {
     seasonal[season] ?? SkyColors(top: skyTop, bottom: skyBottom)
   }
 
-  /// 季節の色（`Season.tint`）を混ぜる強さの倍率です。
-  ///
-  /// 季節ごとの色を持つキーフレームは、それ自体が季節の空なので混ぜません。
-  var seasonTintWeight: Double {
-    seasonal.isEmpty ? 1 : 0
-  }
 }
 
 /// 空の上端と下端の色の組です。
@@ -561,6 +545,13 @@ struct SkyPalette: Equatable {
     day.season
   }
 
+  /// 夜空の澄み具合です。隣り合う季節のあいだでは、日付に応じて移ります。
+  var starClarity: Double {
+    let blend = day.seasonBlend
+    return blend.earlier.starClarity
+      + (blend.later.starClarity - blend.earlier.starClarity) * blend.ratio
+  }
+
   /// 太陽が地平線より上にあるかどうかです。太陽と月のどちらを描くかを決めます。
   var isSunUp: Bool {
     daylight.isSunUp(at: hour)
@@ -593,18 +584,23 @@ struct SkyPalette: Equatable {
     autumn: (top: (Double, Double, Double), bottom: (Double, Double, Double)),
     winter: (top: (Double, Double, Double), bottom: (Double, Double, Double))
   ) -> [Season: SkyColors] {
-    func colors(_ pair: (top: (Double, Double, Double), bottom: (Double, Double, Double))) -> SkyColors {
-      SkyColors(
-        top: RGBComponents(red: pair.top.0, green: pair.top.1, blue: pair.top.2),
-        bottom: RGBComponents(red: pair.bottom.0, green: pair.bottom.1, blue: pair.bottom.2)
-      )
-    }
-    return [
-      .spring: colors(spring),
-      .summer: colors(summer),
-      .autumn: colors(autumn),
-      .winter: colors(winter)
+    [
+      .spring: colors(top: spring.top, bottom: spring.bottom),
+      .summer: colors(top: summer.top, bottom: summer.bottom),
+      .autumn: colors(top: autumn.top, bottom: autumn.bottom),
+      .winter: colors(top: winter.top, bottom: winter.bottom)
     ]
+  }
+
+  /// 0〜1の赤・緑・青の組から、空の上端と下端の色を作ります。
+  private static func colors(
+    top: (Double, Double, Double),
+    bottom: (Double, Double, Double)
+  ) -> SkyColors {
+    SkyColors(
+      top: RGBComponents(red: top.0, green: top.1, blue: top.2),
+      bottom: RGBComponents(red: bottom.0, green: bottom.1, blue: bottom.2)
+    )
   }
 
   /// 1日の空の色を定義するキーフレームです。時刻順に並べる必要があります。
@@ -679,14 +675,18 @@ struct SkyPalette: Equatable {
       offset: -0.75,
       skyTop: RGBComponents(red: 0.882, green: 0.482, blue: 0.310),
       skyBottom: RGBComponents(red: 0.996, green: 0.855, blue: 0.612),
-      nightness: 0.10
+      nightness: 0.10,
+      // 夏の夕焼けは、ほかの季節より濃い橙から赤へ焼けます。
+      seasonal: [.summer: colors(top: (0.93, 0.40, 0.20), bottom: (1.00, 0.78, 0.45))]
     ),
     SkyKeyframe(
       event: .sunset,
       offset: 0.5,
       skyTop: RGBComponents(red: 0.278, green: 0.157, blue: 0.353),
       skyBottom: RGBComponents(red: 0.867, green: 0.416, blue: 0.365),
-      nightness: 0.74
+      nightness: 0.74,
+      // 夏の残照は、地平線の赤が濃く残ります。
+      seasonal: [.summer: colors(top: (0.31, 0.13, 0.30), bottom: (0.92, 0.36, 0.24))]
     ),
     SkyKeyframe(
       event: .sunset,
@@ -779,9 +779,6 @@ struct SkyPalette: Equatable {
   /// 夜の強調色の淡い背景の不透明度です。
   private static let nightAccentSoftOpacity: Double = 0.30
 
-  /// 空の下端に混ぜる季節の色の強さです。上端に対する割合で持ちます。
-  /// 地平線付近は時刻による色の変化が大きいので、季節の色は控えめにします。
-  private static let horizonTintScale: Double = 0.6
   /// 街灯を点ける空の暗さの下限です。星が見え始める暗さに揃えます。
   private static let streetLightNightness: Double = 0.22
   /// 街灯を消す時刻を、日の出の何時間前にするかです。
@@ -1006,9 +1003,9 @@ struct SkyPalette: Equatable {
 
   /// ある季節の、2つのキーフレームのあいだの空の色です。
   ///
-  /// 昼は季節ごとの空の色をそのまま使います。季節ごとの色を持たない時間帯は、
-  /// 共通の空に季節の色をうっすら混ぜます。夏は青く、秋は暖かく、冬は白っぽくなります。
-  /// 混ぜる強さもキーフレームのあいだで補間し、朝夕に急に切り替わらないようにします。
+  /// 季節の色を時間帯に関係なく一律に混ぜると、暗い夜空や彩度の高い夕焼けほど濁ります。
+  /// そのため季節の違いは、キーフレームごとに持たせた季節の空の色だけで表します。
+  /// 季節ごとの色を持たない時間帯は、どの季節も同じ空になります。
   private static func skyColors(
     between previous: SkyKeyframe,
     and next: SkyKeyframe,
@@ -1017,15 +1014,9 @@ struct SkyPalette: Equatable {
   ) -> SkyColors {
     let from = previous.colors(for: season)
     let to = next.colors(for: season)
-    let tintStrength = season.tintStrength
-      * interpolate(from: previous.seasonTintWeight, to: next.seasonTintWeight, ratio: ratio)
     return SkyColors(
-      top: from.top
-        .mixed(with: to.top, ratio: ratio)
-        .mixed(with: season.tint, ratio: tintStrength),
-      bottom: from.bottom
-        .mixed(with: to.bottom, ratio: ratio)
-        .mixed(with: season.tint, ratio: tintStrength * horizonTintScale)
+      top: from.top.mixed(with: to.top, ratio: ratio),
+      bottom: from.bottom.mixed(with: to.bottom, ratio: ratio)
     )
   }
 

@@ -145,6 +145,8 @@ struct SkyCanvas: View {
   private static let blueStarColor = Color(red: 0.78, green: 0.87, blue: 1.0)
   /// 最も明るい、十字に描く星の色です。
   private static let warmStarColor = Color(red: 1.0, green: 0.847, blue: 0.494)
+  /// 明るい星とみなす明るさの下限です。これより暗い星は、空がかすむと隠れます。
+  private static let brightStarThreshold: Double = 0.94
 
   /// 水平線の位置です。これより下は海面で、太陽・月もこの高さに沈みます。
   private static let horizonRatio: Double = 0.55
@@ -1694,6 +1696,11 @@ struct SkyCanvas: View {
       let isBlinking = pseudoRandom(index &* 977 &+ tick) > 0.9
       guard !isBlinking else { continue }
 
+      // 空気の澄み具合に応じて、暗い星から隠れます。明るい星は季節を問わず見えます。
+      // 夜空の色は変えずに、冬の澄んだ夜と春のかすんだ夜を見分けられるようにします。
+      let isFaint = brightness <= Self.brightStarThreshold
+      guard !isFaint || pseudoRandom(index &* 31 &+ 17) < sky.starClarity else { continue }
+
       let originX = snapped(CGFloat(horizontal) * size.width)
       let originY = snapped(CGFloat(vertical) * size.height)
 
@@ -1702,7 +1709,7 @@ struct SkyCanvas: View {
       // 大きさは変えず、色と濃さだけで明るさの差を表します。
       if brightness > 0.992 {
         appendCell(to: &warmPath, x: originX, y: originY)
-      } else if brightness > 0.94 {
+      } else if brightness > Self.brightStarThreshold {
         appendCell(to: &whitePath, x: originX, y: originY)
       } else if brightness > 0.80 {
         appendCell(to: &bluePath, x: originX, y: originY)
