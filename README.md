@@ -134,6 +134,7 @@
 - 日の出・日の入りは、海浜幕張駅付近の緯度経度とその日の日付から計算します（NOAAの太陽位置の近似式）。夏至はおよそ4:25〜19:00、冬至は6:45〜16:30で、南中は経度と均時差により11:23〜11:54です。
 - 昼の空は季節ごとに彩度・明度・地平線のかすみを描き分けます。春はかすんだ淡い空、夏は濃く高い青、秋は澄んだ深い青、冬は低く白っぽい空です。同じ正午の空は、どの季節の組み合わせでもΔE 10以上離れます。
 - 夜と朝夕の空には季節の色を一律に混ぜません。夜空はどの季節も深い紺のままにし、季節の違いは空気の澄み具合として星の見え方で表します（冬が最も澄み、秋、夏、かすみの出る春の順に暗い星が隠れます）。夏の夕焼けは青を混ぜず、濃い橙から赤へ焼けます。春の夜明けと夕焼けはかすみで淡い桃色・藤色ににじみ、秋の夜明けと夕焼けは澄んだ空気で紅や琥珀色が冴えます。秋は春より1時間ほど早く暮れます。
+- 空以外も季節で変わります。海は夏が明るい青緑、冬が深く暗い青で、砂浜は夏が白く乾き、秋は色づき、冬は灰色がかります。晴れた日の雲は、春が丸い積雲、夏が地平線から湧き上がる入道雲、秋が高い空のうろこ雲とすじ雲、冬は少なく薄い雲です。雲量が多い日に増える雲は季節を問わず同じ形です。
 - 季節の色は月で切り替えず、各季節の代表日（4/15、7/16、10/16、1/15）で最も強く、隣の季節の代表日へ向けて日ごとになだらかに移します。5月末・8月末・11月末・2月末が2つの季節のちょうど中間です。
 - 空のキーフレームは時計の時刻ではなく、日の出・南中・日の入りからの前後で持ちます。薄明の長さは季節であまり変わらないため、昼の長さだけが日付に応じて伸び縮みします。空の色、太陽・月の軌道、太陽と月の入れ替わり、街灯は同じ日の出・日の入り（`DaylightSchedule`）を共有し、空と天体の位置が食い違わないようにしています。季節と背景の時刻は、運行判定と同じ日本時間の暦とアプリ内の現在時刻（`AppDate`）で決めます。
 - 空と海は色数を量子化し、ベイヤーディザと決定的な疑似乱数で、毎フレームちらつかないピクセル表現にしています。
@@ -1160,6 +1161,9 @@ UIテストでは、ホーム／時刻表の遷移、最大Dynamic Typeでの主
 - `forcedDayOfYearPicksThatDayAndOutranksTheSeason`: `-forceDayOfYear`の日付指定と優先順位
 - `seasonOverrideIgnoresUnknownValues`: 不明な季節名や範囲外の日数を無視
 - `springAndAutumnLookDifferentFromDawnToDusk`: 春と秋の空が、同じ時計の時刻（5〜19時）でも日の出・日の入りから同じだけ離れた時刻でもΔE 10以上離れる
+- `seaAndShoreChangeWithTheSeason`: 夏の海は明るい青緑、冬の海は深く暗い青。砂浜も夏は明るく、冬は灰色がかる
+- `cloudsChangeShapeWithTheSeason`: 夏は入道雲、秋はうろこ雲とすじ雲、冬は少なく薄い雲
+- `cloudShapesMoveToTheNextSeasonOneByOne`: 季節が移るあいだは雲ごとに形が切り替わり、一度にすべては入れ替わらない
 - `nightSkyStaysDeepNavyInEverySeason`: 夜空が季節の色で灰色や茶色に濁らない
 - `summerSunsetGlowsDeepOrange`: 夏の夕焼けが青を混ぜず、ほかの季節より濃い橙になる
 - `starsShowHowClearTheNightAirIs`: 夜の季節の違いを星の見え方（冬が最も澄み、春が最もかすむ）で表す
@@ -1175,6 +1179,7 @@ UIテストでは、ホーム／時刻表の遷移、最大Dynamic Typeでの主
 
 - `cardTextStaysReadableAtEveryHourAndSeason`: 24時間×四季の本文Contrast
 - `cardTextStaysReadableOnEveryDayOfTheYear`: 5日おき×24時間の本文Contrast。季節が移る途中の日も確かめる
+- `cardTextStaysReadableOverTheSeaAndGround`: 24時間×四季で、海・砂浜・道路の上に重なるカードの本文Contrast
 - `accentTextStaysReadableAtEveryHourAndSeason`: 24時間×四季のAccent Label Contrast
 - `semanticStatusColorsStayDistinguishableOnCards`: 警告・成功など意味色の識別性
 
