@@ -237,6 +237,34 @@ struct BusTimeAppTests {
         )
     }
 
+    @Test
+    func liveActivityContentExpiresAtDepartureOnEveryUpdate() {
+        let departure = Date(timeIntervalSince1970: 1_800_000_000)
+        let attributes = makeBusActivityAttributes(departureDate: departure)
+
+        // 開始時も更新時も出発時刻を期限にします。
+        // 期限を外すと、アプリが止まったまま出発したときにシステムが描き直しません。
+        #expect(attributes.content(remainingMinutes: 12, isDeparted: false).staleDate == departure)
+        #expect(attributes.content(remainingMinutes: 0, isDeparted: true).staleDate == departure)
+    }
+
+    @Test
+    func liveActivityShowsDepartedWithoutAnUpdateFromTheApp() {
+        let departure = Date(timeIntervalSince1970: 1_800_000_000)
+        let beforeDeparture = departure.addingTimeInterval(-60)
+        let attributes = makeBusActivityAttributes(departureDate: departure)
+        let waiting = BusActivityAttributes.ContentState(remainingMinutes: 1, isDeparted: false)
+
+        // 出発前は残り時間を出します。
+        #expect(!attributes.showsDeparted(state: waiting, isStale: false, now: beforeDeparture))
+        // アプリが停止していて更新が届かなくても、期限切れや出発時刻の経過で切り替えます。
+        #expect(attributes.showsDeparted(state: waiting, isStale: true, now: beforeDeparture))
+        #expect(attributes.showsDeparted(state: waiting, isStale: false, now: departure))
+        // アプリから出発済みが届いたときは、そのまま従います。
+        let departed = BusActivityAttributes.ContentState(remainingMinutes: 0, isDeparted: true)
+        #expect(attributes.showsDeparted(state: departed, isStale: false, now: beforeDeparture))
+    }
+
     @Test @MainActor
     func cardOpacityDefaultsToStandardAndPersistsChanges() {
         let suiteName = "BusTimeAppTests.CardOpacity"
@@ -1801,6 +1829,19 @@ private func makeTestDate(day: Int = 12, hour: Int, minute: Int = 0) -> Date {
     return calendar.date(
         from: DateComponents(year: 2026, month: 8, day: day, hour: hour, minute: minute)
     )!
+}
+
+/// Live Activityの表示を確かめるための対象便です。
+private func makeBusActivityAttributes(departureDate: Date) -> BusActivityAttributes {
+    BusActivityAttributes(
+        busID: "8:00-station",
+        busDepartureTime: "8:00",
+        busArrivalTime: "8:10",
+        originName: "海浜幕張駅",
+        destinationName: "コロンブスシティ",
+        departureDate: departureDate,
+        routeName: "海浜幕張駅 → コロンブスシティ"
+    )
 }
 
 /// 天気の取得結果を差し替えるためのテスト用スタブです。
