@@ -1253,8 +1253,7 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
         )
 
         let remaining = max(0, Int(ceil(departureDate.timeIntervalSince(currentDate) / 60)))
-        let contentState = BusActivityAttributes.ContentState(remainingMinutes: remaining, isDeparted: false)
-        let activityContent = ActivityContent(state: contentState, staleDate: departureDate)
+        let activityContent = attributes.content(remainingMinutes: remaining, isDeparted: false)
 
         do {
             let activity = try Activity.request(
@@ -1276,8 +1275,12 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
         
         Task { @MainActor [weak self] in
             guard let self, let activity = self.currentActivity else { return }
-            let contentState = BusActivityAttributes.ContentState(remainingMinutes: remainingMinutes, isDeparted: isDeparted)
-            let activityContent = ActivityContent(state: contentState, staleDate: nil)
+            // 更新のたびに出発時刻を期限として渡し直します。
+            // 期限を外すと、アプリが停止したまま出発しても表示が切り替わらなくなります。
+            let activityContent = activity.attributes.content(
+                remainingMinutes: remainingMinutes,
+                isDeparted: isDeparted
+            )
             
             await activity.update(activityContent)
             

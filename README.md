@@ -110,7 +110,8 @@
 - 通知一覧では個別削除と全件削除ができ、期限切れの保存データは起動時に整理します。
 - 通知の保存形式にはバージョンを持たせ、旧形式からの移行を実装しています。壊れた保存データを無理に上書きしません。
 - Live Activityはロック画面とDynamic Islandの展開・コンパクト・最小表示に対応し、経路、出発／到着、残り時間、出発済み状態を表示します。
-- 残り時間は秒を出さず分単位に統一し、値が変わったときだけActivityを更新して過剰な更新を避けます。
+- 残り時間はシステムが時刻に合わせて数え進める表示を使い、アプリが停止していても減っていきます。iOS 18以降は秒を出さない時間・分表記、iOS 16.2〜17は秒を含むタイマーで表示します。
+- 出発時刻をActivityの期限（`staleDate`）として開始時と更新時の両方で渡し、アプリから更新が届かなくても出発後は「出発済み」に切り替えます。アプリからの更新は残り分が変わったときだけ送り、過剰な更新を避けます。
 - 実行中のLive Activityは再起動後に復元できます。別便が表示中、機能が許可されていない、すでに出発済みなどの失敗理由も案内します。
 - 対応端末ではLive Activityを初期状態で有効にし、設定画面のToggleでいつでも変更・保存できます。
 - 通常通知を残したままLive Activityを開始でき、通知が未設定なら5分前通知と一緒に開始できます。
@@ -729,7 +730,7 @@ WidgetKitのTimeline再要求時刻はシステムが最終決定します。現
 - Small、Medium、Accessory Rectangularを別レイアウトにし、Smallの主時刻は`ScaledMetric`へ追従させます。
 - タップ時は表示中の経路をDeep Linkでアプリへ渡すため、Widgetとアプリの文脈が途切れません。
 
-Live Activity側では、ロック画面とDynamic Islandに同じ`BusActivityAttributes`を使い、表示テキストは`TimelineView(.everyMinute)`で進めます。アプリからのActivity更新は残り分が変わったときだけ送り、秒単位の無意味な更新を避けています。
+Live Activity側では、ロック画面とDynamic Islandに同じ`BusActivityAttributes`を使います。Live Activityは描いた内容を保存して表示するため、`TimelineView`では残り時間が進みません。iOS 18以降は`Text(.currentDate, format: .timer(...))`に1分単位の精度を指定し、システムに秒を含まない残り時間を数え進めさせます。iOS 16.2〜17では同じ役割の`Text(timerInterval:)`を使います。出発時刻は`staleDate`として毎回渡し、アプリが停止したまま出発しても期限切れをきっかけに「出発済み」へ描き直されます。アプリからのActivity更新は残り分が変わったときだけ送り、秒単位の無意味な更新を避けています。
 
 #### トレードオフ
 
@@ -737,7 +738,7 @@ Live Activity側では、ロック画面とDynamic Islandに同じ`BusActivityAt
 
 #### 検証
 
-Deep Linkの往復、別URLの拒否、アプリ側の経路切り替え、Live Activityの秒を含まない残り時間を単体テストしています。CIではWidget Extensionをアプリ本体とは別にビルドします。
+Deep Linkの往復、別URLの拒否、アプリ側の経路切り替え、Live Activityの秒を含まない残り時間、出発時刻を期限にした表示内容と出発済みへの切り替えを単体テストしています。CIではWidget Extensionをアプリ本体とは別にビルドします。
 
 ### 8. ピクセル背景をCanvasで生成しながら描画負荷を抑える
 
@@ -1063,6 +1064,8 @@ UIテストでは、ホーム／時刻表の遷移、最大Dynamic Typeでの主
 - `currentServiceDayDepartureDoesNotRollToTomorrow`: 当日便を誤って翌日へ送らない
 - `currentServiceDayKeepsAfterMidnightBusOnTheCorrectDate`: 0時台便を正しい翌暦日に配置
 - `liveActivityRemainingTimeOmitsSeconds`: Activityの残り時間を分単位に限定
+- `liveActivityContentExpiresAtDepartureOnEveryUpdate`: 開始時も更新時も出発時刻を期限にする
+- `liveActivityShowsDepartedWithoutAnUpdateFromTheApp`: アプリから更新が届かなくても出発後は出発済みにする
 - `liveActivityDefaultsOnWhenAvailableAndPersistsChanges`: 対応端末の既定値と保存
 - `liveActivityDefaultsOffWhenUnavailable`: 非対応時の無効化
 - `notificationIdentifiersAreUniqueForEachBus`: 便ごとの通知Identifier一意性
