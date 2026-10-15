@@ -1014,10 +1014,14 @@ Schemeの起動引数から、時刻や天候に依存する表示を固定で�
 | `-forceWeather rain-moderate` | 普通の雨として描画 |
 | `-forceWeather rain-heavy` | 強い雨として描画 |
 | `-UITestNow <UNIX秒>` | アプリ内の現在時刻を固定 |
+| `-forceSeason spring` | 時刻はそのままで、背景の季節だけを春に固定（`summer`、`autumn`、`winter`も指定可） |
+| `-forceDayOfYear <1〜366>` | 時刻はそのままで、背景の季節を決める日付だけをその年の指定日に固定。季節の境目の確認用で、`-forceSeason`より優先 |
 | `-SkyBackgroundStill` | 背景アニメーションを静止 |
 | `-UITestResetState` | UIテストに関係する保存状態を初期化 |
 
 これらはDebugビルド専用、またはUIテスト用で、通常利用の設定として保存されません。
+
+`-UITestNow`は日付ごと固定するため、運行日の判定や時刻表まで変わります。季節の見た目だけを比べたいときは`-forceSeason`か`-forceDayOfYear`を使います。Xcodeでは`SkyBackground.swift`の`季節×時間帯`Previewで、四季と朝・昼・夕方・夜の背景を一覧できます。
 
 ## テストとCI
 
@@ -1140,6 +1144,10 @@ UIテストでは、ホーム／時刻表の遷移、最大Dynamic Typeでの主
 - `seasonFollowsTheMonth`: 月から四季を決定
 - `daylightLengthChangesWithTheSeason`: 夏冬の日照時間差
 - `noonStaysBrightInEverySeason`: 全季節の正午が昼Palette
+- `forcedSeasonChangesOnlyTheDateUsedForSeasons`: `-forceSeason`が時刻を残したまま月日だけを季節の代表日へ移す
+- `forcedDayOfYearPicksThatDayAndOutranksTheSeason`: `-forceDayOfYear`の日付指定と優先順位
+- `seasonOverrideIgnoresUnknownValues`: 不明な季節名や範囲外の日数を無視
+- `seasonsLookDifferentAtNoon`: 同じ正午の空が季節どうしで見分けられる色差（ΔE）を持つ
 - `moonPhaseMatchesRealNewAndFullMoons`: 実日付の新月・満月との整合
 - `inkSwitchesAtOnceInsteadOfFadingThroughGrey`: 文字色を灰色経由で補間しない
 - `cardSurfaceSwitchesTogetherWithTheInk`: Card面と文字色を同じ閾値で切替

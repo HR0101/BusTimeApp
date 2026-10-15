@@ -2137,3 +2137,34 @@ struct SkyCanvas: View {
 #Preview("夜") {
   SkyBackground().environment(\.sky, SkyPalette.at(hour: 22))
 }
+
+#Preview("季節×時間帯") {
+  // 同じ時刻で季節だけを変えた背景を並べ、季節ごとの違いを見比べます。
+  let hours: [(hour: Double, label: String)] = [
+    (7, "7:00"),
+    (12, "12:00"),
+    (17.5, "17:30"),
+    (22, "22:00")
+  ]
+
+  return Grid(horizontalSpacing: 4, verticalSpacing: 4) {
+    GridRow {
+      Color.clear.frame(width: 1, height: 1)
+      ForEach(hours, id: \.hour) { item in
+        Text(verbatim: item.label).font(.caption2.monospacedDigit())
+      }
+    }
+    ForEach(Season.allCases, id: \.self) { season in
+      GridRow {
+        Text(verbatim: "\(season)").font(.caption2)
+        ForEach(hours, id: \.hour) { item in
+          SkyCanvas()
+            .environment(\.sky, SkyPalette.at(hour: item.hour, season: season))
+            .frame(height: 150)
+            .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+        }
+      }
+    }
+  }
+  .padding(8)
+}
