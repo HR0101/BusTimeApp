@@ -32,7 +32,8 @@ final class BusTimeAppUITests: XCTestCase {
     private func launchApp(
         contentSize: String = ContentSize.standard,
         language: String = "ja",
-        locale: String = "ja_JP"
+        locale: String = "ja_JP",
+        now: String = "1786496400"
     ) -> XCUIApplication {
         let app = XCUIApplication()
         app.launchArguments += [
@@ -40,7 +41,7 @@ final class BusTimeAppUITests: XCTestCase {
             "-AppleLocale", locale,
             "-UIPreferredContentSizeCategoryName", contentSize,
             "-SkyBackgroundStill",
-            "-UITestNow", "1786496400",
+            "-UITestNow", now,
             "-UITestResetState",
             "-forceWeather", "clear",
             "-hasSeenTutorial", "YES"
@@ -82,6 +83,67 @@ final class BusTimeAppUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["いつのバス"].waitForExistence(timeout: 5))
     }
 
+    @MainActor
+    func testEnglishTimeHasASpaceAndOpensTheSystemPicker() throws {
+        let app = launchApp(language: "en", locale: "en_US", now: "1786528080")
+        let time = app.buttons["search-time-picker"]
+        XCTAssertTrue(time.waitForExistence(timeout: 5))
+        XCTAssertEqual(time.value as? String, "6:48 PM")
+        let attachment = XCTAttachment(screenshot: app.screenshot())
+        attachment.name = "Search-time-English-spacing"
+        attachment.lifetime = .keepAlways
+        add(attachment)
+        // A fresh simulator can present the location prompt here. Dismissing it
+        // changes the route card height, so resolve and tap the time button afterward.
+        let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
+        let denyLocation = springboard.buttons.matching(NSPredicate(
+            format: "label == %@ OR label == %@", "Don’t Allow", "Don't Allow"
+        )).firstMatch
+        if denyLocation.waitForExistence(timeout: 2) { denyLocation.tap() }
+        app.buttons["search-time-picker"].tap()
+        XCTAssertTrue(app.datePickers.firstMatch.waitForExistence(timeout: 5))
+        app.buttons["Done"].tap()
+        XCTAssertTrue(time.isHittable)
+    }
+
+    @MainActor
+    func testTimetableOpensNearTheNextBusAndPreservesManualScroll() throws {
+        let app = launchApp(now: "1786537980") // 2026-08-12 21:33 JST
+        app.buttons["時刻表タブ"].tap()
+        let nextBus = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "21:39発")).firstMatch
+        XCTAssertTrue(nextBus.waitForExistence(timeout: 5))
+        XCTAssertTrue(nextBus.isHittable, "夜の次の便が初期表示内にありません")
+        let attachment = XCTAttachment(screenshot: app.screenshot())
+        attachment.name = "Timetable-initial-scroll-night"
+        attachment.lifetime = .keepAlways
+        add(attachment)
+
+        app.scrollViews.firstMatch.swipeDown()
+        app.scrollViews.firstMatch.swipeDown()
+        XCTAssertFalse(nextBus.isHittable)
+        app.buttons["ホームタブ"].tap()
+        app.buttons["時刻表タブ"].tap()
+        XCTAssertFalse(nextBus.isHittable, "手動スクロール後に初期位置へ戻りました")
+    }
+
+    @MainActor
+    func testNextBusTimeAndNotificationAreVisibleWithoutScrolling() throws {
+        let app = launchApp()
+        let notify = app.buttons["この便を通知する"]
+        XCTAssertTrue(notify.waitForExistence(timeout: 5))
+        XCTAssertTrue(notify.isHittable, "起動直後に通知操作が隠れています")
+        let departure = app.descendants(matching: .any)["next-bus-times"]
+        XCTAssertTrue(departure.isHittable, "起動直後に発車時刻が隠れています")
+        let tabBarTop = app.buttons["ホームタブ"].frame.minY
+        XCTAssertLessThan(notify.frame.maxY, tabBarTop, "通知操作がタブバーと重なっています")
+        let attachment = XCTAttachment(screenshot: app.screenshot())
+        attachment.name = "Home-primary-action-first-view"
+        attachment.lifetime = .keepAlways
+        add(attachment)
+        notify.tap()
+        XCTAssertTrue(app.navigationBars.firstMatch.waitForExistence(timeout: 5))
+    }
+
     // MARK: - 文字サイズ
 
     /// 文字を最大にしても、主要な操作が画面から消えたり押せなくなったりしないことを確かめます。
@@ -96,7 +158,12 @@ final class BusTimeAppUITests: XCTestCase {
         // 運行日の選択
         let today = app.buttons["今日"]
         XCTAssertTrue(today.waitForExistence(timeout: 5), "運行日の選択が見つかりません")
-        XCTAssertTrue(today.isHittable, "運行日の選択が押せません")
+        var conditionScrolls = 0
+        while !today.isHittable, conditionScrolls < 8 {
+            app.scrollViews.firstMatch.swipeUp()
+            conditionScrolls += 1
+        }
+        XCTAssertTrue(today.isHittable, "スクロールしても運行日の選択が押せません")
 
         // 出発地と目的地の入れ替え
         let swap = app.buttons["出発地と目的地を入れ替える"]
@@ -110,8 +177,8 @@ final class BusTimeAppUITests: XCTestCase {
         let notifyButton = app.buttons["この便を通知する"]
         XCTAssertTrue(notifyButton.waitForExistence(timeout: 5), "通知ボタンが見つかりません")
         var attempts = 0
-        while !notifyButton.isHittable, attempts < 4 {
-            app.scrollViews.firstMatch.swipeUp()
+        while !notifyButton.isHittable, attempts < 8 {
+            app.scrollViews.firstMatch.swipeDown()
             attempts += 1
         }
         XCTAssertTrue(notifyButton.isHittable, "通知ボタンが押せません")

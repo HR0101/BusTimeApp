@@ -136,8 +136,15 @@ enum BusNotificationTimeCalculator {
     static func nextDepartureDate(
         for departure: String,
         from now: Date,
-        calendar: Calendar = AppCalendar.japan
+        calendar: Calendar = AppCalendar.japan,
+        serviceDate: Date? = nil
     ) -> Date? {
+        if let serviceDate {
+            guard let boundary = calendar.date(bySettingHour: serviceDayBoundaryHour, minute: 0, second: 0, of: serviceDate),
+                  let candidate = departureDateForCurrentServiceDay(for: departure, from: boundary, calendar: calendar),
+                  candidate > now else { return nil }
+            return candidate
+        }
         for offset in 0...maximumDaysToFindServiceDay {
             guard let reference = calendar.date(byAdding: .day, value: offset, to: now),
                   let candidate = departureDateForCurrentServiceDay(
@@ -163,10 +170,11 @@ enum BusNotificationTimeCalculator {
         for departure: String,
         minutesBefore: Int,
         from now: Date,
-        calendar: Calendar = AppCalendar.japan
+        calendar: Calendar = AppCalendar.japan,
+        serviceDate: Date? = nil
     ) -> (departureDate: Date, notificationDate: Date)? {
         guard minutesBefore >= 0,
-              let departureDate = nextDepartureDate(for: departure, from: now, calendar: calendar),
+              let departureDate = nextDepartureDate(for: departure, from: now, calendar: calendar, serviceDate: serviceDate),
               let notificationDate = calendar.date(
                 byAdding: .minute,
                 value: -minutesBefore,

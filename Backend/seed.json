@@ -1,0 +1,2044 @@
+{
+  "stops": [
+    {
+      "id": "mansion",
+      "name": "コロンブスシティ",
+      "latitude": 35.6589411,
+      "longitude": 140.0357708
+    },
+    {
+      "id": "station",
+      "name": "海浜幕張駅",
+      "latitude": 35.6485608,
+      "longitude": 140.0416924
+    },
+    {
+      "id": "yokado",
+      "name": "ヨーカドー前",
+      "latitude": 35.656944,
+      "longitude": 140.05101
+    }
+  ],
+  "routes": [
+    {
+      "id": "mansion-station",
+      "name": "コロンブスシティ → 海浜幕張駅",
+      "origin_stop_id": "mansion",
+      "destination_stop_id": "station"
+    },
+    {
+      "id": "station-mansion",
+      "name": "海浜幕張駅 → コロンブスシティ",
+      "origin_stop_id": "station",
+      "destination_stop_id": "mansion"
+    },
+    {
+      "id": "mansion-yokado",
+      "name": "コロンブスシティ → ヨーカドー前",
+      "origin_stop_id": "mansion",
+      "destination_stop_id": "yokado"
+    },
+    {
+      "id": "station-yokado",
+      "name": "海浜幕張駅 → ヨーカドー前",
+      "origin_stop_id": "station",
+      "destination_stop_id": "yokado"
+    },
+    {
+      "id": "yokado-mansion",
+      "name": "ヨーカドー前 → コロンブスシティ",
+      "origin_stop_id": "yokado",
+      "destination_stop_id": "mansion"
+    }
+  ],
+  "schedules": [
+    {
+      "id": "mansion-station-weekday",
+      "route_id": "mansion-station",
+      "kind": "weekday",
+      "is_suspended": false
+    },
+    {
+      "id": "mansion-station-weekend",
+      "route_id": "mansion-station",
+      "kind": "weekend",
+      "is_suspended": true
+    },
+    {
+      "id": "mansion-station-holiday",
+      "route_id": "mansion-station",
+      "kind": "holiday",
+      "is_suspended": true
+    },
+    {
+      "id": "station-mansion-weekday",
+      "route_id": "station-mansion",
+      "kind": "weekday",
+      "is_suspended": false
+    },
+    {
+      "id": "station-mansion-weekend",
+      "route_id": "station-mansion",
+      "kind": "weekend",
+      "is_suspended": true
+    },
+    {
+      "id": "station-mansion-holiday",
+      "route_id": "station-mansion",
+      "kind": "holiday",
+      "is_suspended": true
+    },
+    {
+      "id": "mansion-yokado-weekday",
+      "route_id": "mansion-yokado",
+      "kind": "weekday",
+      "is_suspended": false
+    },
+    {
+      "id": "mansion-yokado-weekend",
+      "route_id": "mansion-yokado",
+      "kind": "weekend",
+      "is_suspended": true
+    },
+    {
+      "id": "mansion-yokado-holiday",
+      "route_id": "mansion-yokado",
+      "kind": "holiday",
+      "is_suspended": true
+    },
+    {
+      "id": "station-yokado-weekday",
+      "route_id": "station-yokado",
+      "kind": "weekday",
+      "is_suspended": false
+    },
+    {
+      "id": "station-yokado-weekend",
+      "route_id": "station-yokado",
+      "kind": "weekend",
+      "is_suspended": true
+    },
+    {
+      "id": "station-yokado-holiday",
+      "route_id": "station-yokado",
+      "kind": "holiday",
+      "is_suspended": true
+    },
+    {
+      "id": "yokado-mansion-weekday",
+      "route_id": "yokado-mansion",
+      "kind": "weekday",
+      "is_suspended": false
+    },
+    {
+      "id": "yokado-mansion-weekend",
+      "route_id": "yokado-mansion",
+      "kind": "weekend",
+      "is_suspended": true
+    },
+    {
+      "id": "yokado-mansion-holiday",
+      "route_id": "yokado-mansion",
+      "kind": "holiday",
+      "is_suspended": true
+    }
+  ],
+  "buses": [
+    {
+      "id": "mansion-station-6-03",
+      "route_id": "mansion-station",
+      "schedule_id": "mansion-station-weekday",
+      "stops": [
+        {
+          "stop_id": "mansion",
+          "time": "6:03"
+        },
+        {
+          "stop_id": "station",
+          "time": "6:11"
+        }
+      ],
+      "note": null
+    },
+    {
+      "id": "mansion-station-6-30",
+      "route_id": "mansion-station",
+      "schedule_id": "mansion-station-weekday",
+      "stops": [
+        {
+          "stop_id": "mansion",
+          "time": "6:30"
+        },
+        {
+          "stop_id": "station",
+          "time": "6:38"
+        }
+      ],
+      "note": null
+    },
+    {
+      "id": "mansion-station-6-40",
+      "route_id": "mansion-station",
+      "schedule_id": "mansion-station-weekday",
+      "stops": [
+        {
+          "stop_id": "mansion",
+          "time": "6:40"
+        },
+        {
+          "stop_id": "station",
+          "time": "6:48"
+        }
+      ],
+      "note": null
+    },
+    {
+      "id": "mansion-station-6-50",
+      "route_id": "mansion-station",
+      "schedule_id": "mansion-station-weekday",
+      "stops": [
+        {
+          "stop_id": "mansion",
+          "time": "6:50"
+        },
+        {
+          "stop_id": "station",
+          "time": "6:58"
+        }
+      ],
+      "note": null
+    },
+    {
+      "id": "mansion-station-7-00",
+      "route_id": "mansion-station",
+      "schedule_id": "mansion-station-weekday",
+      "stops": [
+        {
+          "stop_id": "mansion",
+          "time": "7:00"
+        },
+        {
+          "stop_id": "station",
+          "time": "7:08"
+        }
+      ],
+      "note": null
+    },
+    {
+      "id": "mansion-station-7-10",
+      "route_id": "mansion-station",
+      "schedule_id": "mansion-station-weekday",
+      "stops": [
+        {
+          "stop_id": "mansion",
+          "time": "7:10"
+        },
+        {
+          "stop_id": "station",
+          "time": "7:18"
+        }
+      ],
+      "note": null
+    },
+    {
+      "id": "mansion-station-7-20",
+      "route_id": "mansion-station",
+      "schedule_id": "mansion-station-weekday",
+      "stops": [
+        {
+          "stop_id": "mansion",
+          "time": "7:20"
+        },
+        {
+          "stop_id": "station",
+          "time": "7:28"
+        }
+      ],
+      "note": null
+    },
+    {
+      "id": "mansion-station-7-30",
+      "route_id": "mansion-station",
+      "schedule_id": "mansion-station-weekday",
+      "stops": [
+        {
+          "stop_id": "mansion",
+          "time": "7:30"
+        },
+        {
+          "stop_id": "station",
+          "time": "7:38"
+        }
+      ],
+      "note": null
+    },
+    {
+      "id": "mansion-station-7-40",
+      "route_id": "mansion-station",
+      "schedule_id": "mansion-station-weekday",
+      "stops": [
+        {
+          "stop_id": "mansion",
+          "time": "7:40"
+        },
+        {
+          "stop_id": "station",
+          "time": "7:48"
+        }
+      ],
+      "note": null
+    },
+    {
+      "id": "mansion-station-7-50",
+      "route_id": "mansion-station",
+      "schedule_id": "mansion-station-weekday",
+      "stops": [
+        {
+          "stop_id": "mansion",
+          "time": "7:50"
+        },
+        {
+          "stop_id": "station",
+          "time": "7:58"
+        }
+      ],
+      "note": null
+    },
+    {
+      "id": "mansion-station-8-00",
+      "route_id": "mansion-station",
+      "schedule_id": "mansion-station-weekday",
+      "stops": [
+        {
+          "stop_id": "mansion",
+          "time": "8:00"
+        },
+        {
+          "stop_id": "station",
+          "time": "8:08"
+        }
+      ],
+      "note": null
+    },
+    {
+      "id": "mansion-station-8-10",
+      "route_id": "mansion-station",
+      "schedule_id": "mansion-station-weekday",
+      "stops": [
+        {
+          "stop_id": "mansion",
+          "time": "8:10"
+        },
+        {
+          "stop_id": "station",
+          "time": "8:18"
+        }
+      ],
+      "note": null
+    },
+    {
+      "id": "mansion-station-8-20",
+      "route_id": "mansion-station",
+      "schedule_id": "mansion-station-weekday",
+      "stops": [
+        {
+          "stop_id": "mansion",
+          "time": "8:20"
+        },
+        {
+          "stop_id": "station",
+          "time": "8:28"
+        }
+      ],
+      "note": null
+    },
+    {
+      "id": "mansion-station-8-30",
+      "route_id": "mansion-station",
+      "schedule_id": "mansion-station-weekday",
+      "stops": [
+        {
+          "stop_id": "mansion",
+          "time": "8:30"
+        },
+        {
+          "stop_id": "station",
+          "time": "8:38"
+        }
+      ],
+      "note": null
+    },
+    {
+      "id": "mansion-station-8-40",
+      "route_id": "mansion-station",
+      "schedule_id": "mansion-station-weekday",
+      "stops": [
+        {
+          "stop_id": "mansion",
+          "time": "8:40"
+        },
+        {
+          "stop_id": "station",
+          "time": "8:48"
+        }
+      ],
+      "note": null
+    },
+    {
+      "id": "mansion-station-9-00",
+      "route_id": "mansion-station",
+      "schedule_id": "mansion-station-weekday",
+      "stops": [
+        {
+          "stop_id": "mansion",
+          "time": "9:00"
+        },
+        {
+          "stop_id": "station",
+          "time": "9:08"
+        }
+      ],
+      "note": null
+    },
+    {
+      "id": "mansion-station-10-00",
+      "route_id": "mansion-station",
+      "schedule_id": "mansion-station-weekday",
+      "stops": [
+        {
+          "stop_id": "mansion",
+          "time": "10:00"
+        },
+        {
+          "stop_id": "station",
+          "time": "10:08"
+        }
+      ],
+      "note": null
+    },
+    {
+      "id": "mansion-station-11-00",
+      "route_id": "mansion-station",
+      "schedule_id": "mansion-station-weekday",
+      "stops": [
+        {
+          "stop_id": "mansion",
+          "time": "11:00"
+        },
+        {
+          "stop_id": "station",
+          "time": "11:08"
+        }
+      ],
+      "note": null
+    },
+    {
+      "id": "mansion-station-13-00",
+      "route_id": "mansion-station",
+      "schedule_id": "mansion-station-weekday",
+      "stops": [
+        {
+          "stop_id": "mansion",
+          "time": "13:00"
+        },
+        {
+          "stop_id": "station",
+          "time": "13:08"
+        }
+      ],
+      "note": null
+    },
+    {
+      "id": "mansion-station-14-00",
+      "route_id": "mansion-station",
+      "schedule_id": "mansion-station-weekday",
+      "stops": [
+        {
+          "stop_id": "mansion",
+          "time": "14:00"
+        },
+        {
+          "stop_id": "station",
+          "time": "14:08"
+        }
+      ],
+      "note": null
+    },
+    {
+      "id": "mansion-station-15-00",
+      "route_id": "mansion-station",
+      "schedule_id": "mansion-station-weekday",
+      "stops": [
+        {
+          "stop_id": "mansion",
+          "time": "15:00"
+        },
+        {
+          "stop_id": "station",
+          "time": "15:08"
+        }
+      ],
+      "note": null
+    },
+    {
+      "id": "mansion-station-16-00",
+      "route_id": "mansion-station",
+      "schedule_id": "mansion-station-weekday",
+      "stops": [
+        {
+          "stop_id": "mansion",
+          "time": "16:00"
+        },
+        {
+          "stop_id": "station",
+          "time": "16:08"
+        }
+      ],
+      "note": null
+    },
+    {
+      "id": "mansion-station-17-04",
+      "route_id": "mansion-station",
+      "schedule_id": "mansion-station-weekday",
+      "stops": [
+        {
+          "stop_id": "mansion",
+          "time": "17:04"
+        },
+        {
+          "stop_id": "station",
+          "time": "17:11"
+        }
+      ],
+      "note": null
+    },
+    {
+      "id": "mansion-station-17-37",
+      "route_id": "mansion-station",
+      "schedule_id": "mansion-station-weekday",
+      "stops": [
+        {
+          "stop_id": "mansion",
+          "time": "17:37"
+        },
+        {
+          "stop_id": "station",
+          "time": "17:44"
+        }
+      ],
+      "note": null
+    },
+    {
+      "id": "mansion-station-18-02",
+      "route_id": "mansion-station",
+      "schedule_id": "mansion-station-weekday",
+      "stops": [
+        {
+          "stop_id": "mansion",
+          "time": "18:02"
+        },
+        {
+          "stop_id": "station",
+          "time": "18:09"
+        }
+      ],
+      "note": null
+    },
+    {
+      "id": "mansion-station-18-19",
+      "route_id": "mansion-station",
+      "schedule_id": "mansion-station-weekday",
+      "stops": [
+        {
+          "stop_id": "mansion",
+          "time": "18:19"
+        },
+        {
+          "stop_id": "station",
+          "time": "18:26"
+        }
+      ],
+      "note": null
+    },
+    {
+      "id": "mansion-station-18-37",
+      "route_id": "mansion-station",
+      "schedule_id": "mansion-station-weekday",
+      "stops": [
+        {
+          "stop_id": "mansion",
+          "time": "18:37"
+        },
+        {
+          "stop_id": "station",
+          "time": "18:44"
+        }
+      ],
+      "note": null
+    },
+    {
+      "id": "mansion-station-19-01",
+      "route_id": "mansion-station",
+      "schedule_id": "mansion-station-weekday",
+      "stops": [
+        {
+          "stop_id": "mansion",
+          "time": "19:01"
+        },
+        {
+          "stop_id": "station",
+          "time": "19:08"
+        }
+      ],
+      "note": null
+    },
+    {
+      "id": "mansion-station-19-20",
+      "route_id": "mansion-station",
+      "schedule_id": "mansion-station-weekday",
+      "stops": [
+        {
+          "stop_id": "mansion",
+          "time": "19:20"
+        },
+        {
+          "stop_id": "station",
+          "time": "19:27"
+        }
+      ],
+      "note": null
+    },
+    {
+      "id": "mansion-station-19-39",
+      "route_id": "mansion-station",
+      "schedule_id": "mansion-station-weekday",
+      "stops": [
+        {
+          "stop_id": "mansion",
+          "time": "19:39"
+        },
+        {
+          "stop_id": "station",
+          "time": "19:46"
+        }
+      ],
+      "note": null
+    },
+    {
+      "id": "mansion-station-19-59",
+      "route_id": "mansion-station",
+      "schedule_id": "mansion-station-weekday",
+      "stops": [
+        {
+          "stop_id": "mansion",
+          "time": "19:59"
+        },
+        {
+          "stop_id": "station",
+          "time": "20:06"
+        }
+      ],
+      "note": null
+    },
+    {
+      "id": "mansion-station-20-17",
+      "route_id": "mansion-station",
+      "schedule_id": "mansion-station-weekday",
+      "stops": [
+        {
+          "stop_id": "mansion",
+          "time": "20:17"
+        },
+        {
+          "stop_id": "station",
+          "time": "20:24"
+        }
+      ],
+      "note": null
+    },
+    {
+      "id": "mansion-station-20-51",
+      "route_id": "mansion-station",
+      "schedule_id": "mansion-station-weekday",
+      "stops": [
+        {
+          "stop_id": "mansion",
+          "time": "20:51"
+        },
+        {
+          "stop_id": "station",
+          "time": "20:58"
+        }
+      ],
+      "note": null
+    },
+    {
+      "id": "mansion-station-21-08",
+      "route_id": "mansion-station",
+      "schedule_id": "mansion-station-weekday",
+      "stops": [
+        {
+          "stop_id": "mansion",
+          "time": "21:08"
+        },
+        {
+          "stop_id": "station",
+          "time": "21:15"
+        }
+      ],
+      "note": null
+    },
+    {
+      "id": "mansion-station-21-55",
+      "route_id": "mansion-station",
+      "schedule_id": "mansion-station-weekday",
+      "stops": [
+        {
+          "stop_id": "mansion",
+          "time": "21:55"
+        },
+        {
+          "stop_id": "station",
+          "time": "22:02"
+        }
+      ],
+      "note": null
+    },
+    {
+      "id": "mansion-station-22-19",
+      "route_id": "mansion-station",
+      "schedule_id": "mansion-station-weekday",
+      "stops": [
+        {
+          "stop_id": "mansion",
+          "time": "22:19"
+        },
+        {
+          "stop_id": "station",
+          "time": "22:26"
+        }
+      ],
+      "note": null
+    },
+    {
+      "id": "mansion-station-22-37",
+      "route_id": "mansion-station",
+      "schedule_id": "mansion-station-weekday",
+      "stops": [
+        {
+          "stop_id": "mansion",
+          "time": "22:37"
+        },
+        {
+          "stop_id": "station",
+          "time": "22:44"
+        }
+      ],
+      "note": null
+    },
+    {
+      "id": "mansion-station-23-06",
+      "route_id": "mansion-station",
+      "schedule_id": "mansion-station-weekday",
+      "stops": [
+        {
+          "stop_id": "mansion",
+          "time": "23:06"
+        },
+        {
+          "stop_id": "station",
+          "time": "23:13"
+        }
+      ],
+      "note": null
+    },
+    {
+      "id": "mansion-station-23-38",
+      "route_id": "mansion-station",
+      "schedule_id": "mansion-station-weekday",
+      "stops": [
+        {
+          "stop_id": "mansion",
+          "time": "23:38"
+        },
+        {
+          "stop_id": "station",
+          "time": "23:45"
+        }
+      ],
+      "note": null
+    },
+    {
+      "id": "mansion-station-0-04",
+      "route_id": "mansion-station",
+      "schedule_id": "mansion-station-weekday",
+      "stops": [
+        {
+          "stop_id": "mansion",
+          "time": "0:04"
+        },
+        {
+          "stop_id": "station",
+          "time": "0:11"
+        }
+      ],
+      "note": null
+    },
+    {
+      "id": "mansion-station-9-30",
+      "route_id": "mansion-station",
+      "schedule_id": "mansion-station-weekday",
+      "stops": [
+        {
+          "stop_id": "mansion",
+          "time": "9:30"
+        },
+        {
+          "stop_id": "station",
+          "time": "9:38"
+        }
+      ],
+      "note": "お買い物便"
+    },
+    {
+      "id": "mansion-station-10-30",
+      "route_id": "mansion-station",
+      "schedule_id": "mansion-station-weekday",
+      "stops": [
+        {
+          "stop_id": "mansion",
+          "time": "10:30"
+        },
+        {
+          "stop_id": "station",
+          "time": "10:38"
+        }
+      ],
+      "note": "お買い物便"
+    },
+    {
+      "id": "mansion-station-11-30",
+      "route_id": "mansion-station",
+      "schedule_id": "mansion-station-weekday",
+      "stops": [
+        {
+          "stop_id": "mansion",
+          "time": "11:30"
+        },
+        {
+          "stop_id": "station",
+          "time": "11:38"
+        }
+      ],
+      "note": "お買い物便"
+    },
+    {
+      "id": "mansion-station-13-30",
+      "route_id": "mansion-station",
+      "schedule_id": "mansion-station-weekday",
+      "stops": [
+        {
+          "stop_id": "mansion",
+          "time": "13:30"
+        },
+        {
+          "stop_id": "station",
+          "time": "13:38"
+        }
+      ],
+      "note": "お買い物便"
+    },
+    {
+      "id": "mansion-station-14-30",
+      "route_id": "mansion-station",
+      "schedule_id": "mansion-station-weekday",
+      "stops": [
+        {
+          "stop_id": "mansion",
+          "time": "14:30"
+        },
+        {
+          "stop_id": "station",
+          "time": "14:38"
+        }
+      ],
+      "note": "お買い物便"
+    },
+    {
+      "id": "mansion-station-15-30",
+      "route_id": "mansion-station",
+      "schedule_id": "mansion-station-weekday",
+      "stops": [
+        {
+          "stop_id": "mansion",
+          "time": "15:30"
+        },
+        {
+          "stop_id": "station",
+          "time": "15:38"
+        }
+      ],
+      "note": "お買い物便"
+    },
+    {
+      "id": "mansion-station-16-30",
+      "route_id": "mansion-station",
+      "schedule_id": "mansion-station-weekday",
+      "stops": [
+        {
+          "stop_id": "mansion",
+          "time": "16:30"
+        },
+        {
+          "stop_id": "station",
+          "time": "16:38"
+        }
+      ],
+      "note": "お買い物便"
+    },
+    {
+      "id": "station-mansion-6-11",
+      "route_id": "station-mansion",
+      "schedule_id": "station-mansion-weekday",
+      "stops": [
+        {
+          "stop_id": "station",
+          "time": "6:11"
+        },
+        {
+          "stop_id": "mansion",
+          "time": "6:18"
+        }
+      ],
+      "note": null
+    },
+    {
+      "id": "station-mansion-6-38",
+      "route_id": "station-mansion",
+      "schedule_id": "station-mansion-weekday",
+      "stops": [
+        {
+          "stop_id": "station",
+          "time": "6:38"
+        },
+        {
+          "stop_id": "mansion",
+          "time": "6:45"
+        }
+      ],
+      "note": null
+    },
+    {
+      "id": "station-mansion-6-48",
+      "route_id": "station-mansion",
+      "schedule_id": "station-mansion-weekday",
+      "stops": [
+        {
+          "stop_id": "station",
+          "time": "6:48"
+        },
+        {
+          "stop_id": "mansion",
+          "time": "6:55"
+        }
+      ],
+      "note": null
+    },
+    {
+      "id": "station-mansion-6-58",
+      "route_id": "station-mansion",
+      "schedule_id": "station-mansion-weekday",
+      "stops": [
+        {
+          "stop_id": "station",
+          "time": "6:58"
+        },
+        {
+          "stop_id": "mansion",
+          "time": "7:05"
+        }
+      ],
+      "note": null
+    },
+    {
+      "id": "station-mansion-7-08",
+      "route_id": "station-mansion",
+      "schedule_id": "station-mansion-weekday",
+      "stops": [
+        {
+          "stop_id": "station",
+          "time": "7:08"
+        },
+        {
+          "stop_id": "mansion",
+          "time": "7:15"
+        }
+      ],
+      "note": null
+    },
+    {
+      "id": "station-mansion-7-18",
+      "route_id": "station-mansion",
+      "schedule_id": "station-mansion-weekday",
+      "stops": [
+        {
+          "stop_id": "station",
+          "time": "7:18"
+        },
+        {
+          "stop_id": "mansion",
+          "time": "7:25"
+        }
+      ],
+      "note": null
+    },
+    {
+      "id": "station-mansion-7-28",
+      "route_id": "station-mansion",
+      "schedule_id": "station-mansion-weekday",
+      "stops": [
+        {
+          "stop_id": "station",
+          "time": "7:28"
+        },
+        {
+          "stop_id": "mansion",
+          "time": "7:35"
+        }
+      ],
+      "note": null
+    },
+    {
+      "id": "station-mansion-7-38",
+      "route_id": "station-mansion",
+      "schedule_id": "station-mansion-weekday",
+      "stops": [
+        {
+          "stop_id": "station",
+          "time": "7:38"
+        },
+        {
+          "stop_id": "mansion",
+          "time": "7:45"
+        }
+      ],
+      "note": null
+    },
+    {
+      "id": "station-mansion-7-48",
+      "route_id": "station-mansion",
+      "schedule_id": "station-mansion-weekday",
+      "stops": [
+        {
+          "stop_id": "station",
+          "time": "7:48"
+        },
+        {
+          "stop_id": "mansion",
+          "time": "7:55"
+        }
+      ],
+      "note": null
+    },
+    {
+      "id": "station-mansion-7-58",
+      "route_id": "station-mansion",
+      "schedule_id": "station-mansion-weekday",
+      "stops": [
+        {
+          "stop_id": "station",
+          "time": "7:58"
+        },
+        {
+          "stop_id": "mansion",
+          "time": "8:05"
+        }
+      ],
+      "note": null
+    },
+    {
+      "id": "station-mansion-8-08",
+      "route_id": "station-mansion",
+      "schedule_id": "station-mansion-weekday",
+      "stops": [
+        {
+          "stop_id": "station",
+          "time": "8:08"
+        },
+        {
+          "stop_id": "mansion",
+          "time": "8:15"
+        }
+      ],
+      "note": null
+    },
+    {
+      "id": "station-mansion-8-18",
+      "route_id": "station-mansion",
+      "schedule_id": "station-mansion-weekday",
+      "stops": [
+        {
+          "stop_id": "station",
+          "time": "8:18"
+        },
+        {
+          "stop_id": "mansion",
+          "time": "8:25"
+        }
+      ],
+      "note": null
+    },
+    {
+      "id": "station-mansion-8-28",
+      "route_id": "station-mansion",
+      "schedule_id": "station-mansion-weekday",
+      "stops": [
+        {
+          "stop_id": "station",
+          "time": "8:28"
+        },
+        {
+          "stop_id": "mansion",
+          "time": "8:35"
+        }
+      ],
+      "note": null
+    },
+    {
+      "id": "station-mansion-8-48",
+      "route_id": "station-mansion",
+      "schedule_id": "station-mansion-weekday",
+      "stops": [
+        {
+          "stop_id": "station",
+          "time": "8:48"
+        },
+        {
+          "stop_id": "mansion",
+          "time": "8:55"
+        }
+      ],
+      "note": null
+    },
+    {
+      "id": "station-mansion-10-08",
+      "route_id": "station-mansion",
+      "schedule_id": "station-mansion-weekday",
+      "stops": [
+        {
+          "stop_id": "station",
+          "time": "10:08"
+        },
+        {
+          "stop_id": "mansion",
+          "time": "10:16"
+        }
+      ],
+      "note": null
+    },
+    {
+      "id": "station-mansion-11-08",
+      "route_id": "station-mansion",
+      "schedule_id": "station-mansion-weekday",
+      "stops": [
+        {
+          "stop_id": "station",
+          "time": "11:08"
+        },
+        {
+          "stop_id": "mansion",
+          "time": "11:16"
+        }
+      ],
+      "note": null
+    },
+    {
+      "id": "station-mansion-13-08",
+      "route_id": "station-mansion",
+      "schedule_id": "station-mansion-weekday",
+      "stops": [
+        {
+          "stop_id": "station",
+          "time": "13:08"
+        },
+        {
+          "stop_id": "mansion",
+          "time": "13:16"
+        }
+      ],
+      "note": null
+    },
+    {
+      "id": "station-mansion-14-08",
+      "route_id": "station-mansion",
+      "schedule_id": "station-mansion-weekday",
+      "stops": [
+        {
+          "stop_id": "station",
+          "time": "14:08"
+        },
+        {
+          "stop_id": "mansion",
+          "time": "14:16"
+        }
+      ],
+      "note": null
+    },
+    {
+      "id": "station-mansion-15-08",
+      "route_id": "station-mansion",
+      "schedule_id": "station-mansion-weekday",
+      "stops": [
+        {
+          "stop_id": "station",
+          "time": "15:08"
+        },
+        {
+          "stop_id": "mansion",
+          "time": "15:16"
+        }
+      ],
+      "note": null
+    },
+    {
+      "id": "station-mansion-16-08",
+      "route_id": "station-mansion",
+      "schedule_id": "station-mansion-weekday",
+      "stops": [
+        {
+          "stop_id": "station",
+          "time": "16:08"
+        },
+        {
+          "stop_id": "mansion",
+          "time": "16:16"
+        }
+      ],
+      "note": null
+    },
+    {
+      "id": "station-mansion-17-12",
+      "route_id": "station-mansion",
+      "schedule_id": "station-mansion-weekday",
+      "stops": [
+        {
+          "stop_id": "station",
+          "time": "17:12"
+        },
+        {
+          "stop_id": "mansion",
+          "time": "17:19"
+        }
+      ],
+      "note": null
+    },
+    {
+      "id": "station-mansion-17-46",
+      "route_id": "station-mansion",
+      "schedule_id": "station-mansion-weekday",
+      "stops": [
+        {
+          "stop_id": "station",
+          "time": "17:46"
+        },
+        {
+          "stop_id": "mansion",
+          "time": "17:53"
+        }
+      ],
+      "note": null
+    },
+    {
+      "id": "station-mansion-18-11",
+      "route_id": "station-mansion",
+      "schedule_id": "station-mansion-weekday",
+      "stops": [
+        {
+          "stop_id": "station",
+          "time": "18:11"
+        },
+        {
+          "stop_id": "mansion",
+          "time": "18:18"
+        }
+      ],
+      "note": null
+    },
+    {
+      "id": "station-mansion-18-28",
+      "route_id": "station-mansion",
+      "schedule_id": "station-mansion-weekday",
+      "stops": [
+        {
+          "stop_id": "station",
+          "time": "18:28"
+        },
+        {
+          "stop_id": "mansion",
+          "time": "18:35"
+        }
+      ],
+      "note": null
+    },
+    {
+      "id": "station-mansion-18-46",
+      "route_id": "station-mansion",
+      "schedule_id": "station-mansion-weekday",
+      "stops": [
+        {
+          "stop_id": "station",
+          "time": "18:46"
+        },
+        {
+          "stop_id": "mansion",
+          "time": "18:53"
+        }
+      ],
+      "note": null
+    },
+    {
+      "id": "station-mansion-19-10",
+      "route_id": "station-mansion",
+      "schedule_id": "station-mansion-weekday",
+      "stops": [
+        {
+          "stop_id": "station",
+          "time": "19:10"
+        },
+        {
+          "stop_id": "mansion",
+          "time": "19:17"
+        }
+      ],
+      "note": null
+    },
+    {
+      "id": "station-mansion-19-29",
+      "route_id": "station-mansion",
+      "schedule_id": "station-mansion-weekday",
+      "stops": [
+        {
+          "stop_id": "station",
+          "time": "19:29"
+        },
+        {
+          "stop_id": "mansion",
+          "time": "19:36"
+        }
+      ],
+      "note": null
+    },
+    {
+      "id": "station-mansion-19-48",
+      "route_id": "station-mansion",
+      "schedule_id": "station-mansion-weekday",
+      "stops": [
+        {
+          "stop_id": "station",
+          "time": "19:48"
+        },
+        {
+          "stop_id": "mansion",
+          "time": "19:55"
+        }
+      ],
+      "note": null
+    },
+    {
+      "id": "station-mansion-20-08",
+      "route_id": "station-mansion",
+      "schedule_id": "station-mansion-weekday",
+      "stops": [
+        {
+          "stop_id": "station",
+          "time": "20:08"
+        },
+        {
+          "stop_id": "mansion",
+          "time": "20:15"
+        }
+      ],
+      "note": null
+    },
+    {
+      "id": "station-mansion-20-26",
+      "route_id": "station-mansion",
+      "schedule_id": "station-mansion-weekday",
+      "stops": [
+        {
+          "stop_id": "station",
+          "time": "20:26"
+        },
+        {
+          "stop_id": "mansion",
+          "time": "20:33"
+        }
+      ],
+      "note": null
+    },
+    {
+      "id": "station-mansion-20-43",
+      "route_id": "station-mansion",
+      "schedule_id": "station-mansion-weekday",
+      "stops": [
+        {
+          "stop_id": "station",
+          "time": "20:43"
+        },
+        {
+          "stop_id": "mansion",
+          "time": "20:50"
+        }
+      ],
+      "note": null
+    },
+    {
+      "id": "station-mansion-21-00",
+      "route_id": "station-mansion",
+      "schedule_id": "station-mansion-weekday",
+      "stops": [
+        {
+          "stop_id": "station",
+          "time": "21:00"
+        },
+        {
+          "stop_id": "mansion",
+          "time": "21:07"
+        }
+      ],
+      "note": null
+    },
+    {
+      "id": "station-mansion-21-17",
+      "route_id": "station-mansion",
+      "schedule_id": "station-mansion-weekday",
+      "stops": [
+        {
+          "stop_id": "station",
+          "time": "21:17"
+        },
+        {
+          "stop_id": "mansion",
+          "time": "21:24"
+        }
+      ],
+      "note": null
+    },
+    {
+      "id": "station-mansion-21-39",
+      "route_id": "station-mansion",
+      "schedule_id": "station-mansion-weekday",
+      "stops": [
+        {
+          "stop_id": "station",
+          "time": "21:39"
+        },
+        {
+          "stop_id": "mansion",
+          "time": "21:46"
+        }
+      ],
+      "note": null
+    },
+    {
+      "id": "station-mansion-22-04",
+      "route_id": "station-mansion",
+      "schedule_id": "station-mansion-weekday",
+      "stops": [
+        {
+          "stop_id": "station",
+          "time": "22:04"
+        },
+        {
+          "stop_id": "mansion",
+          "time": "22:11"
+        }
+      ],
+      "note": null
+    },
+    {
+      "id": "station-mansion-22-28",
+      "route_id": "station-mansion",
+      "schedule_id": "station-mansion-weekday",
+      "stops": [
+        {
+          "stop_id": "station",
+          "time": "22:28"
+        },
+        {
+          "stop_id": "mansion",
+          "time": "22:35"
+        }
+      ],
+      "note": null
+    },
+    {
+      "id": "station-mansion-22-46",
+      "route_id": "station-mansion",
+      "schedule_id": "station-mansion-weekday",
+      "stops": [
+        {
+          "stop_id": "station",
+          "time": "22:46"
+        },
+        {
+          "stop_id": "mansion",
+          "time": "22:53"
+        }
+      ],
+      "note": null
+    },
+    {
+      "id": "station-mansion-23-15",
+      "route_id": "station-mansion",
+      "schedule_id": "station-mansion-weekday",
+      "stops": [
+        {
+          "stop_id": "station",
+          "time": "23:15"
+        },
+        {
+          "stop_id": "mansion",
+          "time": "23:22"
+        }
+      ],
+      "note": null
+    },
+    {
+      "id": "station-mansion-23-47",
+      "route_id": "station-mansion",
+      "schedule_id": "station-mansion-weekday",
+      "stops": [
+        {
+          "stop_id": "station",
+          "time": "23:47"
+        },
+        {
+          "stop_id": "mansion",
+          "time": "23:54"
+        }
+      ],
+      "note": null
+    },
+    {
+      "id": "station-mansion-0-13",
+      "route_id": "station-mansion",
+      "schedule_id": "station-mansion-weekday",
+      "stops": [
+        {
+          "stop_id": "station",
+          "time": "0:13"
+        },
+        {
+          "stop_id": "mansion",
+          "time": "0:19"
+        }
+      ],
+      "note": null
+    },
+    {
+      "id": "station-mansion-9-38",
+      "route_id": "station-mansion",
+      "schedule_id": "station-mansion-weekday",
+      "stops": [
+        {
+          "stop_id": "station",
+          "time": "9:38"
+        },
+        {
+          "stop_id": "yokado",
+          "time": "9:46"
+        },
+        {
+          "stop_id": "mansion",
+          "time": "9:53"
+        }
+      ],
+      "note": "ヨーカドー経由"
+    },
+    {
+      "id": "station-mansion-10-38",
+      "route_id": "station-mansion",
+      "schedule_id": "station-mansion-weekday",
+      "stops": [
+        {
+          "stop_id": "station",
+          "time": "10:38"
+        },
+        {
+          "stop_id": "yokado",
+          "time": "10:46"
+        },
+        {
+          "stop_id": "mansion",
+          "time": "10:53"
+        }
+      ],
+      "note": "ヨーカドー経由"
+    },
+    {
+      "id": "station-mansion-11-38",
+      "route_id": "station-mansion",
+      "schedule_id": "station-mansion-weekday",
+      "stops": [
+        {
+          "stop_id": "station",
+          "time": "11:38"
+        },
+        {
+          "stop_id": "yokado",
+          "time": "11:46"
+        },
+        {
+          "stop_id": "mansion",
+          "time": "11:53"
+        }
+      ],
+      "note": "ヨーカドー経由"
+    },
+    {
+      "id": "station-mansion-13-38",
+      "route_id": "station-mansion",
+      "schedule_id": "station-mansion-weekday",
+      "stops": [
+        {
+          "stop_id": "station",
+          "time": "13:38"
+        },
+        {
+          "stop_id": "yokado",
+          "time": "13:46"
+        },
+        {
+          "stop_id": "mansion",
+          "time": "13:53"
+        }
+      ],
+      "note": "ヨーカドー経由"
+    },
+    {
+      "id": "station-mansion-14-38",
+      "route_id": "station-mansion",
+      "schedule_id": "station-mansion-weekday",
+      "stops": [
+        {
+          "stop_id": "station",
+          "time": "14:38"
+        },
+        {
+          "stop_id": "yokado",
+          "time": "14:46"
+        },
+        {
+          "stop_id": "mansion",
+          "time": "14:53"
+        }
+      ],
+      "note": "ヨーカドー経由"
+    },
+    {
+      "id": "station-mansion-15-38",
+      "route_id": "station-mansion",
+      "schedule_id": "station-mansion-weekday",
+      "stops": [
+        {
+          "stop_id": "station",
+          "time": "15:38"
+        },
+        {
+          "stop_id": "yokado",
+          "time": "15:46"
+        },
+        {
+          "stop_id": "mansion",
+          "time": "15:53"
+        }
+      ],
+      "note": "ヨーカドー経由"
+    },
+    {
+      "id": "station-mansion-16-38",
+      "route_id": "station-mansion",
+      "schedule_id": "station-mansion-weekday",
+      "stops": [
+        {
+          "stop_id": "station",
+          "time": "16:38"
+        },
+        {
+          "stop_id": "yokado",
+          "time": "16:46"
+        },
+        {
+          "stop_id": "mansion",
+          "time": "16:53"
+        }
+      ],
+      "note": "ヨーカドー経由"
+    },
+    {
+      "id": "mansion-yokado-9-30",
+      "route_id": "mansion-yokado",
+      "schedule_id": "mansion-yokado-weekday",
+      "stops": [
+        {
+          "stop_id": "mansion",
+          "time": "9:30"
+        },
+        {
+          "stop_id": "station",
+          "time": "9:38"
+        },
+        {
+          "stop_id": "yokado",
+          "time": "9:46"
+        }
+      ],
+      "note": "海浜幕張駅経由"
+    },
+    {
+      "id": "mansion-yokado-10-30",
+      "route_id": "mansion-yokado",
+      "schedule_id": "mansion-yokado-weekday",
+      "stops": [
+        {
+          "stop_id": "mansion",
+          "time": "10:30"
+        },
+        {
+          "stop_id": "station",
+          "time": "10:38"
+        },
+        {
+          "stop_id": "yokado",
+          "time": "10:46"
+        }
+      ],
+      "note": "海浜幕張駅経由"
+    },
+    {
+      "id": "mansion-yokado-11-30",
+      "route_id": "mansion-yokado",
+      "schedule_id": "mansion-yokado-weekday",
+      "stops": [
+        {
+          "stop_id": "mansion",
+          "time": "11:30"
+        },
+        {
+          "stop_id": "station",
+          "time": "11:38"
+        },
+        {
+          "stop_id": "yokado",
+          "time": "11:46"
+        }
+      ],
+      "note": "海浜幕張駅経由"
+    },
+    {
+      "id": "mansion-yokado-13-30",
+      "route_id": "mansion-yokado",
+      "schedule_id": "mansion-yokado-weekday",
+      "stops": [
+        {
+          "stop_id": "mansion",
+          "time": "13:30"
+        },
+        {
+          "stop_id": "station",
+          "time": "13:38"
+        },
+        {
+          "stop_id": "yokado",
+          "time": "13:46"
+        }
+      ],
+      "note": "海浜幕張駅経由"
+    },
+    {
+      "id": "mansion-yokado-14-30",
+      "route_id": "mansion-yokado",
+      "schedule_id": "mansion-yokado-weekday",
+      "stops": [
+        {
+          "stop_id": "mansion",
+          "time": "14:30"
+        },
+        {
+          "stop_id": "station",
+          "time": "14:38"
+        },
+        {
+          "stop_id": "yokado",
+          "time": "14:46"
+        }
+      ],
+      "note": "海浜幕張駅経由"
+    },
+    {
+      "id": "mansion-yokado-15-30",
+      "route_id": "mansion-yokado",
+      "schedule_id": "mansion-yokado-weekday",
+      "stops": [
+        {
+          "stop_id": "mansion",
+          "time": "15:30"
+        },
+        {
+          "stop_id": "station",
+          "time": "15:38"
+        },
+        {
+          "stop_id": "yokado",
+          "time": "15:46"
+        }
+      ],
+      "note": "海浜幕張駅経由"
+    },
+    {
+      "id": "mansion-yokado-16-30",
+      "route_id": "mansion-yokado",
+      "schedule_id": "mansion-yokado-weekday",
+      "stops": [
+        {
+          "stop_id": "mansion",
+          "time": "16:30"
+        },
+        {
+          "stop_id": "station",
+          "time": "16:38"
+        },
+        {
+          "stop_id": "yokado",
+          "time": "16:46"
+        }
+      ],
+      "note": "海浜幕張駅経由"
+    },
+    {
+      "id": "station-yokado-9-38",
+      "route_id": "station-yokado",
+      "schedule_id": "station-yokado-weekday",
+      "stops": [
+        {
+          "stop_id": "station",
+          "time": "9:38"
+        },
+        {
+          "stop_id": "yokado",
+          "time": "9:46"
+        }
+      ],
+      "note": "お買い物便"
+    },
+    {
+      "id": "station-yokado-10-38",
+      "route_id": "station-yokado",
+      "schedule_id": "station-yokado-weekday",
+      "stops": [
+        {
+          "stop_id": "station",
+          "time": "10:38"
+        },
+        {
+          "stop_id": "yokado",
+          "time": "10:46"
+        }
+      ],
+      "note": "お買い物便"
+    },
+    {
+      "id": "station-yokado-11-38",
+      "route_id": "station-yokado",
+      "schedule_id": "station-yokado-weekday",
+      "stops": [
+        {
+          "stop_id": "station",
+          "time": "11:38"
+        },
+        {
+          "stop_id": "yokado",
+          "time": "11:46"
+        }
+      ],
+      "note": "お買い物便"
+    },
+    {
+      "id": "station-yokado-13-38",
+      "route_id": "station-yokado",
+      "schedule_id": "station-yokado-weekday",
+      "stops": [
+        {
+          "stop_id": "station",
+          "time": "13:38"
+        },
+        {
+          "stop_id": "yokado",
+          "time": "13:46"
+        }
+      ],
+      "note": "お買い物便"
+    },
+    {
+      "id": "station-yokado-14-38",
+      "route_id": "station-yokado",
+      "schedule_id": "station-yokado-weekday",
+      "stops": [
+        {
+          "stop_id": "station",
+          "time": "14:38"
+        },
+        {
+          "stop_id": "yokado",
+          "time": "14:46"
+        }
+      ],
+      "note": "お買い物便"
+    },
+    {
+      "id": "station-yokado-15-38",
+      "route_id": "station-yokado",
+      "schedule_id": "station-yokado-weekday",
+      "stops": [
+        {
+          "stop_id": "station",
+          "time": "15:38"
+        },
+        {
+          "stop_id": "yokado",
+          "time": "15:46"
+        }
+      ],
+      "note": "お買い物便"
+    },
+    {
+      "id": "station-yokado-16-38",
+      "route_id": "station-yokado",
+      "schedule_id": "station-yokado-weekday",
+      "stops": [
+        {
+          "stop_id": "station",
+          "time": "16:38"
+        },
+        {
+          "stop_id": "yokado",
+          "time": "16:46"
+        }
+      ],
+      "note": "お買い物便"
+    },
+    {
+      "id": "yokado-mansion-9-46",
+      "route_id": "yokado-mansion",
+      "schedule_id": "yokado-mansion-weekday",
+      "stops": [
+        {
+          "stop_id": "yokado",
+          "time": "9:46"
+        },
+        {
+          "stop_id": "mansion",
+          "time": "9:53"
+        }
+      ],
+      "note": "お買い物便"
+    },
+    {
+      "id": "yokado-mansion-10-46",
+      "route_id": "yokado-mansion",
+      "schedule_id": "yokado-mansion-weekday",
+      "stops": [
+        {
+          "stop_id": "yokado",
+          "time": "10:46"
+        },
+        {
+          "stop_id": "mansion",
+          "time": "10:53"
+        }
+      ],
+      "note": "お買い物便"
+    },
+    {
+      "id": "yokado-mansion-11-46",
+      "route_id": "yokado-mansion",
+      "schedule_id": "yokado-mansion-weekday",
+      "stops": [
+        {
+          "stop_id": "yokado",
+          "time": "11:46"
+        },
+        {
+          "stop_id": "mansion",
+          "time": "11:53"
+        }
+      ],
+      "note": "お買い物便"
+    },
+    {
+      "id": "yokado-mansion-13-46",
+      "route_id": "yokado-mansion",
+      "schedule_id": "yokado-mansion-weekday",
+      "stops": [
+        {
+          "stop_id": "yokado",
+          "time": "13:46"
+        },
+        {
+          "stop_id": "mansion",
+          "time": "13:53"
+        }
+      ],
+      "note": "お買い物便"
+    },
+    {
+      "id": "yokado-mansion-14-46",
+      "route_id": "yokado-mansion",
+      "schedule_id": "yokado-mansion-weekday",
+      "stops": [
+        {
+          "stop_id": "yokado",
+          "time": "14:46"
+        },
+        {
+          "stop_id": "mansion",
+          "time": "14:53"
+        }
+      ],
+      "note": "お買い物便"
+    },
+    {
+      "id": "yokado-mansion-15-46",
+      "route_id": "yokado-mansion",
+      "schedule_id": "yokado-mansion-weekday",
+      "stops": [
+        {
+          "stop_id": "yokado",
+          "time": "15:46"
+        },
+        {
+          "stop_id": "mansion",
+          "time": "15:53"
+        }
+      ],
+      "note": "お買い物便"
+    },
+    {
+      "id": "yokado-mansion-16-46",
+      "route_id": "yokado-mansion",
+      "schedule_id": "yokado-mansion-weekday",
+      "stops": [
+        {
+          "stop_id": "yokado",
+          "time": "16:46"
+        },
+        {
+          "stop_id": "mansion",
+          "time": "16:53"
+        }
+      ],
+      "note": "お買い物便"
+    }
+  ]
+}

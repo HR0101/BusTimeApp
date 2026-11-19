@@ -29,6 +29,7 @@ struct TimetableTabView: View {
   /// iPhoneの「ボタンの形」設定です。
   @Environment(\.accessibilityShowButtonShapes) private var showButtonShapes
 
+  @State private var didScrollInitially = false
   @ObservedObject var viewModel: HomeViewModel
   let scheduledBusIDs: Set<String>
   let onSelectBus: (Bus) -> Void
@@ -64,39 +65,46 @@ struct TimetableTabView: View {
   }
 
   var body: some View {
-    ScrollView(showsIndicators: false) {
-      VStack(alignment: .leading, spacing: SkyMetrics.sectionSpacing) {
-        header
-
-        // 運休日でも時刻表そのものは見たい情報なので、案内を出したうえで表示します。
-        if let holidayMessage = viewModel.holidayMessage {
-          NoticeCard(
-            title: L10n.Timetable.serviceNoticeTitle,
-            message: holidayMessage,
-            systemImage: "calendar.badge.exclamationmark",
-            isWarning: true
-          )
+    ScrollViewReader { proxy in
+      ScrollView(showsIndicators: false) {
+        VStack(alignment: .leading, spacing: SkyMetrics.sectionSpacing) {
+          header
+          TimetableSyncBanner(viewModel: viewModel)
+          // 運休日でも時刻表そのものは見たい情報なので、案内を出したうえで表示します。
+          if let holidayMessage = viewModel.holidayMessage {
+            NoticeCard(
+              title: L10n.Timetable.serviceNoticeTitle,
+              message: holidayMessage,
+              systemImage: "calendar.badge.exclamationmark",
+              isWarning: true
+            )
+          }
+          if viewModel.currentFullTimetable.isEmpty {
+            NoticeCard(
+              title: L10n.Timetable.emptyTitle,
+              message: L10n.Timetable.emptyMessage,
+              systemImage: "bus",
+              isWarning: false
+            )
+          } else {
+            timetableGrid
+            legend
+          }
         }
-
-        if viewModel.currentFullTimetable.isEmpty {
-          NoticeCard(
-            title: L10n.Timetable.emptyTitle,
-            message: L10n.Timetable.emptyMessage,
-            systemImage: "bus",
-            isWarning: false
-          )
-        } else {
-          timetableGrid
-          legend
-        }
+        .padding(.horizontal, horizontalPadding)
+        .padding(.top, 8)
+        .padding(.bottom, SkyMetrics.scrollBottomInset)
+        // 横に広い画面では、1行が長くなりすぎないところで幅を止めて中央に置きます。
+        .frame(maxWidth: SkyMetrics.contentMaxWidth)
+        .frame(maxWidth: .infinity)
       }
-      .padding(.horizontal, horizontalPadding)
-      .padding(.top, 8)
-      .padding(.bottom, SkyMetrics.scrollBottomInset)
-      // 横に広い画面では、1行が長くなりすぎないところで幅を止めて中央に置きます。
-      .frame(maxWidth: SkyMetrics.contentMaxWidth)
-      .frame(maxWidth: .infinity)
+      .onAppear {
+        guard !didScrollInitially, let hour = initialScrollHour else { return }
+        didScrollInitially = true
+        proxy.scrollTo(hour, anchor: .center)
+      }
     }
+    .refreshable { await viewModel.refreshTimetables() }
   }
 
   // MARK: - 見出し
@@ -154,6 +162,7 @@ struct TimetableTabView: View {
     VStack(spacing: 0) {
       ForEach(Array(hourGroups.enumerated()), id: \.element.id) { index, group in
         hourRow(group)
+          .id(group.hour)
 
         if index < hourGroups.count - 1 {
           SkyDivider()
@@ -161,6 +170,7 @@ struct TimetableTabView: View {
       }
     }
     .skyCard(padding: 0, isDense: true)
+    .accessibilityIdentifier("timetable-grid")
   }
 
   /// 1つの時台を、時のラベルと分のマスで表します。
@@ -327,6 +337,15 @@ struct TimetableTabView: View {
         )
       }
       .sorted { $0.serviceOrder < $1.serviceOrder }
+  }
+
+  /// 初回表示時だけ、検索の先頭候補がある時台へ移動します。
+  private var initialScrollHour: Int? {
+    if let recommended = viewModel.searchResults.first,
+       let hour = Self.timeComponents(from: recommended.departure)?.hour {
+      return hour
+    }
+    return hourGroups.first(where: { $0.hour == currentHour })?.hour ?? hourGroups.last?.hour
   }
 
   /// いま何時台かです。該当する行を強調するために使います。

@@ -110,7 +110,8 @@
 - 通知一覧では個別削除と全件削除ができ、期限切れの保存データは起動時に整理します。
 - 通知の保存形式にはバージョンを持たせ、旧形式からの移行を実装しています。壊れた保存データを無理に上書きしません。
 - Live Activityはロック画面とDynamic Islandの展開・コンパクト・最小表示に対応し、経路、出発／到着、残り時間、出発済み状態を表示します。
-- 残り時間は秒を出さず分単位に統一し、値が変わったときだけActivityを更新して過剰な更新を避けます。
+- 残り時間はシステムが時刻に合わせて数え進める表示を使い、アプリが停止していても減っていきます。iOS 18以降は秒を出さない時間・分表記、iOS 16.2〜17は秒を含むタイマーで表示します。
+- 出発時刻をActivityの期限（`staleDate`）として開始時と更新時の両方で渡し、アプリから更新が届かなくても出発後は「出発済み」に切り替えます。アプリからの更新は残り分が変わったときだけ送り、過剰な更新を避けます。
 - 実行中のLive Activityは再起動後に復元できます。別便が表示中、機能が許可されていない、すでに出発済みなどの失敗理由も案内します。
 - 対応端末ではLive Activityを初期状態で有効にし、設定画面のToggleでいつでも変更・保存できます。
 - 通常通知を残したままLive Activityを開始でき、通知が未設定なら5分前通知と一緒に開始できます。
@@ -133,14 +134,14 @@
 
 背景は画像の差し替えではなく、SwiftUIの`Canvas`で4 pt単位のピクセルアートとして描画しています。
 
-- 0時、明け方、朝、昼、夕方、夜のキーフレーム間を連続補間し、空・水面・地面・カード・文字・アクセントを同じ時刻から生成します。
-- 春夏秋冬の色味と日照時間を反映し、夏は日が長く、冬は短くなるよう太陽・月の軌道を調整します。
+- 夜、薄明、夜明け、朝、昼、夕焼け、夕暮れ、夜空のキーフレーム間を連続補間し、空・水面・地面・カード・文字・アクセントを同じ時刻から生成します。キーフレームは時計の時刻ではなく、その日の日の出・南中・日の入りからの前後で持ちます。
+- 季節は空の色だけでなく、日の出・日の入り、海と砂浜、雲の形、季節のモチーフまで、日付から連続的に変わります。詳しくは次の「季節の表現」にまとめています。
 - 空と海は色数を量子化し、ベイヤーディザと決定的な疑似乱数で、毎フレームちらつかないピクセル表現にしています。
 - 太陽と月は時刻に沿って移動します。月は朔望月から月齢と照らされる面を計算し、新月・満月の実日付に対するテストもあります。
 - 星の瞬き、流れ星、雲、遠景の街と夜景、海を進む船を重ねています。
 - 海にはうねり、白波、岸の泡、太陽・月の反射を描き、約12.4時間周期の潮位で水際を動かします。
-- 前景には道路の外側線、かすれた中央線、ひびや摩耗、電柱、たるみのある電線、街灯、バス停標識とコンクリート基礎を描いています。
-- 街灯は夕方から明け方だけ点灯し、雨天では濡れた道路への光と反射を強めます。
+- 前景には道路の外側線、かすれた中央線、ひびや摩耗、電柱、たるみのある電線、街灯、季節で姿を変える街路樹、バス停標識とコンクリート基礎を描いています。
+- 街灯は日の入り前後に空が暗くなると点き、日の出の30分前に消えます。日の短い冬は早く点いて遅く消えます。雨天では濡れた道路への光と反射を強めます。
 - Open-Meteoから海浜幕張駅付近の現在天気を取得し、雲量、風、雨、雪、霧、雷を別々の状態として背景へ反映します。天気取得に端末の現在地は送りません。
 - 風で雲・降水・白波の見え方を変え、雨量は3段階、雪は降り方と積雪、雷は稲光、霧は帯状の層として表現します。
 - 天気は1分ごとに更新要否を確認し、実通信は15分間隔に抑えます。失敗時は1、2、4、8、15分と待ち時間を伸ばす指数バックオフを使います。
@@ -149,10 +150,35 @@
 - 「視差効果を減らす」が有効な場合は背景と降水を静止画として描きます。非アクティブ時も更新を止めます。
 - アプリアイコンも同じ世界観で、正面向きのバス、道路、バス停、空をピクセルアートにまとめています。
 
+#### 季節の表現
+
+季節は月で区切らず、年内の日付（`SeasonalDay`）から次の値を連続的に求めます。描画は季節を直接分岐せず、これらの値だけを見ます。
+
+| 値 | 求め方 | 使い道 |
+| --- | --- | --- |
+| 日の出・南中・日の入り（`DaylightSchedule`） | 海浜幕張駅付近（北緯35.648度、東経140.042度）と日付から、NOAAの太陽位置の近似式で計算。国立天文台の暦（千葉）との差は数分 | 空のキーフレームの時刻、太陽・月の軌道、太陽と月の入れ替わり、街灯の点灯 |
+| 季節の混ざり具合（`SeasonBlend`） | 各季節の代表日（4/15、7/16、10/16、1/15）で最も強く、隣の季節の代表日へ向けてなだらかに移る。5月末・8月末・11月末・2月末が2つの季節のちょうど中間 | 空・海・砂浜・街路樹の色、星の澄み具合、雲の形、モチーフの出し方 |
+
+夏至の昼はおよそ4:25〜19:00、冬至は6:45〜16:30です。南中は経度と均時差により11:23〜11:54で、空の移り変わりの中心も南中に合わせます。薄明の長さは季節であまり変わらないため、昼の長さだけが日付に応じて伸び縮みします。
+
+| 季節 | 昼の空 | 夜明け・夕焼け | 夜 | 海と砂浜 | 雲 | モチーフ |
+| --- | --- | --- | --- | --- | --- | --- |
+| 春 | かすんだ淡い空。地平線は桃色を帯びた白 | 淡い桃色・藤色ににじむ | 春霞で暗い星が最も隠れる | やわらかく霞んだ青緑の海と明るい砂浜 | 丸い積雲 | 桜の街路樹、舞う花びら、水平線の春霞 |
+| 夏 | 濃く高い青。最も鮮やか | 青を混ぜず、濃い橙から赤へ焼ける | 湿った空気で暗い星が隠れる | 明るく澄んだ青緑の海と白く乾いた砂浜 | 地平線から湧き上がる入道雲 | 青葉の街路樹、道路への日差しの照り返し、5日に1度の夜の花火 |
+| 秋 | 澄んだ深い青 | 紅や琥珀色が冴える。春より1時間ほど早く暮れる | 澄んで星が多く、月明かりが海に強く落ちる | 深い青の海と色づいた砂浜 | 高い空のうろこ雲とすじ雲 | 紅葉の街路樹、昼の赤とんぼ |
+| 冬 | 低く白っぽい空。最も淡い | 共通の夜明け・夕焼け。日が最も短い | 最も澄み、暗い星まで見える | 深く暗い紺の海と灰色がかった砂浜 | 少なく薄い雲 | 葉を落とした街路樹と夜のイルミネーション、朝の霜、くっきり見える対岸の街 |
+
+- 夜空と夕焼けには季節の色を一律に混ぜません。混ぜると、黒に近い紺の夜空が灰色や茶色に濁り、夏の夕焼けが灰紫になるためです。夜空はどの季節も深い紺のままにし、季節の違いは星の見え方で表します。
+- 同じ正午の空は、どの季節の組み合わせでもΔE 10以上離れます。春と秋は、同じ時計の時刻でも、日の出・日の入りから同じだけ離れた時刻でもΔE 10以上離れます。
+- 隣り合う日の同じ時刻の空の色差は、一年を通してΔE 2.0以下です。月の境目で一晩のうちに空が変わることはありません。
+- 季節のモチーフは、景色とカードの読みやすさを壊さない大きさと濃さにとどめます。動くもの（花びら、赤とんぼ、花火）は数を抑え、「視差効果を減らす」が有効なときは止めた一枚として描きます。
+- 季節と背景の時刻は、運行判定と同じ日本時間の暦とアプリ内の現在時刻（`AppDate`）で決めます。設定画面のプレビューも、背景本体と同じ日付で描きます。
+- Debugビルドでは`-forceSeason`と`-forceDayOfYear`で、時刻はそのままで季節だけを切り替えられます（「Debug用の再現機能」を参照）。
+
 ### 8. 背景に埋もれない配色と、利用者が調整できる見た目
 
 - 配色は自動、システム、ライト、ダークから選択できます。自動では背景の昼夜に合わせてColor Schemeを切り替えます。
-- 設定画面では朝・昼・夕方・夜の背景を小さく並べ、天気の最終更新時刻やキャッシュ表示中かどうかも確認できます。
+- 設定画面では背景本体と同じ季節で朝・昼・夕方・夜の背景を小さく並べ、天気の最終更新時刻やキャッシュ表示中かどうかも確認できます。
 - カードの透け具合を0〜100%で調整して保存できます。時刻表のような情報密度の高いカードは自動的に少し濃くします。
 - 「透明度を下げる」が有効なら設定値に関係なくカードを不透明にし、背景との混色を防ぎます。
 - 夕暮れの途中で文字色だけが灰色へ溶けないよう、文字とカード面を同じしきい値で一括切り替えします。
@@ -331,6 +357,8 @@ UIへ状態を公開するサービスの多くは`@MainActor`へ寄せ、天気
 | 時刻セル最小サイズ | 44 pt | Appleの操作領域基準とDynamic Typeに対応 |
 | 本文最大幅 | 520 pt | 大型iPhoneでの視線移動を抑える |
 | ピクセル単位 | 4 pt | 背景全体のドット密度を統一 |
+| 日の出・日の入りの計算地点 | 北緯35.648度、東経140.042度 | 背景が描く海浜幕張駅付近の昼の長さと南中時刻に合わせる |
+| 街灯の消灯 | 日の出の30分前 | 夜明け前の暗い時間は点け、明るくなる時間帯には点けない |
 | 配色遷移 | 0.9秒 | 時刻境界での色の急変を和らげる |
 
 ### 天気データの解釈
@@ -508,13 +536,13 @@ Deep Linkは`bustimeapp://route/<origin>-<destination>`形式です。停留所�
 | `Shared/AppDiagnostics.swift` | MetricKit Subscriber lifecycle |
 | `Shared/AppLogger.swift` | location、notifications、persistence、performance、weatherのLogger |
 | `Shared/AppTestSupport.swift` | Debug UIテストの保存状態Reset |
-| `DesignSystem/SkyPalette.swift` | 時刻・季節のPalette、補間、Contrast計算、Environment値 |
-| `DesignSystem/SkyBackground.swift` | Canvasによる静的／動的ピクセル背景と天候表現 |
+| `DesignSystem/SkyPalette.swift` | 時刻・季節のPalette、日の出・日の入りの計算、季節の混ざり具合、補間、Contrast計算、Environment値 |
+| `DesignSystem/SkyBackground.swift` | Canvasによる静的／動的ピクセル背景、天候表現、季節の雲とモチーフ |
 | `DesignSystem/SkyComponents.swift` | Card、Button、Chip、Press Style、Layout Metrics |
 | `DesignSystem/DynamicTypeSupport.swift` | Scaled font、Bold Text、文字サイズに応じたLayout helper |
 | `DesignSystem/SkyHaptics.swift` | タップ・成功・失敗のHaptic境界 |
 | `Localization/L10n.swift` | 生成された型付きLocalization API。直接編集しない |
-| `Localization/Localizable.xcstrings` | 257件の画面・通知・Widget・Siri文言を持つ生成済みString Catalog |
+| `Localization/Localizable.xcstrings` | 272件の画面・通知・Widget・Siri文言を持つ生成済みString Catalog |
 | `Localization/InfoPlist.xcstrings` | 位置情報の使用理由を日本語・英語・簡体字中国語で表示するString Catalog |
 
 ### Widget、テスト、設定、生成ツール
@@ -528,7 +556,7 @@ Deep Linkは`bustimeapp://route/<origin>-<destination>`形式です。停留所�
 | `BusTimeAppTests/BusTimeAppTests.swift` | Swift Testingによるドメイン・状態・表示計算のテスト |
 | `BusTimeAppUITests/BusTimeAppUITests.swift` | XCTest UI操作、Dynamic Type、言語、RTL、Accessibility Audit |
 | `BusTimeAppUITests/BusTimeAppUITestsLaunchTests.swift` | 起動確認とScreenshot Attachment |
-| `Scripts/localization_strings.py` | 257件の翻訳対訳を持つ唯一の原本 |
+| `Scripts/localization_strings.py` | 272件の翻訳対訳を持つ唯一の原本 |
 | `Scripts/generate_l10n.py` | String Catalogと`L10n.swift`の生成・差分検査 |
 | `.github/workflows/ci.yml` | Xcode Matrix、Test、Widget、Lint、Artifact、Summary |
 | `BusTimeApp-Info.plist` | URL Scheme定義 |
@@ -737,7 +765,7 @@ WidgetKitのTimeline再要求時刻はシステムが最終決定します。現
 - Small、Medium、Accessory Rectangularを別レイアウトにし、Smallの主時刻は`ScaledMetric`へ追従させます。
 - タップ時は表示中の経路をDeep Linkでアプリへ渡すため、Widgetとアプリの文脈が途切れません。
 
-Live Activity側では、ロック画面とDynamic Islandに同じ`BusActivityAttributes`を使い、`Text(timerInterval:countsDown:showsHours:)`で出発までの時間を表示します。秒を含む標準タイマーはシステム側で進むため、アプリが停止中でもカウントダウンできます。残り時間は通常は青、5分以内は赤で表示します。出発5分前を`staleDate`に設定し、`context.isStale`を使ってアプリの停止中にも赤に切り替えます。アプリからのActivity更新でもこの期限を保持します。停止中に出発時刻を過ぎると赤い`0:00`で止まり、アプリが出発済みの状態を更新すると「出発済み」に切り替わります。
+Live Activity側では、ロック画面とDynamic Islandに同じ`BusActivityAttributes`を使います。Live Activityは描いた内容を保存して表示するため、`TimelineView`では残り時間が進みません。iOS 18以降は`Text(.currentDate, format: .timer(...))`に1分単位の精度を指定し、システムに秒を含まない残り時間を数え進めさせます。iOS 16.2〜17では同じ役割の`Text(timerInterval:)`を使います。出発時刻は`staleDate`として毎回渡し、アプリが停止したまま出発しても期限切れをきっかけに「出発済み」へ描き直されます。アプリからのActivity更新は残り分が変わったときだけ送り、秒単位の無意味な更新を避けています。
 
 #### トレードオフ
 
@@ -745,7 +773,7 @@ Live Activity側では、ロック画面とDynamic Islandに同じ`BusActivityAt
 
 #### 検証
 
-Deep Linkの往復、別URLの拒否、アプリ側の経路切り替え、残り時間フォーマッターを単体テストしています。Live Activityの標準タイマーについては、実機でアプリをバックグラウンドに移し、ロック画面・Dynamic Islandの残り時間と出発後の表示を確認します。CIではWidget Extensionをアプリ本体とは別にビルドします。
+Deep Linkの往復、別URLの拒否、アプリ側の経路切り替え、Live Activityの秒を含まない残り時間、出発時刻を期限にした表示内容と出発済みへの切り替えを単体テストしています。CIではWidget Extensionをアプリ本体とは別にビルドします。
 
 ### 8. ピクセル背景をCanvasで生成しながら描画負荷を抑える
 
@@ -759,12 +787,13 @@ Deep Linkの往復、別URLの拒否、アプリ側の経路切り替え、残�
 
 - 4 ptを1セルとし、6段階へ量子化した空と海をSwiftUI `Canvas`で描きます。
 - 走査量の多い空、太陽・月、遠景、地面を`staticLayer`へ分離し、定期アニメーションのtickごとには再計算しません。時刻や天気の状態が変わったときだけSwiftUIの再評価対象になります。
-- 雲、海、波、反射、星、船、街灯、バス停、雪、霧を`animatedLayer`へ置き、0.4秒間隔の`TimelineView`で更新します。
+- 雲、海、波、反射、星、船、街路樹、街灯、バス停、雪、霧、季節のモチーフ（花びら、赤とんぼ、花火、霜）を`animatedLayer`へ置き、0.4秒間隔の`TimelineView`で更新します。
 - 降水、流れ星は発生周期が異なるため独立したTimelineにし、不要な層まで同じ頻度で描き直しません。
 - 空と水面は同じ色が続く横方向のセルを1矩形へまとめ、さらに色ごとに1本の`Path`へ集約します。セルごとの`fill`呼び出しを避けます。
 - 星、遠景の灯り、道路の摩耗などはseed付き疑似乱数から決め、再描画しても位置が変わらないようにしています。
 - 潮位を基準となる1つの岸線として計算し、海、砂浜、泡、反射が別々の位置へずれないようにしています。
-- Paletteは背景だけでなく、カード、文字、状態色、地面、標識まで一括生成します。別々の色体系が夕暮れで衝突することを避けています。
+- Paletteは背景だけでなく、カード、文字、状態色、地面、標識、街路樹まで一括生成します。別々の色体系が夕暮れで衝突することを避けています。
+- 季節は年内の日付（`SeasonalDay`）から、日の出・日の入り（`MakuhariSun`）、季節の混ざり具合（`SeasonBlend`）、雲の形（`SeasonalCloudStyle`）、モチーフの出し方（`SeasonalMotifs`）として導きます。描画関数は季節を直接分岐せず、これらの値だけを見るため、季節の規則を単体テストで確かめられます。
 - 「視差効果を減らす」では同じ描画関数へ固定tickを渡します。別の簡易背景へ差し替えず、世界観を保ったまま時間変化だけを止めます。
 
 #### トレードオフ
@@ -773,7 +802,7 @@ Canvas生成によりアセット数を抑え、条件の組み合わせを表�
 
 #### 検証
 
-時刻の正規化、太陽・月の画面内位置、日照時間、街灯時間、月相を単体テストしています。UIテストでは`-SkyBackgroundStill`を渡し、永続アニメーションがUI問い合わせの待機条件へ影響しないようにしています。
+時刻の正規化、太陽・月の画面内位置、日付から求めた日の出・日の入り、街灯時間、月相、季節どうしの色差、隣り合う日の色差、雲の形、季節のモチーフの出し方を単体テストしています。UIテストでは`-SkyBackgroundStill`を渡し、永続アニメーションがUI問い合わせの待機条件へ影響しないようにしています。
 
 ### 9. アクセシビリティを見た目ではなく不変条件として検証する
 
@@ -814,7 +843,7 @@ Canvas生成によりアセット数を抑え、条件の組み合わせを表�
 
 #### 設計と実装
 
-- `Scripts/localization_strings.py`を257件の文言の唯一の原本にしています。
+- `Scripts/localization_strings.py`を272件の文言の唯一の原本にしています。
 - Pythonスクリプトが日本語・英語・簡体字中国語のString Catalogと、`L10n.Result.nextBus`のような型付きSwift APIを同時生成します。
 - キーの重複を生成前に検出します。
 - 引数の型からSwift関数を生成し、言語規則が必要な文言はString Catalogのplural variationと`localizedStringWithFormat`を使います。
@@ -922,6 +951,7 @@ Canvas生成によりアセット数を抑え、条件の組み合わせを表�
 | `HomeViewModel`に検索・位置・Activityを集約 | 画面状態を一か所で追跡しやすい | SearchEngine、RouteRecommender、LiveActivityControllerへ分割 |
 | `SkyBackground`に描画を集約 | レイヤー順と世界観を一望できる | 描画パス単位へ分割し、計測・Snapshot Testを追加 |
 | 固定地点の天気 | 対象路線に一致し、現在地を送らない | 路線ごとの固定観測地点をデータ化 |
+| 日の出・日の入りを近似式で計算 | 暦データや通信なしに、日付ごとの昼の長さと南中を求められる | 数分の誤差が問題になれば、暦データとの比較テストを日付の範囲で増やす |
 | OSLogとMetricKitのみ | 外部送信なし、構成が小さい | 同意設計を前提に匿名化した障害集計を検討 |
 | Strict Concurrency `targeted` | 現行Frameworkとの互換性を保って段階導入 | Actor境界を整理して`complete`へ移行 |
 | coverageは記録のみ | 振る舞い中心で重要境界を先にテスト | モジュール別の下限と差分coverageを導入 |
@@ -1021,10 +1051,14 @@ Schemeの起動引数から、時刻や天候に依存する表示を固定で�
 | `-forceWeather rain-moderate` | 普通の雨として描画 |
 | `-forceWeather rain-heavy` | 強い雨として描画 |
 | `-UITestNow <UNIX秒>` | アプリ内の現在時刻を固定 |
+| `-forceSeason spring` | 時刻はそのままで、背景の季節だけを春に固定（`summer`、`autumn`、`winter`も指定可） |
+| `-forceDayOfYear <1〜366>` | 時刻はそのままで、背景の季節を決める日付だけをその年の指定日に固定。季節の境目の確認用で、`-forceSeason`より優先 |
 | `-SkyBackgroundStill` | 背景アニメーションを静止 |
 | `-UITestResetState` | UIテストに関係する保存状態を初期化 |
 
 これらはDebugビルド専用、またはUIテスト用で、通常利用の設定として保存されません。
+
+`-UITestNow`は日付ごと固定するため、運行日の判定や時刻表まで変わります。季節の見た目だけを比べたいときは`-forceSeason`か`-forceDayOfYear`を使います。Xcodeでは`SkyBackground.swift`の`季節×時間帯`Previewで、四季と朝・昼・夕方・夜の背景を一覧できます。
 
 ## テストとCI
 
@@ -1037,7 +1071,8 @@ Schemeの起動引数から、時刻や天候に依存する表示を固定で�
 - Live Activityの既定値、保存、分単位の残り時間
 - 天気コード、雨量、雪・霧・雷・風、15分更新、キャッシュ、未来時刻拒否、指数バックオフ
 - 24時間×四季の本文・アクセント・状態色コントラスト
-- 季節ごとの日照時間、太陽軌道、実際の新月・満月に対する月相
+- 日付から求めた日の出・日の入りと南中、空と太陽軌道の整合、実際の新月・満月に対する月相
+- 季節どうしの空の色差、隣り合う日の色差、海・砂浜・雲・季節のモチーフの描き分け、`-forceSeason`／`-forceDayOfYear`
 - カード透過率、透明度を下げる、ボタンの形
 - ウィジェットDeep Link、Siri回答、言語に応じた日付表記
 
@@ -1071,6 +1106,8 @@ UIテストでは、ホーム／時刻表の遷移、最大Dynamic Typeでの主
 - `currentServiceDayDepartureDoesNotRollToTomorrow`: 当日便を誤って翌日へ送らない
 - `currentServiceDayKeepsAfterMidnightBusOnTheCorrectDate`: 0時台便を正しい翌暦日に配置
 - `liveActivityRemainingTimeOmitsSeconds`: Activityの残り時間を分単位に限定
+- `liveActivityContentExpiresAtDepartureOnEveryUpdate`: 開始時も更新時も出発時刻を期限にする
+- `liveActivityShowsDepartedWithoutAnUpdateFromTheApp`: アプリから更新が届かなくても出発後は出発済みにする
 - `liveActivityDefaultsOnWhenAvailableAndPersistsChanges`: 対応端末の既定値と保存
 - `liveActivityDefaultsOffWhenUnavailable`: 非対応時の無効化
 - `notificationIdentifiersAreUniqueForEachBus`: 便ごとの通知Identifier一意性
@@ -1139,12 +1176,35 @@ UIテストでは、ホーム／時刻表の遷移、最大Dynamic Typeでの主
 - `skyPaletteSwitchesBetweenDayAndNight`: 昼夜のPalette切替
 - `skyPaletteIsContinuousAcrossMidnight`: 24時境界の連続補間
 - `celestialPositionStaysWithinScreen`: 太陽・月の描画範囲
-- `celestialBodyRisesAtDawnAndPeaksAtNoon`: 天体軌道の代表点
+- `celestialBodyRisesAtDawnAndPeaksAtNoon`: 季節ごとの日の出と南中での天体軌道の代表点
+- `celestialOrbitSharesTheSeasonalDaylightWithTheSky`: 空の色と太陽・月の軌道が同じ日の出・日の入りを使う
 - `paletteCarriesTheHourForTimeBasedEffects`: 時刻依存Effectへのhour伝播
-- `streetLightHoursCoverEveningAndNightOnly`: 16:00〜4:30の点灯範囲
+- `streetLightsFollowSunsetAndSunrise`: 街灯が日の入り後に点き、日の出の30分前に消える
+- `daylightFollowsTheDateAtMakuhari`: 日付から求めた日の出・日の入りが国立天文台の暦（千葉）と4分以内で一致し、南中が正午より前になる
+- `skyFollowsTheSunriseAndSunsetOfTheDay`: 冬至の夕方と夏至の明け方の空が、その日の日の出・日の入りに従う
+- `seasonalDayKnowsItsMonthInLeapYears`: 年内の日数から月と季節を求め、うるう年も扱う
 - `seasonFollowsTheMonth`: 月から四季を決定
 - `daylightLengthChangesWithTheSeason`: 夏冬の日照時間差
 - `noonStaysBrightInEverySeason`: 全季節の正午が昼Palette
+- `seasonFollowsJapanTimeAtTheEndOfTheMonth`: 季節と背景の時刻を、端末のタイムゾーンではなく日本時間の暦で判定
+- `previewPalettesKeepTheSeasonOfTheBackground`: 設定画面のプレビューが背景本体の季節を引き継ぐ
+- `forcedSeasonChangesOnlyTheDateUsedForSeasons`: `-forceSeason`が時刻を残したまま月日だけを季節の代表日へ移す
+- `forcedDayOfYearPicksThatDayAndOutranksTheSeason`: `-forceDayOfYear`の日付指定と優先順位
+- `seasonOverrideIgnoresUnknownValues`: 不明な季節名や範囲外の日数を無視
+- `springAndAutumnLookDifferentFromDawnToDusk`: 春と秋の空が、同じ時計の時刻（5〜19時）でも日の出・日の入りから同じだけ離れた時刻でもΔE 10以上離れる
+- `seaAndShoreChangeWithTheSeason`: 夏の海は明るい青緑、冬の海は深く暗い青。砂浜も夏は明るく、冬は灰色がかる
+- `cloudsChangeShapeWithTheSeason`: 夏は入道雲、秋はうろこ雲とすじ雲、冬は少なく薄い雲
+- `cloudShapesMoveToTheNextSeasonOneByOne`: 季節が移るあいだは雲ごとに形が切り替わり、一度にすべては入れ替わらない
+- `seasonalMotifsAppearInTheirSeason`: 春の花びらと春霞、夏の照り返し、秋の赤とんぼと月明かり、冬のイルミネーション・霜・澄んだ遠景が、それぞれの季節と時間帯だけに現れる
+- `summerFireworksRiseOnlyOnSomeNights`: 夏の花火は5日に1度、日没後から21時30分までだけ上がる
+- `streetTreeChangesThroughTheYear`: 街路樹が桜・青葉・紅葉と移り、冬は葉を落とす。紅葉は色を保ったまま散っていく
+- `nightSkyStaysDeepNavyInEverySeason`: 夜空が季節の色で灰色や茶色に濁らない
+- `summerSunsetGlowsDeepOrange`: 夏の夕焼けが青を混ぜず、ほかの季節より濃い橙になる
+- `starsShowHowClearTheNightAirIs`: 夜の季節の違いを星の見え方（冬が最も澄み、春が最もかすむ）で表す
+- `skyChangesGraduallyFromDayToDay`: 隣り合う日の同じ時刻の空の色差（ΔE）が一年を通して2.0以下
+- `seasonsBlendBetweenTheirRepresentativeDays`: 季節の色が代表日で最も強く、隣の季節へ連続して移る
+- `seasonsLookDifferentAtNoon`: 同じ正午の空が季節どうしで見分けられる色差（ΔE 10以上）を持つ
+- `daytimeSkyShowsEachSeasonsCharacter`: 正午の空の鮮やかさが夏・秋・春・冬の順に下がり、春の地平線は桃色のかすみ、冬は白く冷たい
 - `moonPhaseMatchesRealNewAndFullMoons`: 実日付の新月・満月との整合
 - `inkSwitchesAtOnceInsteadOfFadingThroughGrey`: 文字色を灰色経由で補間しない
 - `cardSurfaceSwitchesTogetherWithTheInk`: Card面と文字色を同じ閾値で切替
@@ -1152,6 +1212,8 @@ UIテストでは、ホーム／時刻表の遷移、最大Dynamic Typeでの主
 #### Contrast・意味色
 
 - `cardTextStaysReadableAtEveryHourAndSeason`: 24時間×四季の本文Contrast
+- `cardTextStaysReadableOnEveryDayOfTheYear`: 5日おき×24時間の本文Contrast。季節が移る途中の日も確かめる
+- `cardTextStaysReadableOverTheSeaAndGround`: 24時間×四季で、海・砂浜・道路の上に重なるカードの本文Contrast
 - `accentTextStaysReadableAtEveryHourAndSeason`: 24時間×四季のAccent Label Contrast
 - `semanticStatusColorsStayDistinguishableOnCards`: 警告・成功など意味色の識別性
 
@@ -1274,7 +1336,7 @@ Simulator向けCIなので、`CODE_SIGN_IDENTITY=""`、`CODE_SIGNING_REQUIRED=NO
 
 `lint`ジョブは次の役割を持ちます。
 
-- `generate_l10n.py --check`で、257件の対訳原本とString Catalog／`L10n.swift`の生成結果が一致するか確認する
+- `generate_l10n.py --check`で、272件の対訳原本とString Catalog／`L10n.swift`の生成結果が一致するか確認する
 - `xcodebuild analyze`で、通常ビルドだけでは検出しにくい問題を静的解析する
 - Swiftファイル一覧をSummaryへ出し、どのコードが解析対象か確認できるようにする
 - TODO、FIXME、HACK、XXXを一覧化し、未完事項を見えないままにしない
@@ -1416,6 +1478,7 @@ CIの説明では「cacheがあるから高速」と断定せず、設定先が�
 2. バス、道路、バス停の向きとPerspectiveを揃え、アプリ内のCanvas背景と明るさ・色数・4 pt Pixel感を合わせます。
 3. Iconだけを見て判断せず、ホーム画面上、ライト／ダーク壁紙、TestFlight Buildで確認します。
 4. 背景変更では本文Cardを重ね、24時間×四季と悪天候で文字が読めることをContrast Testと実機目視の両方で確認します。
+5. 季節の表現を変えるときは、`-forceSeason`・`-forceDayOfYear`と`季節×時間帯`のPreviewで、四季と季節の境目の日を見比べます。季節どうしの色差（`seasonsLookDifferentAtNoon`、`springAndAutumnLookDifferentFromDawnToDusk`）、隣り合う日の色差（`skyChangesGraduallyFromDayToDay`）、海・砂浜・道路の上のContrast（`cardTextStaysReadableOverTheSeaAndGround`）が通ることを確認します。
 
 ### Signing、App Group、TestFlightを変更する
 

@@ -17,11 +17,31 @@ public struct BusActivityAttributes: ActivityAttributes, Sendable {
     public var departureDate: Date
     public var routeName: String
 
-    private static let urgencyLeadTime: TimeInterval = 5 * 60
+    /// Live Activityで「出発済み」と表示するかどうかです。
+    ///
+    /// アプリが停止しているあいだは「出発済み」への更新を送れません。
+    /// そのため、出発時刻を過ぎて内容が古くなったことも出発済みとして扱います。
+    /// - Parameters:
+    ///   - state: アプリから最後に届いた表示内容です。
+    ///   - isStale: 内容の期限（出発時刻）をシステムが過ぎたと判断したかどうかです。
+    ///   - now: 表示を作る時刻です。
+    public func showsDeparted(state: ContentState, isStale: Bool, now: Date) -> Bool {
+        state.isDeparted || isStale || departureDate <= now
+    }
+}
 
-    /// アプリの停止中にも色を切り替えるため、Live Activityの期限に使います。
-    public var urgencyDate: Date {
-        departureDate.addingTimeInterval(-Self.urgencyLeadTime)
+@available(iOS 16.2, *)
+extension BusActivityAttributes {
+    /// Live Activityへ渡す表示内容を作ります。
+    ///
+    /// 開始時も更新時も、出発時刻を「内容が古くなる時刻」として渡します。
+    /// 期限を外すと、アプリが停止したまま出発時刻を過ぎたときに
+    /// システムが描き直さず、出発前の表示が残り続けるためです。
+    public func content(remainingMinutes: Int, isDeparted: Bool) -> ActivityContent<ContentState> {
+        ActivityContent(
+            state: ContentState(remainingMinutes: remainingMinutes, isDeparted: isDeparted),
+            staleDate: departureDate
+        )
     }
 }
 

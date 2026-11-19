@@ -238,18 +238,31 @@ struct BusTimeAppTests {
     }
 
     @Test
-    func liveActivityUrgencyStartsFiveMinutesBeforeDepartureAcrossMidnight() {
-        let attributes = BusActivityAttributes(
-            busID: "late-night",
-            busDepartureTime: "0:04",
-            busArrivalTime: "0:11",
-            originName: "コロンブスシティ",
-            destinationName: "海浜幕張駅",
-            departureDate: makeTestDate(day: 13, hour: 0, minute: 4),
-            routeName: BusRoute.mansionToStation.rawValue
-        )
+    func liveActivityContentExpiresAtDepartureOnEveryUpdate() {
+        let departure = Date(timeIntervalSince1970: 1_800_000_000)
+        let attributes = makeBusActivityAttributes(departureDate: departure)
 
-        #expect(attributes.urgencyDate == makeTestDate(hour: 23, minute: 59))
+        // 開始時も更新時も出発時刻を期限にします。
+        // 期限を外すと、アプリが止まったまま出発したときにシステムが描き直しません。
+        #expect(attributes.content(remainingMinutes: 12, isDeparted: false).staleDate == departure)
+        #expect(attributes.content(remainingMinutes: 0, isDeparted: true).staleDate == departure)
+    }
+
+    @Test
+    func liveActivityShowsDepartedWithoutAnUpdateFromTheApp() {
+        let departure = Date(timeIntervalSince1970: 1_800_000_000)
+        let beforeDeparture = departure.addingTimeInterval(-60)
+        let attributes = makeBusActivityAttributes(departureDate: departure)
+        let waiting = BusActivityAttributes.ContentState(remainingMinutes: 1, isDeparted: false)
+
+        // 出発前は残り時間を出します。
+        #expect(!attributes.showsDeparted(state: waiting, isStale: false, now: beforeDeparture))
+        // アプリが停止していて更新が届かなくても、期限切れや出発時刻の経過で切り替えます。
+        #expect(attributes.showsDeparted(state: waiting, isStale: true, now: beforeDeparture))
+        #expect(attributes.showsDeparted(state: waiting, isStale: false, now: departure))
+        // アプリから出発済みが届いたときは、そのまま従います。
+        let departed = BusActivityAttributes.ContentState(remainingMinutes: 0, isDeparted: true)
+        #expect(attributes.showsDeparted(state: departed, isStale: false, now: beforeDeparture))
     }
 
     @Test @MainActor
@@ -393,6 +406,16 @@ struct BusTimeAppTests {
     }
 
     @Test
+    func localizedTimeSeparatesEnglishPeriodAndKeeps24HourLocales() {
+        let evening = makeTestDate(hour: 18, minute: 48)
+        let morning = makeTestDate(hour: 6, minute: 48)
+        #expect(TimeDisplayFormatter.string(from: evening, locale: Locale(identifier: "en_US")) == "6:48 PM")
+        #expect(TimeDisplayFormatter.string(from: morning, locale: Locale(identifier: "en_US")) == "6:48 AM")
+        #expect(TimeDisplayFormatter.string(from: evening, locale: Locale(identifier: "ja_JP")) == "18:48")
+        #expect(TimeDisplayFormatter.string(from: evening, locale: Locale(identifier: "en_GB")) == "18:48")
+    }
+
+    @Test
     func skyPaletteSwitchesBetweenDayAndNight() {
         // 昼は明るい空なので暗い文字、夜は暗い空なので明るい文字になります。
         // 昼の長さは季節で変わるので、季節を決めてから確かめます。
@@ -424,6 +447,36 @@ struct BusTimeAppTests {
         }
     }
 
+    @Test @MainActor
+    func appearanceOverridesKeepControlsAndSurfacesConsistent() {
+        let settings = SettingsViewModel(defaults: makeIsolatedDefaults())
+        settings.setAppearancePreference(.automatic)
+        #expect(settings.paletteColorScheme(systemColorScheme: .dark) == nil)
+        settings.setAppearancePreference(.system)
+        #expect(settings.paletteColorScheme(systemColorScheme: .dark) == .dark)
+        #expect(settings.paletteColorScheme(systemColorScheme: .light) == .light)
+        settings.setAppearancePreference(.dark)
+        #expect(settings.paletteColorScheme(systemColorScheme: .light) == .dark)
+        settings.setAppearancePreference(.light)
+        #expect(settings.paletteColorScheme(systemColorScheme: .dark) == .light)
+
+        for scheme in [ColorScheme.light, .dark] {
+            for season in Season.allCases {
+                for step in 0..<96 {
+                    let hour = Double(step) / 4
+                    let natural = SkyPalette.at(hour: hour, season: season)
+                    let palette = SkyPalette.at(hour: hour, season: season, colorScheme: scheme)
+                    #expect(palette.skyTop == natural.skyTop)
+                    #expect(palette.skyBottom == natural.skyBottom)
+                    #expect(palette.nightness == natural.nightness)
+                    let card = blend(components(of: palette.surface), over: components(of: palette.skyTop))
+                    #expect(contrastRatio(components(of: palette.ink), card) >= 4.5)
+                    #expect(contrastRatio(components(of: palette.ink), components(of: palette.surfaceOpaque)) >= 4.5)
+                }
+            }
+        }
+    }
+
     @Test
     func weatherCodeIdentifiesRainOnly() {
         // 晴れや曇りは雨として扱いません。
@@ -438,6 +491,23 @@ struct BusTimeAppTests {
         #expect(WeatherCodeInterpreter.isRaining(code: 63) == true)
         #expect(WeatherCodeInterpreter.isRaining(code: 80) == true)
         #expect(WeatherCodeInterpreter.isRaining(code: 95) == true)
+    }
+
+    @Test
+    func rainAndCloudsDimTheSkyAndHideTheSun() {
+        let palette = SkyPalette.at(hour: 12 + 22.0 / 60, season: .summer)
+        let clear = components(of: palette.skyColor(at: 0, weather: .clear))
+        let rainy = components(of: palette.skyColor(at: 0, weather: .rain(.heavy)))
+        #expect(relativeLuminance(rainy) < relativeLuminance(clear))
+        #expect(rainy.b - rainy.r < clear.b - clear.r)
+        #expect(SkyWeather.clear.celestialVisibility == 1)
+        #expect(SkyWeather.rain(.heavy).celestialVisibility == 0)
+        #expect(SkyWeather.rain(.heavy).rainStrokeOpacity > SkyWeather.rain(.light).rainStrokeOpacity)
+        #expect(SkyWeather(cloudCover: 1).celestialVisibility == 0)
+        #expect(SkyWeather(cloudCover: 0.5).celestialVisibility > SkyWeather(cloudCover: 0.9).celestialVisibility)
+        #expect(SkyWeather(precipitation: .rain(.heavy)).skyObscuration == 1)
+        #expect(palette.quantizedSkyColors(steps: 8) == palette.quantizedSkyColors(steps: 8, weather: .clear))
+        #expect(palette.quantizedWaterColors(steps: 8, weather: .rain(.heavy)) != palette.quantizedWaterColors(steps: 8))
     }
 
     @Test
@@ -631,10 +701,115 @@ struct BusTimeAppTests {
     @Test
     func celestialBodyRisesAtDawnAndPeaksAtNoon() {
         // 日の出直後は地平線近く、正午前後で最も高くなります。
-        let dawn = SkyPalette.at(hour: 5.5)
-        let noon = SkyPalette.at(hour: 12)
-        #expect(dawn.celestialAltitude < 0.1)
-        #expect(noon.celestialAltitude > 0.9)
+        // 日の出の時刻は季節で変わるので、季節ごとの日の出で確かめます。
+        for season in Season.allCases {
+            let daylight = SkyPalette.daylight(for: season)
+            let dawn = SkyPalette.at(hour: daylight.sunrise, season: season)
+            let noon = SkyPalette.at(hour: daylight.solarNoon, season: season)
+            #expect(dawn.celestialAltitude < 0.1)
+            #expect(noon.celestialAltitude > 0.9)
+        }
+    }
+
+    @Test
+    func celestialOrbitSharesTheSeasonalDaylightWithTheSky() {
+        // 空の色と太陽の軌道は同じ日の出・日の入りを使います。
+        // どの季節でも、日の入りの瞬間の空は同じ暗さで、太陽はちょうど地平線にあります。
+        let sunsetNightness = SkyPalette.at(
+            hour: SkyPalette.daylight(for: .spring).sunset,
+            season: .spring
+        ).nightness
+        for season in Season.allCases {
+            let daylight = SkyPalette.daylight(for: season)
+            let sunset = SkyPalette.at(hour: daylight.sunset, season: season)
+            #expect(abs(sunset.nightness - sunsetNightness) < 0.000_001)
+            #expect(sunset.celestialAltitude < 0.000_001)
+            #expect(sunset.daylight == daylight)
+        }
+
+        // 冬は日が短く、夏は長くなります。
+        #expect(SkyPalette.daylight(for: .winter).sunset < SkyPalette.daylight(for: .spring).sunset)
+        #expect(SkyPalette.daylight(for: .summer).sunset > SkyPalette.daylight(for: .spring).sunset)
+        #expect(SkyPalette.daylight(for: .summer).sunrise < SkyPalette.daylight(for: .winter).sunrise)
+
+        // 冬の17時45分は日が沈んで暮れており、太陽は描かれません。
+        let winterEvening = SkyPalette.at(hour: 17.75, season: .winter)
+        #expect(!winterEvening.isSunUp)
+        #expect(winterEvening.nightness > 0.5)
+        // 夏の18時45分は空がまだ明るく、太陽も沈みきっていません。
+        let summerEvening = SkyPalette.at(hour: 18.75, season: .summer)
+        #expect(summerEvening.isSunUp)
+        #expect(summerEvening.isNight == false)
+    }
+
+    @Test
+    func daylightFollowsTheDateAtMakuhari() {
+        // 国立天文台の暦（千葉）の日の出・日の入りと、4分以内で一致することを確かめます。
+        let references: [(dayOfYear: Int, sunrise: Double, sunset: Double)] = [
+            // 夏至（6月21日）: 4時25分、19時0分
+            (172, 4 + 25.0 / 60, 19),
+            // 冬至（12月22日）: 6時45分、16時30分
+            (356, 6 + 45.0 / 60, 16 + 30.0 / 60),
+            // 春分（3月20日）: 5時43分、17時52分
+            (79, 5 + 43.0 / 60, 17 + 52.0 / 60)
+        ]
+        for reference in references {
+            let daylight = SeasonalDay(dayOfYear: reference.dayOfYear).daylight
+            #expect(abs(daylight.sunrise - reference.sunrise) * 60 <= 4, "\(reference.dayOfYear)日目の日の出")
+            #expect(abs(daylight.sunset - reference.sunset) * 60 <= 4, "\(reference.dayOfYear)日目の日の入り")
+        }
+
+        // 海浜幕張は日本標準時の基準より東にあるため、南中は一年を通して正午より前です。
+        for dayOfYear in stride(from: 1, through: 365, by: 7) {
+            let solarNoon = SeasonalDay(dayOfYear: dayOfYear).daylight.solarNoon
+            #expect(solarNoon > 11 + 20.0 / 60)
+            #expect(solarNoon < 12)
+        }
+    }
+
+    @Test
+    func skyFollowsTheSunriseAndSunsetOfTheDay() {
+        let summer = SeasonalDay(dayOfYear: 172)
+        let winter = SeasonalDay(dayOfYear: 356)
+
+        // 日の出の空は、季節にかかわらず同じ明るさです。
+        let summerSunrise = SkyPalette.at(hour: summer.daylight.sunrise, day: summer)
+        let winterSunrise = SkyPalette.at(hour: winter.daylight.sunrise, day: winter)
+        #expect(abs(summerSunrise.nightness - winterSunrise.nightness) < 0.000_001)
+
+        // 冬至の16時45分は日が沈み、空は暮れています（日の入りは16時30分ごろ）。
+        let winterDusk = SkyPalette.at(hour: 16.75, day: winter)
+        #expect(!winterDusk.isSunUp)
+        #expect(winterDusk.nightness > SkyPalette.at(hour: 16.75, day: summer).nightness + 0.4)
+        // 夏至の4時30分はもう日が出ており、空も明るくなっています（日の出は4時25分ごろ）。
+        let summerDawn = SkyPalette.at(hour: 4.5, day: summer)
+        #expect(summerDawn.isSunUp)
+        #expect(summerDawn.nightness < SkyPalette.at(hour: 4.5, day: winter).nightness - 0.4)
+
+        // 南中のころは、どの日も完全な昼の空です。
+        for day in [summer, winter] {
+            #expect(SkyPalette.at(hour: day.daylight.solarNoon, day: day).nightness == 0)
+        }
+    }
+
+    @Test
+    func seasonalDayKnowsItsMonthInLeapYears() {
+        #expect(SeasonalDay(dayOfYear: 59).month == 2)
+        // 平年の60日目は3月1日、うるう年の60日目は2月29日です。
+        #expect(SeasonalDay(dayOfYear: 60).month == 3)
+        #expect(SeasonalDay(dayOfYear: 60, daysInYear: 366).month == 2)
+        #expect(SeasonalDay(dayOfYear: 61, daysInYear: 366).month == 3)
+        #expect(SeasonalDay(dayOfYear: 365).month == 12)
+        #expect(SeasonalDay(dayOfYear: 366, daysInYear: 366).month == 12)
+
+        // 日付からは、日本時間の暦で年内の何日目かを数えます。2026年8月12日は224日目です。
+        let date = makeTestDate(hour: 12)
+        #expect(SeasonalDay(date: date, calendar: AppCalendar.japan).dayOfYear == 224)
+
+        // 季節を代表する日は、その季節に含まれます。
+        for season in Season.allCases {
+            #expect(SeasonalDay(season: season).season == season)
+        }
     }
 
     @Test
@@ -767,6 +942,230 @@ struct BusTimeAppTests {
         #expect(viewModel.searchTime == futureSearchTime)
     }
 
+    @Test @MainActor
+    func timerAdvancesDeparturesWithoutAppActivation() {
+        var currentDate = makeTestDate(hour: 8)
+        let viewModel = HomeViewModel(
+            nowProvider: { currentDate }, defaults: makeIsolatedDefaults()
+        )
+        viewModel.setAutomaticUpdatesActive(false)
+        let first = viewModel.searchResults.first!
+        let departure = BusNotificationTimeCalculator.departureDateForCurrentServiceDay(
+            for: first.departure, from: currentDate, calendar: AppCalendar.japan
+        )!
+        currentDate = departure.addingTimeInterval(61)
+        viewModel.refreshForTimerTick()
+
+        #expect(viewModel.searchResults.first?.id != first.id)
+        #expect(viewModel.searchResults.count == 4)
+        #expect(viewModel.searchResults.allSatisfy {
+            (BusNotificationTimeCalculator.departureDateForCurrentServiceDay(
+                for: $0.departure, from: currentDate, calendar: AppCalendar.japan
+            ) ?? .distantPast) > currentDate
+        })
+        #expect(viewModel.remainingMinutes[first.id] == nil)
+    }
+
+    @Test @MainActor
+    func timerPreservesFutureAndOtherWeekdaySearches() {
+        var currentDate = makeTestDate(hour: 8)
+        let viewModel = HomeViewModel(
+            nowProvider: { currentDate }, defaults: makeIsolatedDefaults()
+        )
+        viewModel.setAutomaticUpdatesActive(false)
+        viewModel.searchTime = makeTestDate(hour: 18)
+        viewModel.performSearch()
+        let futureResults = viewModel.searchResults.map(\.id)
+        currentDate = currentDate.addingTimeInterval(120)
+        viewModel.refreshForTimerTick()
+        #expect(viewModel.searchResults.map(\.id) == futureResults)
+        #expect(viewModel.searchTime == makeTestDate(hour: 18))
+
+        viewModel.serviceDay = .otherWeekday
+        viewModel.searchTime = makeTestDate(hour: 7)
+        viewModel.performSearch()
+        let weekdayResults = viewModel.searchResults.map(\.id)
+        currentDate = makeTestDate(hour: 10)
+        viewModel.refreshForTimerTick()
+        #expect(viewModel.searchResults.map(\.id) == weekdayResults)
+        #expect(viewModel.remainingMinutes.isEmpty)
+    }
+
+    @Test @MainActor
+    func departureSearchExcludesTheBusAtItsDepartureInstant() {
+        var currentDate = makeTestDate(hour: 7, minute: 59)
+        let viewModel = HomeViewModel(
+            nowProvider: { currentDate }, defaults: makeIsolatedDefaults()
+        )
+        viewModel.setAutomaticUpdatesActive(false)
+        let bus = viewModel.searchResults.first!
+        let departure = BusNotificationTimeCalculator.departureDateForCurrentServiceDay(
+            for: bus.departure, from: currentDate, calendar: AppCalendar.japan
+        )!
+        currentDate = departure.addingTimeInterval(-1)
+        viewModel.searchTime = currentDate
+        viewModel.performSearch()
+        #expect(viewModel.searchResults.first?.id == bus.id)
+
+        for seconds in [0.0, 30.0] {
+            currentDate = departure.addingTimeInterval(seconds)
+            viewModel.searchTime = currentDate
+            viewModel.performSearch()
+            #expect(!viewModel.searchResults.contains { $0.id == bus.id })
+            #expect(viewModel.searchResults.allSatisfy {
+                (BusNotificationTimeCalculator.departureDateForCurrentServiceDay(
+                    for: $0.departure, from: currentDate, calendar: AppCalendar.japan
+                ) ?? .distantPast) > currentDate
+            })
+        }
+    }
+
+    @Test @MainActor
+    func otherWeekdaySearchKeepsTheBusAtTheSpecifiedMinute() {
+        let currentDate = makeTestDate(hour: 8)
+        let viewModel = HomeViewModel(
+            nowProvider: { currentDate }, defaults: makeIsolatedDefaults()
+        )
+        viewModel.setAutomaticUpdatesActive(false)
+        viewModel.serviceDay = .otherWeekday
+        viewModel.searchTime = currentDate
+        viewModel.performSearch()
+        #expect(viewModel.searchResults.first?.departure == "8:00")
+    }
+
+
+    @Test @MainActor
+    func departureBannerUsesTheEffectiveReferenceAndExplainsAdjustment() {
+        let current = makeTestDate(hour: 9)
+        let viewModel = HomeViewModel(nowProvider: { current }, defaults: makeIsolatedDefaults())
+        viewModel.setAutomaticUpdatesActive(false)
+        viewModel.selectOrigin(.mansion)
+        viewModel.searchTime = makeTestDate(hour: 7)
+        viewModel.performSearch()
+        #expect(viewModel.searchTime == makeTestDate(hour: 7))
+        #expect(viewModel.searchCriteriaDescription.contains("9:00以降に出発"))
+        #expect(viewModel.searchCriteriaDescription.contains(L10n.Search.adjustedToCurrentTime))
+        #expect(viewModel.searchResults.allSatisfy {
+            (BusNotificationTimeCalculator.departureDateForCurrentServiceDay(
+                for: $0.departure, from: current, calendar: AppCalendar.japan
+            ) ?? .distantPast) >= current
+        })
+
+        viewModel.searchTime = makeTestDate(hour: 18)
+        viewModel.performSearch()
+        #expect(viewModel.searchCriteriaDescription.contains("18:00以降に出発"))
+        #expect(!viewModel.searchCriteriaDescription.contains(L10n.Search.adjustedToCurrentTime))
+
+        viewModel.serviceDay = .otherWeekday
+        viewModel.searchTime = makeTestDate(hour: 7)
+        viewModel.performSearch()
+        #expect(viewModel.searchCriteriaDescription.contains("7:00以降に出発"))
+        #expect(!viewModel.searchCriteriaDescription.contains(L10n.Search.adjustedToCurrentTime))
+    }
+
+    @Test @MainActor
+    func arrivalBannerRetainsTheRequestedDeadline() {
+        let viewModel = HomeViewModel(
+            nowProvider: { makeTestDate(hour: 9) }, defaults: makeIsolatedDefaults()
+        )
+        viewModel.setAutomaticUpdatesActive(false)
+        viewModel.searchType = .arrival
+        viewModel.searchTime = makeTestDate(hour: 7)
+        viewModel.performSearch()
+        #expect(viewModel.searchCriteriaDescription.contains("7:00までに到着"))
+        #expect(!viewModel.searchCriteriaDescription.contains(L10n.Search.adjustedToCurrentTime))
+    }
+
+
+    @Test @MainActor
+    func switchingToArrivalStartsWithAFutureDeadlineAndBoardableBuses() {
+        let current = makeTestDate(hour: 9)
+        let viewModel = HomeViewModel(nowProvider: { current }, defaults: makeIsolatedDefaults())
+        viewModel.setAutomaticUpdatesActive(false)
+        viewModel.selectOrigin(.mansion)
+        viewModel.searchType = .arrival
+        viewModel.performSearch()
+        #expect(viewModel.searchTime >= current.addingTimeInterval(30 * 60))
+        #expect(!viewModel.searchResults.isEmpty)
+        #expect(viewModel.searchResults.allSatisfy {
+            (BusNotificationTimeCalculator.departureDateForCurrentServiceDay(
+                for: $0.departure, from: current, calendar: AppCalendar.japan
+            ) ?? .distantPast) > current
+        })
+
+        viewModel.searchTime = makeTestDate(hour: 7)
+        viewModel.performSearch()
+        #expect(viewModel.searchResults.isEmpty)
+        #expect(viewModel.searchCriteriaDescription.contains("7:00までに到着"))
+
+        viewModel.serviceDay = .otherWeekday
+        viewModel.performSearch()
+        #expect(!viewModel.searchResults.isEmpty)
+    }
+
+    @Test @MainActor
+    func restoredArrivalModeUsesAFutureDefaultAndKeepsExplicitFutureDeadline() {
+        let current = makeTestDate(hour: 9)
+        let defaults = makeIsolatedDefaults()
+        defaults.set(HomeViewModel.SearchType.arrival.rawValue, forKey: "home.searchType")
+        defaults.set(makeTestDate(hour: 7), forKey: "home.searchTime")
+        let viewModel = HomeViewModel(nowProvider: { current }, defaults: defaults)
+        viewModel.setAutomaticUpdatesActive(false)
+        #expect(viewModel.searchTime >= current.addingTimeInterval(30 * 60))
+        #expect(!viewModel.searchResults.isEmpty)
+
+        defaults.set(makeTestDate(hour: 18), forKey: "home.searchTime")
+        let future = HomeViewModel(nowProvider: { current }, defaults: defaults)
+        future.setAutomaticUpdatesActive(false)
+        #expect(future.searchTime == makeTestDate(hour: 18))
+    }
+
+
+    @Test @MainActor
+    func locationRouteChangesExplainWhyTheResultsChanged() {
+        let current = makeTestDate(hour: 8)
+        let viewModel = HomeViewModel(nowProvider: { current }, defaults: makeIsolatedDefaults())
+        viewModel.setAutomaticUpdatesActive(false)
+        #expect(viewModel.locationAdjustmentMessage == nil)
+        let station = CLLocation(latitude: 35.6485608, longitude: 140.0416924)
+        viewModel.updateOriginForCurrentLocation(station, at: current)
+        #expect(viewModel.selectedOrigin == .station)
+        #expect(viewModel.routeDecision == .automatic)
+        #expect(viewModel.locationAdjustmentMessage == L10n.Route.adjustedForLocation(
+            viewModel.selectedOrigin.rawValue, viewModel.selectedDestination.rawValue
+        ))
+        #expect(viewModel.routeDecisionDescription.contains("現在地に合わせました"))
+
+        viewModel.selectRouteFromWidget(.mansionToStation)
+        #expect(viewModel.locationAdjustmentMessage == nil)
+        viewModel.updateOriginForCurrentLocation(station, at: current)
+        #expect(viewModel.selectedRoute == .mansionToStation)
+        #expect(viewModel.locationAdjustmentMessage == nil)
+    }
+
+    @Test @MainActor
+    func anUnchangedLocationRouteDoesNotClaimAChange() {
+        let current = makeTestDate(hour: 8)
+        let viewModel = HomeViewModel(nowProvider: { current }, defaults: makeIsolatedDefaults())
+        viewModel.setAutomaticUpdatesActive(false)
+        let mansion = CLLocation(latitude: 35.6589411, longitude: 140.0357708)
+        viewModel.updateOriginForCurrentLocation(mansion, at: current)
+        #expect(viewModel.selectedRoute == .mansionToStation)
+        #expect(viewModel.locationAdjustmentMessage == nil)
+        #expect(viewModel.routeDecisionDescription == L10n.Route.decisionAutomatic)
+    }
+
+
+    @Test @MainActor
+    func departureSearchKeepsFourCandidates() {
+        let viewModel = HomeViewModel(
+            nowProvider: { makeTestDate(hour: 8) }, defaults: makeIsolatedDefaults()
+        )
+        viewModel.setAutomaticUpdatesActive(false)
+        #expect(viewModel.searchResults.count == 4)
+        #expect(Set(viewModel.searchResults.map(\.id)).count == 4)
+    }
+
     // MARK: - 時間帯からの初期経路
 
     @Test @MainActor
@@ -865,7 +1264,7 @@ struct BusTimeAppTests {
 
         // 到着時間で探すと「間に合う中で最も遅い便」から並ぶため、
         // 2件目は1件目より前に出る便になります。
-        #expect(viewModel.searchResults.count == 2)
+        #expect(viewModel.searchResults.count == 4)
         #expect(viewModel.searchResults[0].departure == "8:40")
         #expect(viewModel.searchResults[1].departure == "8:30")
         // 見出しもそれに合わせて変わります。
@@ -1095,25 +1494,28 @@ struct BusTimeAppTests {
     }
 
     @Test
-    func streetLightHoursCoverEveningAndNightOnly() {
-        // 街灯が点くのは夕方16時から翌朝4時半までです。
-        // 判定に使う暗さも合わせて確かめます。
-        func isEveningOrNight(_ hour: Double) -> Bool {
-            hour >= 16 || hour < 4.5
+    func streetLightsFollowSunsetAndSunrise() {
+        for season in Season.allCases {
+            let daylight = SkyPalette.daylight(for: season)
+            func isOn(_ hour: Double) -> Bool {
+                SkyPalette.at(hour: hour, season: season).isStreetLightOn
+            }
+
+            // 昼と、日の入りの1時間前はまだ消えています。
+            #expect(!isOn(daylight.solarNoon), "\(season)の南中")
+            #expect(!isOn(daylight.sunset - 1), "\(season)の日の入り1時間前")
+            // 日が沈んで暗くなってから、夜のあいだは点いています。
+            #expect(isOn(daylight.sunset + 0.5), "\(season)の日の入り30分後")
+            #expect(isOn(22), "\(season)の22時")
+            #expect(isOn(2), "\(season)の2時")
+            // 夜明けの30分前に消え、朝は消えたままです。
+            #expect(!isOn(daylight.sunrise - 0.25), "\(season)の日の出15分前")
+            #expect(!isOn(daylight.sunrise + 1), "\(season)の日の出1時間後")
         }
 
-        // 朝と昼は消えています。
-        #expect(!isEveningOrNight(6))
-        #expect(!isEveningOrNight(12))
-        #expect(!isEveningOrNight(15))
-        // 夕方と夜は点きます。
-        #expect(isEveningOrNight(18))
-        #expect(isEveningOrNight(22))
-        #expect(isEveningOrNight(2))
-
-        // 朝6時は空が暗くても点けません。
-        #expect(SkyPalette.at(hour: 6, season: .spring).nightness > 0.22)
-        #expect(!isEveningOrNight(6))
+        // 冬は日の出が遅いので、5時45分でも点いています。
+        // 4時30分で一律に消していたころは、冬の夜明け前が暗いままでした。
+        #expect(SkyPalette.at(hour: 5.75, season: .winter).isStreetLightOn)
     }
 
     // MARK: - 文字の読みやすさ
@@ -1163,6 +1565,65 @@ struct BusTimeAppTests {
         #expect(
             worstSecondary.ratio >= 4.5,
             "補足の文字が最も読みにくいのは\(worstSecondary.season)の\(worstSecondary.hour)時で、比は\(worstSecondary.ratio)でした"
+        )
+    }
+
+    @Test
+    func cardTextStaysReadableOnEveryDayOfTheYear() {
+        // 季節の色は日ごとに隣の季節へ移るので、四季の代表日のあいだの日も確かめます。
+        let coverage = SkyCardOpacity.coverage(for: SkyCardOpacity.standard, isDense: false)
+        var worst = (ratio: Double.infinity, dayOfYear: 0, hour: 0.0)
+
+        for dayOfYear in stride(from: 1, through: 365, by: 5) {
+            let day = SeasonalDay(dayOfYear: dayOfYear)
+            for step in 0..<(24 * 4) {
+                let hour = Double(step) / 4
+                let palette = SkyPalette.at(hour: hour, day: day)
+                let background = components(of: palette.skyBottom)
+                let onSurface = blend(components(of: palette.surface), over: background)
+                let card = blend(
+                    components(of: palette.surfaceOpaque, alpha: coverage),
+                    over: onSurface
+                )
+                let ratio = contrastRatio(blend(components(of: palette.ink), over: card), card)
+                if ratio < worst.ratio {
+                    worst = (ratio, dayOfYear, hour)
+                }
+            }
+        }
+
+        #expect(
+            worst.ratio >= 4.5,
+            "主な文字が最も読みにくいのは\(worst.dayOfYear)日目の\(worst.hour)時で、比は\(worst.ratio)でした"
+        )
+    }
+
+    @Test
+    func cardTextStaysReadableOverTheSeaAndGround() {
+        // カードは画面の下半分では、空ではなく海・砂浜・道路の上に重なります。
+        // 季節で海と砂浜の色を変えたので、それらの上でも文字が読めることを確かめます。
+        let coverage = SkyCardOpacity.coverage(for: SkyCardOpacity.standard, isDense: false)
+        var worst = (ratio: Double.infinity, season: Season.spring, hour: 0.0)
+
+        for season in Season.allCases {
+            for step in 0..<(24 * 4) {
+                let hour = Double(step) / 4
+                let palette = SkyPalette.at(hour: hour, season: season)
+                let grounds = palette.quantizedWaterColors(steps: 6) + [palette.shore, palette.road]
+                for ground in grounds {
+                    let onSurface = blend(components(of: palette.surface), over: components(of: ground))
+                    let card = blend(components(of: palette.surfaceOpaque, alpha: coverage), over: onSurface)
+                    let ratio = contrastRatio(blend(components(of: palette.ink), over: card), card)
+                    if ratio < worst.ratio {
+                        worst = (ratio, season, hour)
+                    }
+                }
+            }
+        }
+
+        #expect(
+            worst.ratio >= 4.5,
+            "海・砂浜・道路の上の文字が最も読みにくいのは\(worst.season)の\(worst.hour)時で、比は\(worst.ratio)でした"
         )
     }
 
@@ -1266,7 +1727,422 @@ struct BusTimeAppTests {
         }
     }
 
-    // MARK: - ショートカット（Siri）
+    @Test @MainActor
+    func seasonFollowsJapanTimeAtTheEndOfTheMonth() {
+        // 2026年2月28日16時（協定世界時）は、日本時間では3月1日1時です。
+        var utc = Calendar(identifier: .gregorian)
+        utc.timeZone = TimeZone(secondsFromGMT: 0)!
+        let date = utc.date(from: DateComponents(year: 2026, month: 2, day: 28, hour: 16))!
+
+        // 端末のタイムゾーンにかかわらず、運行判定と同じ日本時間の暦で春とします。
+        #expect(Season.current(date: date) == .spring)
+        #expect(Season.current(date: date, calendar: utc) == .winter)
+
+        // 背景の時計も、日本時間の時刻と季節で配色を作ります。
+        let clock = SkyClock(nowProvider: { date })
+        clock.setAutomaticUpdatesActive(false)
+        #expect(clock.palette.season == .spring)
+        #expect(clock.palette.hour == 1)
+    }
+
+    @Test
+    func previewPalettesKeepTheSeasonOfTheBackground() {
+        // 設定画面のプレビューは、背景本体の季節を引き継いで別の時刻を描きます。
+        // 今日の季節を改めて求めると、-UITestNowで固定した日付とずれることがあるためです。
+        let background = SkyPalette.at(hour: 12, season: .winter)
+        let morning = SkyPalette.at(hour: 7, season: background.season)
+
+        #expect(morning.season == .winter)
+        #expect(morning == SkyPalette.at(hour: 7, season: .winter))
+    }
+
+    @Test
+    func forcedSeasonChangesOnlyTheDateUsedForSeasons() {
+        let defaults = makeIsolatedDefaults()
+        let calendar = AppCalendar.japan
+        let summerEvening = makeTestDate(hour: 17, minute: 45)
+
+        // 指定がなければ、渡した日付をそのまま使います。
+        #expect(SeasonalDate.forcedDate(for: summerEvening, calendar: calendar, defaults: defaults) == nil)
+
+        // 季節を指定すると、時刻は残したまま月日だけをその季節の代表日へ移します。
+        defaults.set("winter", forKey: SeasonalDate.forceSeasonKey)
+        let forced = SeasonalDate.forcedDate(for: summerEvening, calendar: calendar, defaults: defaults)
+        let components = forced.map { calendar.dateComponents([.year, .month, .day, .hour, .minute], from: $0) }
+        #expect(components?.year == 2026)
+        #expect(components?.month == 1)
+        #expect(components?.day == 15)
+        #expect(components?.hour == 17)
+        #expect(components?.minute == 45)
+        #expect(forced.map { Season.current(date: $0, calendar: calendar) } == .winter)
+
+        // どの季節も、代表日がその季節に含まれます。
+        for season in Season.allCases {
+            #expect(Season.from(month: season.representativeMonthDay.month) == season)
+        }
+    }
+
+    @Test
+    func forcedDayOfYearPicksThatDayAndOutranksTheSeason() {
+        let defaults = makeIsolatedDefaults()
+        let calendar = AppCalendar.japan
+        let date = makeTestDate(hour: 9, minute: 30)
+        defaults.set("summer", forKey: SeasonalDate.forceSeasonKey)
+
+        // 起動引数は文字列で届きます。2026年はうるう年ではないので、60日目は3月1日です。
+        defaults.set("60", forKey: SeasonalDate.forceDayOfYearKey)
+        let forced = SeasonalDate.forcedDate(for: date, calendar: calendar, defaults: defaults)
+        let components = forced.map { calendar.dateComponents([.month, .day, .hour, .minute], from: $0) }
+        #expect(components?.month == 3)
+        #expect(components?.day == 1)
+        #expect(components?.hour == 9)
+        #expect(components?.minute == 30)
+
+        // 年の日数を超える値は大晦日に丸めます。
+        defaults.set(400, forKey: SeasonalDate.forceDayOfYearKey)
+        let lastDay = SeasonalDate.forcedDate(for: date, calendar: calendar, defaults: defaults)
+            .map { calendar.dateComponents([.month, .day], from: $0) }
+        #expect(lastDay?.month == 12)
+        #expect(lastDay?.day == 31)
+    }
+
+    @Test
+    func seasonOverrideIgnoresUnknownValues() {
+        let defaults = makeIsolatedDefaults()
+        let calendar = AppCalendar.japan
+        let date = makeTestDate(hour: 12)
+
+        // 綴りを誤った指定や範囲外の日数では、日付を差し替えません。
+        defaults.set("rainy", forKey: SeasonalDate.forceSeasonKey)
+        #expect(SeasonalDate.forcedDate(for: date, calendar: calendar, defaults: defaults) == nil)
+        defaults.set("0", forKey: SeasonalDate.forceDayOfYearKey)
+        #expect(SeasonalDate.forcedDate(for: date, calendar: calendar, defaults: defaults) == nil)
+        #expect(Season(launchArgument: "Autumn") == .autumn)
+        #expect(Season(launchArgument: "fall") == .autumn)
+    }
+
+    @Test
+    func springAndAutumnLookDifferentFromDawnToDusk() {
+        // 春はかすみ、秋は澄んだ空と早い夕暮れです。
+        // 昼の長さも季節の色も同じだったころは、同じ時刻の空がほぼ同じ色でした。
+        let threshold = 10.0
+        let spring = SeasonalDay(season: .spring)
+        let autumn = SeasonalDay(season: .autumn)
+
+        // 同じ時計の時刻で比べます。どちらも夜になる20時以降は、空の色ではなく星の見え方で比べます。
+        for hour in stride(from: 5.0, through: 19.0, by: 1.0) {
+            let difference = skyColorDifference(
+                SkyPalette.at(hour: hour, day: spring),
+                SkyPalette.at(hour: hour, day: autumn)
+            )
+            #expect(difference >= threshold, "\(hour)時の春と秋の空の色差が\(difference)でした")
+        }
+
+        // 日の出・日の入りから同じだけ離れた時刻でも比べます。
+        // 夜明けや夕焼けの色そのものが違わないと、時刻がずれているだけになるためです。
+        let moments: [(name: String, hour: (DaylightSchedule) -> Double)] = [
+            ("日の出", { $0.sunrise }),
+            ("日の出の45分後", { $0.sunrise + 0.75 }),
+            ("日の入りの45分前", { $0.sunset - 0.75 }),
+            ("日の入り", { $0.sunset }),
+            ("日の入りの30分後", { $0.sunset + 0.5 })
+        ]
+        for moment in moments {
+            let difference = skyColorDifference(
+                SkyPalette.at(hour: moment.hour(spring.daylight), day: spring),
+                SkyPalette.at(hour: moment.hour(autumn.daylight), day: autumn)
+            )
+            #expect(difference >= threshold, "\(moment.name)の春と秋の空の色差が\(difference)でした")
+        }
+
+        // 秋は春より1時間ほど早く暮れます。
+        #expect(autumn.daylight.sunset < spring.daylight.sunset - 0.75)
+        // 春の夕焼けはかすんで淡く、秋の夕焼けは澄んで鮮やかです。
+        let springGlow = SkyPalette.at(hour: spring.daylight.sunset - 0.75, day: spring)
+        let autumnGlow = SkyPalette.at(hour: autumn.daylight.sunset - 0.75, day: autumn)
+        #expect(saturation(components(of: springGlow.skyColor(at: 0))) < saturation(components(of: autumnGlow.skyColor(at: 0))))
+        // 夜は、かすむ春より澄んだ秋のほうが多くの星が見えます。
+        #expect(SkyPalette.at(hour: 22, day: autumn).starClarity > SkyPalette.at(hour: 22, day: spring).starClarity + 0.2)
+    }
+
+    @Test
+    func seaAndShoreChangeWithTheSeason() {
+        typealias RGBA = (r: Double, g: Double, b: Double, a: Double)
+        func water(_ season: Season) -> RGBA {
+            components(of: SkyPalette.at(hour: 12, season: season).quantizedWaterColors(steps: 6)[3])
+        }
+        func shore(_ season: Season) -> RGBA {
+            components(of: SkyPalette.at(hour: 12, season: season).shore)
+        }
+
+        // 夏の海は明るい青緑、冬の海は深く暗い青です。
+        #expect(colorDifference(water(.summer), water(.winter)) >= 10)
+        #expect(relativeLuminance(water(.summer)) > relativeLuminance(water(.winter)))
+        #expect(water(.summer).g / water(.summer).b > water(.winter).g / water(.winter).b)
+        // 冬の海がいちばん暗く沈みます。
+        for season in [Season.spring, .summer, .autumn] {
+            #expect(relativeLuminance(water(.winter)) < relativeLuminance(water(season)))
+        }
+        // 砂浜は、夏は白く乾いて明るく、冬は冷たく灰色がかります。
+        #expect(relativeLuminance(shore(.summer)) > relativeLuminance(shore(.winter)))
+        #expect(saturation(shore(.summer)) > saturation(shore(.winter)))
+    }
+
+    @Test
+    func cloudsChangeShapeWithTheSeason() {
+        func pieces(_ season: Season) -> [SeasonalCloudStyle.Piece] {
+            let style = SeasonalCloudStyle(season: season)
+            return (0..<3).flatMap { style.pieces(forSlot: $0, baseScale: 4) }
+        }
+
+        // 夏は、地平線の上から高く湧き上がる入道雲が出ます。
+        #expect(pieces(.summer).contains { $0.rows.count >= 6 && $0.bottomRatio != nil })
+        #expect(!pieces(.spring).contains { $0.rows.count >= 6 })
+        // 秋は、高い空に細かな雲が鱗のように並び、細く伸びるすじ雲が出ます。
+        #expect(pieces(.autumn).filter { $0.rows.count == 1 }.count >= 10)
+        #expect(pieces(.autumn).contains { $0.rows.first.map { $0.width >= 12 } == true })
+        // 冬は雲が少なく、薄くなります。
+        #expect(pieces(.winter).count < pieces(.spring).count)
+        #expect(pieces(.winter).allSatisfy { $0.isFaint })
+    }
+
+    @Test
+    func cloudShapesMoveToTheNextSeasonOneByOne() {
+        // 季節の代表日は、すべての雲がその季節の形です。
+        for season in Season.allCases {
+            let blend = SeasonalDay(season: season).seasonBlend
+            for slot in 0..<3 {
+                #expect(SeasonalCloudStyle(slot: slot, slotCount: 3, blend: blend) == SeasonalCloudStyle(season: season))
+            }
+        }
+        // 隣の季節へ移るあいだは、雲ごとに切り替わる日がずれます。一度にすべては入れ替わりません。
+        let halfway = SeasonBlend(earlier: .spring, later: .summer, ratio: 0.5)
+        let styles = (0..<3).map { SeasonalCloudStyle(slot: $0, slotCount: 3, blend: halfway) }
+        #expect(styles.contains(.soft))
+        #expect(styles.contains(.towering))
+    }
+
+    @Test
+    func seasonalMotifsAppearInTheirSeason() {
+        func motifs(_ season: Season, _ hour: Double) -> SeasonalMotifs {
+            SeasonalMotifs(palette: SkyPalette.at(hour: hour, season: season))
+        }
+
+        // 春の昼は桜の花びらが舞い、水平線がかすみます。
+        #expect(motifs(.spring, 12).petalCount > 0)
+        #expect(motifs(.spring, 12).haze > 0)
+        #expect(motifs(.summer, 12).petalCount == 0)
+        // 夏の昼は、強い日差しが道路に照り返します。
+        #expect(motifs(.summer, 12).roadGlare > 0)
+        #expect(motifs(.spring, 12).roadGlare == 0)
+        // 秋の昼は赤とんぼが飛び、夜は月明かりが強まります。
+        #expect(motifs(.autumn, 12).dragonflyCount > 0)
+        #expect(motifs(.winter, 12).dragonflyCount == 0)
+        #expect(motifs(.autumn, 23).moonlightBoost > 0)
+        #expect(motifs(.spring, 23).moonlightBoost == 0)
+        // 冬は、夜に葉のない街路樹のイルミネーションが灯り、朝は霜が降ります。
+        #expect(motifs(.winter, 22).illumination > 0)
+        #expect(motifs(.winter, 12).illumination == 0)
+        #expect(motifs(.autumn, 22).illumination == 0)
+        let winterSunrise = SkyPalette.daylight(for: .winter).sunrise
+        #expect(motifs(.winter, winterSunrise + 0.5).frost > 0)
+        #expect(motifs(.winter, 14).frost == 0)
+        #expect(motifs(.summer, SkyPalette.daylight(for: .summer).sunrise + 0.5).frost == 0)
+        // 冬の澄んだ空気では、対岸の街がくっきり見えます。
+        #expect(motifs(.winter, 12).distantClarity > motifs(.summer, 12).distantClarity)
+        // 夜は、花びらや赤とんぼを出しません。
+        #expect(motifs(.spring, 23).petalCount == 0)
+        #expect(motifs(.autumn, 23).dragonflyCount == 0)
+    }
+
+    @Test
+    func summerFireworksRiseOnlyOnSomeNights() {
+        func showsFireworks(dayOfYear: Int, hour: (DaylightSchedule) -> Double) -> Bool {
+            let day = SeasonalDay(dayOfYear: dayOfYear)
+            return SeasonalMotifs(palette: SkyPalette.at(hour: hour(day.daylight), day: day)).showsFireworks
+        }
+
+        // 夏の夜でも、花火は5日に1度だけです。7月14日（195日目）は上がり、翌日は上がりません。
+        #expect(showsFireworks(dayOfYear: 195) { $0.sunset + 1.5 })
+        #expect(!showsFireworks(dayOfYear: 196) { $0.sunset + 1.5 })
+        // 昼や、21時30分を過ぎた夜には上がりません。
+        #expect(!showsFireworks(dayOfYear: 195) { $0.solarNoon })
+        #expect(!showsFireworks(dayOfYear: 195) { _ in 22 })
+        // 冬は、間隔の日に当たっても上がりません。
+        #expect(!showsFireworks(dayOfYear: 15) { $0.sunset + 1.5 })
+    }
+
+    @Test
+    func streetTreeChangesThroughTheYear() {
+        // 春は桜、夏は青葉、秋は紅葉が茂り、冬は葉を落とします。
+        for season in [Season.spring, .summer, .autumn] {
+            #expect(SkyPalette.at(hour: 12, season: season).foliageDensity == 1)
+        }
+        #expect(SkyPalette.at(hour: 12, season: .winter).foliageDensity == 0)
+
+        let blossom = components(of: SkyPalette.at(hour: 12, season: .spring).foliage)
+        let leaves = components(of: SkyPalette.at(hour: 12, season: .summer).foliage)
+        let autumnLeaves = components(of: SkyPalette.at(hour: 12, season: .autumn).foliage)
+        #expect(blossom.r > blossom.g)
+        #expect(leaves.g > leaves.r)
+        #expect(autumnLeaves.r > autumnLeaves.g * 1.5)
+
+        // 11月末は紅葉から冬への途中です。葉は紅葉の色のまま、半分ほど散っています。
+        let lateNovember = SkyPalette.at(hour: 12, day: SeasonalDay(dayOfYear: 334))
+        let fallingLeaves = components(of: lateNovember.foliage)
+        #expect(lateNovember.foliageDensity > 0.3)
+        #expect(lateNovember.foliageDensity < 0.7)
+        #expect(fallingLeaves.r > fallingLeaves.g * 1.5)
+    }
+
+    @Test
+    func nightSkyStaysDeepNavyInEverySeason() {
+        // 夜空に季節の色を混ぜると、黒に近い紺が灰色や茶色っぽく濁ります。
+        // 以前の秋の23時の空の上端は(30, 27, 39)でした。
+        for season in Season.allCases {
+            for hour in [23.0, 0, 2] {
+                let top = components(of: SkyPalette.at(hour: hour, season: season).skyColor(at: 0))
+                #expect(top.r < 0.06, "\(season)の\(hour)時の空が明るく濁っています")
+                #expect(top.g < 0.08, "\(season)の\(hour)時の空が明るく濁っています")
+                #expect(top.b > max(top.r, top.g) + 0.05, "\(season)の\(hour)時の空が紺ではありません")
+            }
+        }
+    }
+
+    @Test
+    func summerSunsetGlowsDeepOrange() {
+        // 夏の夕焼けに夏の青を混ぜると、空の上端が(150, 141, 164)の灰紫になっていました。
+        // 夏は青を混ぜず、ほかの季節より濃い橙に焼けます。
+        func sunsetGlow(_ season: Season) -> (r: Double, g: Double, b: Double, a: Double) {
+            let day = SeasonalDay(season: season)
+            let palette = SkyPalette.at(hour: day.daylight.sunset - 0.75, day: day)
+            return components(of: palette.skyColor(at: 0))
+        }
+
+        let summer = sunsetGlow(.summer)
+        #expect(summer.r > 0.85)
+        #expect(summer.b < 0.3)
+        for season in [Season.spring, .autumn, .winter] {
+            #expect(saturation(summer) > saturation(sunsetGlow(season)))
+        }
+    }
+
+    @Test
+    func starsShowHowClearTheNightAirIs() {
+        // 夜空の色は変えず、星の見え方で季節を表します。
+        // 乾いた冬が最も澄み、秋、湿った夏、かすみの出る春の順に暗い星が隠れます。
+        let order: [Season] = [.winter, .autumn, .summer, .spring]
+        for (clearer, hazier) in zip(order, order.dropFirst()) {
+            #expect(
+                SkyPalette.at(hour: 23, season: clearer).starClarity
+                    > SkyPalette.at(hour: 23, season: hazier).starClarity
+            )
+        }
+        // 季節のあいだの日は、2つの季節の澄み具合のあいだになります。
+        let lateMay = SkyPalette.at(hour: 23, day: SeasonalDay(dayOfYear: 151)).starClarity
+        #expect(lateMay > Season.spring.starClarity)
+        #expect(lateMay < Season.summer.starClarity)
+    }
+
+    @Test
+    func skyChangesGraduallyFromDayToDay() {
+        // 隣り合う日の同じ時刻で、空の色がほとんど変わらないことを確かめます。
+        // 季節を月で切り替えていたころは、8月31日から9月1日のような境目で
+        // 一晩のうちにΔEが8〜11も変わっていました。
+        // 2.0は、並べて見比べても違いに気づきにくい大きさです。
+        let threshold = 2.0
+        var worst = (difference: 0.0, dayOfYear: 0, hour: 0.0)
+
+        for dayOfYear in 1...365 {
+            // 12月31日の次は、翌年の1月1日と比べます。
+            let nextDayOfYear = dayOfYear == 365 ? 1 : dayOfYear + 1
+            for hour in [7, 12, 17.75, 22] {
+                let today = SkyPalette.at(hour: hour, day: SeasonalDay(dayOfYear: dayOfYear))
+                let tomorrow = SkyPalette.at(hour: hour, day: SeasonalDay(dayOfYear: nextDayOfYear))
+                let difference = skyColorDifference(today, tomorrow)
+                if difference > worst.difference {
+                    worst = (difference, dayOfYear, hour)
+                }
+            }
+        }
+
+        #expect(
+            worst.difference <= threshold,
+            "\(worst.dayOfYear)日目から翌日への\(worst.hour)時の空の色差が\(worst.difference)でした"
+        )
+    }
+
+    @Test
+    func seasonsBlendBetweenTheirRepresentativeDays() {
+        // 季節の代表日は、その季節の色だけになります。
+        for season in Season.allCases {
+            #expect(SeasonalDay(season: season).seasonBlend.weight(of: season) == 1)
+        }
+
+        // 5月31日は春と夏のちょうど中間です。4月15日の春の色から、夏の色へ半分近づきます。
+        let lateMay = SeasonalDay(dayOfYear: 151).seasonBlend
+        #expect(lateMay.earlier == .spring)
+        #expect(lateMay.later == .summer)
+        #expect(abs(lateMay.ratio - 0.5) < 0.05)
+
+        // 秋から冬へは年をまたいで移ります。1月1日はほぼ冬の色です。
+        let newYear = SeasonalDay(dayOfYear: 1).seasonBlend
+        #expect(newYear.earlier == .autumn)
+        #expect(newYear.later == .winter)
+        #expect(newYear.weight(of: .winter) > 0.9)
+        // 1年を通して、2つの季節の割合の合計は1です。
+        for dayOfYear in stride(from: 1, through: 365, by: 3) {
+            let blend = SeasonalDay(dayOfYear: dayOfYear).seasonBlend
+            let total = Season.allCases.map(blend.weight(of:)).reduce(0, +)
+            #expect(abs(total - 1) < 0.000_001)
+        }
+    }
+
+    @Test
+    func seasonsLookDifferentAtNoon() {
+        // 同じ正午の空を季節どうしで比べ、どの組み合わせも見分けられる色差があることを確かめます。
+        // 色差はCIELABのΔE（CIE76）です。2.3前後が見分けられる最小の差で、10を超えると別の色に見えます。
+        // 季節の色を一律に混ぜていたころは0.8〜8.4しかなく、春と冬はほぼ同じ色でした。
+        let threshold = 10.0
+
+        for (index, first) in Season.allCases.enumerated() {
+            for second in Season.allCases.dropFirst(index + 1) {
+                let difference = skyColorDifference(
+                    SkyPalette.at(hour: 12, season: first),
+                    SkyPalette.at(hour: 12, season: second)
+                )
+                #expect(
+                    difference >= threshold,
+                    "正午の\(first)と\(second)の空の色差が\(difference)でした"
+                )
+            }
+        }
+    }
+
+    @Test
+    func daytimeSkyShowsEachSeasonsCharacter() {
+        typealias RGBA = (r: Double, g: Double, b: Double, a: Double)
+        func noonSky(_ season: Season) -> (top: RGBA, bottom: RGBA) {
+            let palette = SkyPalette.at(hour: 12, season: season)
+            return (components(of: palette.skyColor(at: 0)), components(of: palette.skyColor(at: 1)))
+        }
+        // 夏は濃く高い青、秋は澄んだ青、春はかすんだ淡い空、冬は低く白っぽい空です。
+        // 空の上端の鮮やかさが、この順に下がります。
+        let order: [Season] = [.summer, .autumn, .spring, .winter]
+        for (vivid, pale) in zip(order, order.dropFirst()) {
+            #expect(
+                saturation(noonSky(vivid).top) > saturation(noonSky(pale).top),
+                "\(vivid)の空は\(pale)より鮮やかにします"
+            )
+        }
+        // 冬の空がいちばん明るく白っぽくなります。
+        for season in [Season.spring, .summer, .autumn] {
+            #expect(relativeLuminance(noonSky(.winter).top) > relativeLuminance(noonSky(season).top))
+        }
+        // 春の地平線は桃色を帯びたかすみ、冬の地平線は冷たい白です。
+        #expect(noonSky(.spring).bottom.r > noonSky(.spring).bottom.b)
+        #expect(noonSky(.winter).bottom.b > noonSky(.winter).bottom.r)
+    }
 
     @Test
     func shortcutAnswerNamesTheRouteAndTheNextDeparture() {
@@ -1692,9 +2568,12 @@ struct BusTimeAppTests {
     @Test @MainActor
     func weekendKeepsTheNoticeAndStillShowsWeekdayTimes() {
         let saturday = makeTestDate(day: 15, hour: 8)
+        // 同梱ダイヤの運休判定を確かめるため、端末に保存されたAPIの時刻表は使いません。
+        // 保存済みの時刻表があると、運休の理由が「運行ダイヤの設定」に変わってしまいます。
         let viewModel = HomeViewModel(
             nowProvider: { saturday },
-            defaults: makeIsolatedDefaults()
+            defaults: makeIsolatedDefaults(),
+            timetableRepository: nil
         )
         viewModel.searchTime = saturday
         viewModel.performSearch()
@@ -1795,6 +2674,19 @@ private func makeTestDate(day: Int = 12, hour: Int, minute: Int = 0) -> Date {
     )!
 }
 
+/// Live Activityの表示を確かめるための対象便です。
+private func makeBusActivityAttributes(departureDate: Date) -> BusActivityAttributes {
+    BusActivityAttributes(
+        busID: "8:00-station",
+        busDepartureTime: "8:00",
+        busArrivalTime: "8:10",
+        originName: "海浜幕張駅",
+        destinationName: "コロンブスシティ",
+        departureDate: departureDate,
+        routeName: "海浜幕張駅 → コロンブスシティ"
+    )
+}
+
 /// 天気の取得結果を差し替えるためのテスト用スタブです。
 private final class StubWeatherService: WeatherFetching, @unchecked Sendable {
     var result: Result<SkyWeather, Error> = .success(.clear)
@@ -1830,6 +2722,50 @@ private func blend(
         b: bottom.b + (top.b - bottom.b) * top.a,
         a: 1
     )
+}
+
+/// 2つの配色の空の色差です。
+///
+/// 上端と下端のそれぞれで色差を測り、平均を返します。
+/// 背景の空はこの2色のあいだを段階的に塗り分けるため、両端を比べれば空全体の違いが分かります。
+private func skyColorDifference(_ first: SkyPalette, _ second: SkyPalette) -> Double {
+    let top = colorDifference(components(of: first.skyColor(at: 0)), components(of: second.skyColor(at: 0)))
+    let bottom = colorDifference(components(of: first.skyColor(at: 1)), components(of: second.skyColor(at: 1)))
+    return (top + bottom) / 2
+}
+
+/// CIELAB色空間での色差（ΔE*ab、CIE76）です。人の目に見える違いの大きさに近い値になります。
+private func colorDifference(
+    _ first: (r: Double, g: Double, b: Double, a: Double),
+    _ second: (r: Double, g: Double, b: Double, a: Double)
+) -> Double {
+    let a = cieLab(first)
+    let b = cieLab(second)
+    return ((a.l - b.l) * (a.l - b.l) + (a.a - b.a) * (a.a - b.a) + (a.b - b.b) * (a.b - b.b)).squareRoot()
+}
+
+/// sRGBの色をCIELAB（D65白色点）へ変換します。
+private func cieLab(_ color: (r: Double, g: Double, b: Double, a: Double)) -> (l: Double, a: Double, b: Double) {
+    func linear(_ value: Double) -> Double {
+        value <= 0.04045 ? value / 12.92 : pow((value + 0.055) / 1.055, 2.4)
+    }
+    func f(_ value: Double) -> Double {
+        let epsilon = pow(6.0 / 29.0, 3)
+        return value > epsilon ? cbrt(value) : value / (3 * pow(6.0 / 29.0, 2)) + 4.0 / 29.0
+    }
+    let red = linear(color.r)
+    let green = linear(color.g)
+    let blue = linear(color.b)
+    let x = (0.4124 * red + 0.3576 * green + 0.1805 * blue) / 0.95047
+    let y = 0.2126 * red + 0.7152 * green + 0.0722 * blue
+    let z = (0.0193 * red + 0.1192 * green + 0.9505 * blue) / 1.08883
+    return (116 * f(y) - 16, 500 * (f(x) - f(y)), 200 * (f(y) - f(z)))
+}
+
+/// 色の鮮やかさ（HSVの彩度）です。0が灰色、1が最も鮮やかです。
+private func saturation(_ color: (r: Double, g: Double, b: Double, a: Double)) -> Double {
+    let highest = max(color.r, color.g, color.b)
+    return highest > 0 ? (highest - min(color.r, color.g, color.b)) / highest : 0
 }
 
 /// WCAGの相対輝度です。

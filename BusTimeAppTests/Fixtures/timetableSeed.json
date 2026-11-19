@@ -1,0 +1,2579 @@
+{
+  "snapshots": [
+    {
+      "schema_version": 1,
+      "route_id": "mansion-station",
+      "route_name": "コロンブスシティ → 海浜幕張駅",
+      "version": 1,
+      "updated_at": "2026-10-09T02:50:14.634706+00:00",
+      "schedules": [
+        {
+          "id": "mansion-station-holiday",
+          "route_id": "mansion-station",
+          "kind": "holiday",
+          "service_date": null,
+          "valid_from": null,
+          "valid_until": null,
+          "is_suspended": true,
+          "priority": 0
+        },
+        {
+          "id": "mansion-station-weekday",
+          "route_id": "mansion-station",
+          "kind": "weekday",
+          "service_date": null,
+          "valid_from": null,
+          "valid_until": null,
+          "is_suspended": false,
+          "priority": 0
+        },
+        {
+          "id": "mansion-station-weekend",
+          "route_id": "mansion-station",
+          "kind": "weekend",
+          "service_date": null,
+          "valid_from": null,
+          "valid_until": null,
+          "is_suspended": true,
+          "priority": 0
+        }
+      ],
+      "buses": [
+        {
+          "id": "mansion-station-0-04",
+          "route_id": "mansion-station",
+          "schedule_id": "mansion-station-weekday",
+          "note": null,
+          "stops": [
+            {
+              "stop_id": "mansion",
+              "time": "0:04",
+              "name": "コロンブスシティ"
+            },
+            {
+              "stop_id": "station",
+              "time": "0:11",
+              "name": "海浜幕張駅"
+            }
+          ],
+          "departure": "0:04",
+          "arrival": "0:11"
+        },
+        {
+          "id": "mansion-station-10-00",
+          "route_id": "mansion-station",
+          "schedule_id": "mansion-station-weekday",
+          "note": null,
+          "stops": [
+            {
+              "stop_id": "mansion",
+              "time": "10:00",
+              "name": "コロンブスシティ"
+            },
+            {
+              "stop_id": "station",
+              "time": "10:08",
+              "name": "海浜幕張駅"
+            }
+          ],
+          "departure": "10:00",
+          "arrival": "10:08"
+        },
+        {
+          "id": "mansion-station-10-30",
+          "route_id": "mansion-station",
+          "schedule_id": "mansion-station-weekday",
+          "note": "お買い物便",
+          "stops": [
+            {
+              "stop_id": "mansion",
+              "time": "10:30",
+              "name": "コロンブスシティ"
+            },
+            {
+              "stop_id": "station",
+              "time": "10:38",
+              "name": "海浜幕張駅"
+            }
+          ],
+          "departure": "10:30",
+          "arrival": "10:38"
+        },
+        {
+          "id": "mansion-station-11-00",
+          "route_id": "mansion-station",
+          "schedule_id": "mansion-station-weekday",
+          "note": null,
+          "stops": [
+            {
+              "stop_id": "mansion",
+              "time": "11:00",
+              "name": "コロンブスシティ"
+            },
+            {
+              "stop_id": "station",
+              "time": "11:08",
+              "name": "海浜幕張駅"
+            }
+          ],
+          "departure": "11:00",
+          "arrival": "11:08"
+        },
+        {
+          "id": "mansion-station-11-30",
+          "route_id": "mansion-station",
+          "schedule_id": "mansion-station-weekday",
+          "note": "お買い物便",
+          "stops": [
+            {
+              "stop_id": "mansion",
+              "time": "11:30",
+              "name": "コロンブスシティ"
+            },
+            {
+              "stop_id": "station",
+              "time": "11:38",
+              "name": "海浜幕張駅"
+            }
+          ],
+          "departure": "11:30",
+          "arrival": "11:38"
+        },
+        {
+          "id": "mansion-station-13-00",
+          "route_id": "mansion-station",
+          "schedule_id": "mansion-station-weekday",
+          "note": null,
+          "stops": [
+            {
+              "stop_id": "mansion",
+              "time": "13:00",
+              "name": "コロンブスシティ"
+            },
+            {
+              "stop_id": "station",
+              "time": "13:08",
+              "name": "海浜幕張駅"
+            }
+          ],
+          "departure": "13:00",
+          "arrival": "13:08"
+        },
+        {
+          "id": "mansion-station-13-30",
+          "route_id": "mansion-station",
+          "schedule_id": "mansion-station-weekday",
+          "note": "お買い物便",
+          "stops": [
+            {
+              "stop_id": "mansion",
+              "time": "13:30",
+              "name": "コロンブスシティ"
+            },
+            {
+              "stop_id": "station",
+              "time": "13:38",
+              "name": "海浜幕張駅"
+            }
+          ],
+          "departure": "13:30",
+          "arrival": "13:38"
+        },
+        {
+          "id": "mansion-station-14-00",
+          "route_id": "mansion-station",
+          "schedule_id": "mansion-station-weekday",
+          "note": null,
+          "stops": [
+            {
+              "stop_id": "mansion",
+              "time": "14:00",
+              "name": "コロンブスシティ"
+            },
+            {
+              "stop_id": "station",
+              "time": "14:08",
+              "name": "海浜幕張駅"
+            }
+          ],
+          "departure": "14:00",
+          "arrival": "14:08"
+        },
+        {
+          "id": "mansion-station-14-30",
+          "route_id": "mansion-station",
+          "schedule_id": "mansion-station-weekday",
+          "note": "お買い物便",
+          "stops": [
+            {
+              "stop_id": "mansion",
+              "time": "14:30",
+              "name": "コロンブスシティ"
+            },
+            {
+              "stop_id": "station",
+              "time": "14:38",
+              "name": "海浜幕張駅"
+            }
+          ],
+          "departure": "14:30",
+          "arrival": "14:38"
+        },
+        {
+          "id": "mansion-station-15-00",
+          "route_id": "mansion-station",
+          "schedule_id": "mansion-station-weekday",
+          "note": null,
+          "stops": [
+            {
+              "stop_id": "mansion",
+              "time": "15:00",
+              "name": "コロンブスシティ"
+            },
+            {
+              "stop_id": "station",
+              "time": "15:08",
+              "name": "海浜幕張駅"
+            }
+          ],
+          "departure": "15:00",
+          "arrival": "15:08"
+        },
+        {
+          "id": "mansion-station-15-30",
+          "route_id": "mansion-station",
+          "schedule_id": "mansion-station-weekday",
+          "note": "お買い物便",
+          "stops": [
+            {
+              "stop_id": "mansion",
+              "time": "15:30",
+              "name": "コロンブスシティ"
+            },
+            {
+              "stop_id": "station",
+              "time": "15:38",
+              "name": "海浜幕張駅"
+            }
+          ],
+          "departure": "15:30",
+          "arrival": "15:38"
+        },
+        {
+          "id": "mansion-station-16-00",
+          "route_id": "mansion-station",
+          "schedule_id": "mansion-station-weekday",
+          "note": null,
+          "stops": [
+            {
+              "stop_id": "mansion",
+              "time": "16:00",
+              "name": "コロンブスシティ"
+            },
+            {
+              "stop_id": "station",
+              "time": "16:08",
+              "name": "海浜幕張駅"
+            }
+          ],
+          "departure": "16:00",
+          "arrival": "16:08"
+        },
+        {
+          "id": "mansion-station-16-30",
+          "route_id": "mansion-station",
+          "schedule_id": "mansion-station-weekday",
+          "note": "お買い物便",
+          "stops": [
+            {
+              "stop_id": "mansion",
+              "time": "16:30",
+              "name": "コロンブスシティ"
+            },
+            {
+              "stop_id": "station",
+              "time": "16:38",
+              "name": "海浜幕張駅"
+            }
+          ],
+          "departure": "16:30",
+          "arrival": "16:38"
+        },
+        {
+          "id": "mansion-station-17-04",
+          "route_id": "mansion-station",
+          "schedule_id": "mansion-station-weekday",
+          "note": null,
+          "stops": [
+            {
+              "stop_id": "mansion",
+              "time": "17:04",
+              "name": "コロンブスシティ"
+            },
+            {
+              "stop_id": "station",
+              "time": "17:11",
+              "name": "海浜幕張駅"
+            }
+          ],
+          "departure": "17:04",
+          "arrival": "17:11"
+        },
+        {
+          "id": "mansion-station-17-37",
+          "route_id": "mansion-station",
+          "schedule_id": "mansion-station-weekday",
+          "note": null,
+          "stops": [
+            {
+              "stop_id": "mansion",
+              "time": "17:37",
+              "name": "コロンブスシティ"
+            },
+            {
+              "stop_id": "station",
+              "time": "17:44",
+              "name": "海浜幕張駅"
+            }
+          ],
+          "departure": "17:37",
+          "arrival": "17:44"
+        },
+        {
+          "id": "mansion-station-18-02",
+          "route_id": "mansion-station",
+          "schedule_id": "mansion-station-weekday",
+          "note": null,
+          "stops": [
+            {
+              "stop_id": "mansion",
+              "time": "18:02",
+              "name": "コロンブスシティ"
+            },
+            {
+              "stop_id": "station",
+              "time": "18:09",
+              "name": "海浜幕張駅"
+            }
+          ],
+          "departure": "18:02",
+          "arrival": "18:09"
+        },
+        {
+          "id": "mansion-station-18-19",
+          "route_id": "mansion-station",
+          "schedule_id": "mansion-station-weekday",
+          "note": null,
+          "stops": [
+            {
+              "stop_id": "mansion",
+              "time": "18:19",
+              "name": "コロンブスシティ"
+            },
+            {
+              "stop_id": "station",
+              "time": "18:26",
+              "name": "海浜幕張駅"
+            }
+          ],
+          "departure": "18:19",
+          "arrival": "18:26"
+        },
+        {
+          "id": "mansion-station-18-37",
+          "route_id": "mansion-station",
+          "schedule_id": "mansion-station-weekday",
+          "note": null,
+          "stops": [
+            {
+              "stop_id": "mansion",
+              "time": "18:37",
+              "name": "コロンブスシティ"
+            },
+            {
+              "stop_id": "station",
+              "time": "18:44",
+              "name": "海浜幕張駅"
+            }
+          ],
+          "departure": "18:37",
+          "arrival": "18:44"
+        },
+        {
+          "id": "mansion-station-19-01",
+          "route_id": "mansion-station",
+          "schedule_id": "mansion-station-weekday",
+          "note": null,
+          "stops": [
+            {
+              "stop_id": "mansion",
+              "time": "19:01",
+              "name": "コロンブスシティ"
+            },
+            {
+              "stop_id": "station",
+              "time": "19:08",
+              "name": "海浜幕張駅"
+            }
+          ],
+          "departure": "19:01",
+          "arrival": "19:08"
+        },
+        {
+          "id": "mansion-station-19-20",
+          "route_id": "mansion-station",
+          "schedule_id": "mansion-station-weekday",
+          "note": null,
+          "stops": [
+            {
+              "stop_id": "mansion",
+              "time": "19:20",
+              "name": "コロンブスシティ"
+            },
+            {
+              "stop_id": "station",
+              "time": "19:27",
+              "name": "海浜幕張駅"
+            }
+          ],
+          "departure": "19:20",
+          "arrival": "19:27"
+        },
+        {
+          "id": "mansion-station-19-39",
+          "route_id": "mansion-station",
+          "schedule_id": "mansion-station-weekday",
+          "note": null,
+          "stops": [
+            {
+              "stop_id": "mansion",
+              "time": "19:39",
+              "name": "コロンブスシティ"
+            },
+            {
+              "stop_id": "station",
+              "time": "19:46",
+              "name": "海浜幕張駅"
+            }
+          ],
+          "departure": "19:39",
+          "arrival": "19:46"
+        },
+        {
+          "id": "mansion-station-19-59",
+          "route_id": "mansion-station",
+          "schedule_id": "mansion-station-weekday",
+          "note": null,
+          "stops": [
+            {
+              "stop_id": "mansion",
+              "time": "19:59",
+              "name": "コロンブスシティ"
+            },
+            {
+              "stop_id": "station",
+              "time": "20:06",
+              "name": "海浜幕張駅"
+            }
+          ],
+          "departure": "19:59",
+          "arrival": "20:06"
+        },
+        {
+          "id": "mansion-station-20-17",
+          "route_id": "mansion-station",
+          "schedule_id": "mansion-station-weekday",
+          "note": null,
+          "stops": [
+            {
+              "stop_id": "mansion",
+              "time": "20:17",
+              "name": "コロンブスシティ"
+            },
+            {
+              "stop_id": "station",
+              "time": "20:24",
+              "name": "海浜幕張駅"
+            }
+          ],
+          "departure": "20:17",
+          "arrival": "20:24"
+        },
+        {
+          "id": "mansion-station-20-51",
+          "route_id": "mansion-station",
+          "schedule_id": "mansion-station-weekday",
+          "note": null,
+          "stops": [
+            {
+              "stop_id": "mansion",
+              "time": "20:51",
+              "name": "コロンブスシティ"
+            },
+            {
+              "stop_id": "station",
+              "time": "20:58",
+              "name": "海浜幕張駅"
+            }
+          ],
+          "departure": "20:51",
+          "arrival": "20:58"
+        },
+        {
+          "id": "mansion-station-21-08",
+          "route_id": "mansion-station",
+          "schedule_id": "mansion-station-weekday",
+          "note": null,
+          "stops": [
+            {
+              "stop_id": "mansion",
+              "time": "21:08",
+              "name": "コロンブスシティ"
+            },
+            {
+              "stop_id": "station",
+              "time": "21:15",
+              "name": "海浜幕張駅"
+            }
+          ],
+          "departure": "21:08",
+          "arrival": "21:15"
+        },
+        {
+          "id": "mansion-station-21-55",
+          "route_id": "mansion-station",
+          "schedule_id": "mansion-station-weekday",
+          "note": null,
+          "stops": [
+            {
+              "stop_id": "mansion",
+              "time": "21:55",
+              "name": "コロンブスシティ"
+            },
+            {
+              "stop_id": "station",
+              "time": "22:02",
+              "name": "海浜幕張駅"
+            }
+          ],
+          "departure": "21:55",
+          "arrival": "22:02"
+        },
+        {
+          "id": "mansion-station-22-19",
+          "route_id": "mansion-station",
+          "schedule_id": "mansion-station-weekday",
+          "note": null,
+          "stops": [
+            {
+              "stop_id": "mansion",
+              "time": "22:19",
+              "name": "コロンブスシティ"
+            },
+            {
+              "stop_id": "station",
+              "time": "22:26",
+              "name": "海浜幕張駅"
+            }
+          ],
+          "departure": "22:19",
+          "arrival": "22:26"
+        },
+        {
+          "id": "mansion-station-22-37",
+          "route_id": "mansion-station",
+          "schedule_id": "mansion-station-weekday",
+          "note": null,
+          "stops": [
+            {
+              "stop_id": "mansion",
+              "time": "22:37",
+              "name": "コロンブスシティ"
+            },
+            {
+              "stop_id": "station",
+              "time": "22:44",
+              "name": "海浜幕張駅"
+            }
+          ],
+          "departure": "22:37",
+          "arrival": "22:44"
+        },
+        {
+          "id": "mansion-station-23-06",
+          "route_id": "mansion-station",
+          "schedule_id": "mansion-station-weekday",
+          "note": null,
+          "stops": [
+            {
+              "stop_id": "mansion",
+              "time": "23:06",
+              "name": "コロンブスシティ"
+            },
+            {
+              "stop_id": "station",
+              "time": "23:13",
+              "name": "海浜幕張駅"
+            }
+          ],
+          "departure": "23:06",
+          "arrival": "23:13"
+        },
+        {
+          "id": "mansion-station-23-38",
+          "route_id": "mansion-station",
+          "schedule_id": "mansion-station-weekday",
+          "note": null,
+          "stops": [
+            {
+              "stop_id": "mansion",
+              "time": "23:38",
+              "name": "コロンブスシティ"
+            },
+            {
+              "stop_id": "station",
+              "time": "23:45",
+              "name": "海浜幕張駅"
+            }
+          ],
+          "departure": "23:38",
+          "arrival": "23:45"
+        },
+        {
+          "id": "mansion-station-6-03",
+          "route_id": "mansion-station",
+          "schedule_id": "mansion-station-weekday",
+          "note": null,
+          "stops": [
+            {
+              "stop_id": "mansion",
+              "time": "6:03",
+              "name": "コロンブスシティ"
+            },
+            {
+              "stop_id": "station",
+              "time": "6:11",
+              "name": "海浜幕張駅"
+            }
+          ],
+          "departure": "6:03",
+          "arrival": "6:11"
+        },
+        {
+          "id": "mansion-station-6-30",
+          "route_id": "mansion-station",
+          "schedule_id": "mansion-station-weekday",
+          "note": null,
+          "stops": [
+            {
+              "stop_id": "mansion",
+              "time": "6:30",
+              "name": "コロンブスシティ"
+            },
+            {
+              "stop_id": "station",
+              "time": "6:38",
+              "name": "海浜幕張駅"
+            }
+          ],
+          "departure": "6:30",
+          "arrival": "6:38"
+        },
+        {
+          "id": "mansion-station-6-40",
+          "route_id": "mansion-station",
+          "schedule_id": "mansion-station-weekday",
+          "note": null,
+          "stops": [
+            {
+              "stop_id": "mansion",
+              "time": "6:40",
+              "name": "コロンブスシティ"
+            },
+            {
+              "stop_id": "station",
+              "time": "6:48",
+              "name": "海浜幕張駅"
+            }
+          ],
+          "departure": "6:40",
+          "arrival": "6:48"
+        },
+        {
+          "id": "mansion-station-6-50",
+          "route_id": "mansion-station",
+          "schedule_id": "mansion-station-weekday",
+          "note": null,
+          "stops": [
+            {
+              "stop_id": "mansion",
+              "time": "6:50",
+              "name": "コロンブスシティ"
+            },
+            {
+              "stop_id": "station",
+              "time": "6:58",
+              "name": "海浜幕張駅"
+            }
+          ],
+          "departure": "6:50",
+          "arrival": "6:58"
+        },
+        {
+          "id": "mansion-station-7-00",
+          "route_id": "mansion-station",
+          "schedule_id": "mansion-station-weekday",
+          "note": null,
+          "stops": [
+            {
+              "stop_id": "mansion",
+              "time": "7:00",
+              "name": "コロンブスシティ"
+            },
+            {
+              "stop_id": "station",
+              "time": "7:08",
+              "name": "海浜幕張駅"
+            }
+          ],
+          "departure": "7:00",
+          "arrival": "7:08"
+        },
+        {
+          "id": "mansion-station-7-10",
+          "route_id": "mansion-station",
+          "schedule_id": "mansion-station-weekday",
+          "note": null,
+          "stops": [
+            {
+              "stop_id": "mansion",
+              "time": "7:10",
+              "name": "コロンブスシティ"
+            },
+            {
+              "stop_id": "station",
+              "time": "7:18",
+              "name": "海浜幕張駅"
+            }
+          ],
+          "departure": "7:10",
+          "arrival": "7:18"
+        },
+        {
+          "id": "mansion-station-7-20",
+          "route_id": "mansion-station",
+          "schedule_id": "mansion-station-weekday",
+          "note": null,
+          "stops": [
+            {
+              "stop_id": "mansion",
+              "time": "7:20",
+              "name": "コロンブスシティ"
+            },
+            {
+              "stop_id": "station",
+              "time": "7:28",
+              "name": "海浜幕張駅"
+            }
+          ],
+          "departure": "7:20",
+          "arrival": "7:28"
+        },
+        {
+          "id": "mansion-station-7-30",
+          "route_id": "mansion-station",
+          "schedule_id": "mansion-station-weekday",
+          "note": null,
+          "stops": [
+            {
+              "stop_id": "mansion",
+              "time": "7:30",
+              "name": "コロンブスシティ"
+            },
+            {
+              "stop_id": "station",
+              "time": "7:38",
+              "name": "海浜幕張駅"
+            }
+          ],
+          "departure": "7:30",
+          "arrival": "7:38"
+        },
+        {
+          "id": "mansion-station-7-40",
+          "route_id": "mansion-station",
+          "schedule_id": "mansion-station-weekday",
+          "note": null,
+          "stops": [
+            {
+              "stop_id": "mansion",
+              "time": "7:40",
+              "name": "コロンブスシティ"
+            },
+            {
+              "stop_id": "station",
+              "time": "7:48",
+              "name": "海浜幕張駅"
+            }
+          ],
+          "departure": "7:40",
+          "arrival": "7:48"
+        },
+        {
+          "id": "mansion-station-7-50",
+          "route_id": "mansion-station",
+          "schedule_id": "mansion-station-weekday",
+          "note": null,
+          "stops": [
+            {
+              "stop_id": "mansion",
+              "time": "7:50",
+              "name": "コロンブスシティ"
+            },
+            {
+              "stop_id": "station",
+              "time": "7:58",
+              "name": "海浜幕張駅"
+            }
+          ],
+          "departure": "7:50",
+          "arrival": "7:58"
+        },
+        {
+          "id": "mansion-station-8-00",
+          "route_id": "mansion-station",
+          "schedule_id": "mansion-station-weekday",
+          "note": null,
+          "stops": [
+            {
+              "stop_id": "mansion",
+              "time": "8:00",
+              "name": "コロンブスシティ"
+            },
+            {
+              "stop_id": "station",
+              "time": "8:08",
+              "name": "海浜幕張駅"
+            }
+          ],
+          "departure": "8:00",
+          "arrival": "8:08"
+        },
+        {
+          "id": "mansion-station-8-10",
+          "route_id": "mansion-station",
+          "schedule_id": "mansion-station-weekday",
+          "note": null,
+          "stops": [
+            {
+              "stop_id": "mansion",
+              "time": "8:10",
+              "name": "コロンブスシティ"
+            },
+            {
+              "stop_id": "station",
+              "time": "8:18",
+              "name": "海浜幕張駅"
+            }
+          ],
+          "departure": "8:10",
+          "arrival": "8:18"
+        },
+        {
+          "id": "mansion-station-8-20",
+          "route_id": "mansion-station",
+          "schedule_id": "mansion-station-weekday",
+          "note": null,
+          "stops": [
+            {
+              "stop_id": "mansion",
+              "time": "8:20",
+              "name": "コロンブスシティ"
+            },
+            {
+              "stop_id": "station",
+              "time": "8:28",
+              "name": "海浜幕張駅"
+            }
+          ],
+          "departure": "8:20",
+          "arrival": "8:28"
+        },
+        {
+          "id": "mansion-station-8-30",
+          "route_id": "mansion-station",
+          "schedule_id": "mansion-station-weekday",
+          "note": null,
+          "stops": [
+            {
+              "stop_id": "mansion",
+              "time": "8:30",
+              "name": "コロンブスシティ"
+            },
+            {
+              "stop_id": "station",
+              "time": "8:38",
+              "name": "海浜幕張駅"
+            }
+          ],
+          "departure": "8:30",
+          "arrival": "8:38"
+        },
+        {
+          "id": "mansion-station-8-40",
+          "route_id": "mansion-station",
+          "schedule_id": "mansion-station-weekday",
+          "note": null,
+          "stops": [
+            {
+              "stop_id": "mansion",
+              "time": "8:40",
+              "name": "コロンブスシティ"
+            },
+            {
+              "stop_id": "station",
+              "time": "8:48",
+              "name": "海浜幕張駅"
+            }
+          ],
+          "departure": "8:40",
+          "arrival": "8:48"
+        },
+        {
+          "id": "mansion-station-9-00",
+          "route_id": "mansion-station",
+          "schedule_id": "mansion-station-weekday",
+          "note": null,
+          "stops": [
+            {
+              "stop_id": "mansion",
+              "time": "9:00",
+              "name": "コロンブスシティ"
+            },
+            {
+              "stop_id": "station",
+              "time": "9:08",
+              "name": "海浜幕張駅"
+            }
+          ],
+          "departure": "9:00",
+          "arrival": "9:08"
+        },
+        {
+          "id": "mansion-station-9-30",
+          "route_id": "mansion-station",
+          "schedule_id": "mansion-station-weekday",
+          "note": "お買い物便",
+          "stops": [
+            {
+              "stop_id": "mansion",
+              "time": "9:30",
+              "name": "コロンブスシティ"
+            },
+            {
+              "stop_id": "station",
+              "time": "9:38",
+              "name": "海浜幕張駅"
+            }
+          ],
+          "departure": "9:30",
+          "arrival": "9:38"
+        }
+      ]
+    },
+    {
+      "schema_version": 1,
+      "route_id": "mansion-yokado",
+      "route_name": "コロンブスシティ → ヨーカドー前",
+      "version": 1,
+      "updated_at": "2026-10-09T02:50:14.634958+00:00",
+      "schedules": [
+        {
+          "id": "mansion-yokado-holiday",
+          "route_id": "mansion-yokado",
+          "kind": "holiday",
+          "service_date": null,
+          "valid_from": null,
+          "valid_until": null,
+          "is_suspended": true,
+          "priority": 0
+        },
+        {
+          "id": "mansion-yokado-weekday",
+          "route_id": "mansion-yokado",
+          "kind": "weekday",
+          "service_date": null,
+          "valid_from": null,
+          "valid_until": null,
+          "is_suspended": false,
+          "priority": 0
+        },
+        {
+          "id": "mansion-yokado-weekend",
+          "route_id": "mansion-yokado",
+          "kind": "weekend",
+          "service_date": null,
+          "valid_from": null,
+          "valid_until": null,
+          "is_suspended": true,
+          "priority": 0
+        }
+      ],
+      "buses": [
+        {
+          "id": "mansion-yokado-10-30",
+          "route_id": "mansion-yokado",
+          "schedule_id": "mansion-yokado-weekday",
+          "note": "海浜幕張駅経由",
+          "stops": [
+            {
+              "stop_id": "mansion",
+              "time": "10:30",
+              "name": "コロンブスシティ"
+            },
+            {
+              "stop_id": "station",
+              "time": "10:38",
+              "name": "海浜幕張駅"
+            },
+            {
+              "stop_id": "yokado",
+              "time": "10:46",
+              "name": "ヨーカドー前"
+            }
+          ],
+          "departure": "10:30",
+          "arrival": "10:46"
+        },
+        {
+          "id": "mansion-yokado-11-30",
+          "route_id": "mansion-yokado",
+          "schedule_id": "mansion-yokado-weekday",
+          "note": "海浜幕張駅経由",
+          "stops": [
+            {
+              "stop_id": "mansion",
+              "time": "11:30",
+              "name": "コロンブスシティ"
+            },
+            {
+              "stop_id": "station",
+              "time": "11:38",
+              "name": "海浜幕張駅"
+            },
+            {
+              "stop_id": "yokado",
+              "time": "11:46",
+              "name": "ヨーカドー前"
+            }
+          ],
+          "departure": "11:30",
+          "arrival": "11:46"
+        },
+        {
+          "id": "mansion-yokado-13-30",
+          "route_id": "mansion-yokado",
+          "schedule_id": "mansion-yokado-weekday",
+          "note": "海浜幕張駅経由",
+          "stops": [
+            {
+              "stop_id": "mansion",
+              "time": "13:30",
+              "name": "コロンブスシティ"
+            },
+            {
+              "stop_id": "station",
+              "time": "13:38",
+              "name": "海浜幕張駅"
+            },
+            {
+              "stop_id": "yokado",
+              "time": "13:46",
+              "name": "ヨーカドー前"
+            }
+          ],
+          "departure": "13:30",
+          "arrival": "13:46"
+        },
+        {
+          "id": "mansion-yokado-14-30",
+          "route_id": "mansion-yokado",
+          "schedule_id": "mansion-yokado-weekday",
+          "note": "海浜幕張駅経由",
+          "stops": [
+            {
+              "stop_id": "mansion",
+              "time": "14:30",
+              "name": "コロンブスシティ"
+            },
+            {
+              "stop_id": "station",
+              "time": "14:38",
+              "name": "海浜幕張駅"
+            },
+            {
+              "stop_id": "yokado",
+              "time": "14:46",
+              "name": "ヨーカドー前"
+            }
+          ],
+          "departure": "14:30",
+          "arrival": "14:46"
+        },
+        {
+          "id": "mansion-yokado-15-30",
+          "route_id": "mansion-yokado",
+          "schedule_id": "mansion-yokado-weekday",
+          "note": "海浜幕張駅経由",
+          "stops": [
+            {
+              "stop_id": "mansion",
+              "time": "15:30",
+              "name": "コロンブスシティ"
+            },
+            {
+              "stop_id": "station",
+              "time": "15:38",
+              "name": "海浜幕張駅"
+            },
+            {
+              "stop_id": "yokado",
+              "time": "15:46",
+              "name": "ヨーカドー前"
+            }
+          ],
+          "departure": "15:30",
+          "arrival": "15:46"
+        },
+        {
+          "id": "mansion-yokado-16-30",
+          "route_id": "mansion-yokado",
+          "schedule_id": "mansion-yokado-weekday",
+          "note": "海浜幕張駅経由",
+          "stops": [
+            {
+              "stop_id": "mansion",
+              "time": "16:30",
+              "name": "コロンブスシティ"
+            },
+            {
+              "stop_id": "station",
+              "time": "16:38",
+              "name": "海浜幕張駅"
+            },
+            {
+              "stop_id": "yokado",
+              "time": "16:46",
+              "name": "ヨーカドー前"
+            }
+          ],
+          "departure": "16:30",
+          "arrival": "16:46"
+        },
+        {
+          "id": "mansion-yokado-9-30",
+          "route_id": "mansion-yokado",
+          "schedule_id": "mansion-yokado-weekday",
+          "note": "海浜幕張駅経由",
+          "stops": [
+            {
+              "stop_id": "mansion",
+              "time": "9:30",
+              "name": "コロンブスシティ"
+            },
+            {
+              "stop_id": "station",
+              "time": "9:38",
+              "name": "海浜幕張駅"
+            },
+            {
+              "stop_id": "yokado",
+              "time": "9:46",
+              "name": "ヨーカドー前"
+            }
+          ],
+          "departure": "9:30",
+          "arrival": "9:46"
+        }
+      ]
+    },
+    {
+      "schema_version": 1,
+      "route_id": "station-mansion",
+      "route_name": "海浜幕張駅 → コロンブスシティ",
+      "version": 1,
+      "updated_at": "2026-10-09T02:50:14.634949+00:00",
+      "schedules": [
+        {
+          "id": "station-mansion-holiday",
+          "route_id": "station-mansion",
+          "kind": "holiday",
+          "service_date": null,
+          "valid_from": null,
+          "valid_until": null,
+          "is_suspended": true,
+          "priority": 0
+        },
+        {
+          "id": "station-mansion-weekday",
+          "route_id": "station-mansion",
+          "kind": "weekday",
+          "service_date": null,
+          "valid_from": null,
+          "valid_until": null,
+          "is_suspended": false,
+          "priority": 0
+        },
+        {
+          "id": "station-mansion-weekend",
+          "route_id": "station-mansion",
+          "kind": "weekend",
+          "service_date": null,
+          "valid_from": null,
+          "valid_until": null,
+          "is_suspended": true,
+          "priority": 0
+        }
+      ],
+      "buses": [
+        {
+          "id": "station-mansion-0-13",
+          "route_id": "station-mansion",
+          "schedule_id": "station-mansion-weekday",
+          "note": null,
+          "stops": [
+            {
+              "stop_id": "station",
+              "time": "0:13",
+              "name": "海浜幕張駅"
+            },
+            {
+              "stop_id": "mansion",
+              "time": "0:19",
+              "name": "コロンブスシティ"
+            }
+          ],
+          "departure": "0:13",
+          "arrival": "0:19"
+        },
+        {
+          "id": "station-mansion-10-08",
+          "route_id": "station-mansion",
+          "schedule_id": "station-mansion-weekday",
+          "note": null,
+          "stops": [
+            {
+              "stop_id": "station",
+              "time": "10:08",
+              "name": "海浜幕張駅"
+            },
+            {
+              "stop_id": "mansion",
+              "time": "10:16",
+              "name": "コロンブスシティ"
+            }
+          ],
+          "departure": "10:08",
+          "arrival": "10:16"
+        },
+        {
+          "id": "station-mansion-10-38",
+          "route_id": "station-mansion",
+          "schedule_id": "station-mansion-weekday",
+          "note": "ヨーカドー経由",
+          "stops": [
+            {
+              "stop_id": "station",
+              "time": "10:38",
+              "name": "海浜幕張駅"
+            },
+            {
+              "stop_id": "yokado",
+              "time": "10:46",
+              "name": "ヨーカドー前"
+            },
+            {
+              "stop_id": "mansion",
+              "time": "10:53",
+              "name": "コロンブスシティ"
+            }
+          ],
+          "departure": "10:38",
+          "arrival": "10:53"
+        },
+        {
+          "id": "station-mansion-11-08",
+          "route_id": "station-mansion",
+          "schedule_id": "station-mansion-weekday",
+          "note": null,
+          "stops": [
+            {
+              "stop_id": "station",
+              "time": "11:08",
+              "name": "海浜幕張駅"
+            },
+            {
+              "stop_id": "mansion",
+              "time": "11:16",
+              "name": "コロンブスシティ"
+            }
+          ],
+          "departure": "11:08",
+          "arrival": "11:16"
+        },
+        {
+          "id": "station-mansion-11-38",
+          "route_id": "station-mansion",
+          "schedule_id": "station-mansion-weekday",
+          "note": "ヨーカドー経由",
+          "stops": [
+            {
+              "stop_id": "station",
+              "time": "11:38",
+              "name": "海浜幕張駅"
+            },
+            {
+              "stop_id": "yokado",
+              "time": "11:46",
+              "name": "ヨーカドー前"
+            },
+            {
+              "stop_id": "mansion",
+              "time": "11:53",
+              "name": "コロンブスシティ"
+            }
+          ],
+          "departure": "11:38",
+          "arrival": "11:53"
+        },
+        {
+          "id": "station-mansion-13-08",
+          "route_id": "station-mansion",
+          "schedule_id": "station-mansion-weekday",
+          "note": null,
+          "stops": [
+            {
+              "stop_id": "station",
+              "time": "13:08",
+              "name": "海浜幕張駅"
+            },
+            {
+              "stop_id": "mansion",
+              "time": "13:16",
+              "name": "コロンブスシティ"
+            }
+          ],
+          "departure": "13:08",
+          "arrival": "13:16"
+        },
+        {
+          "id": "station-mansion-13-38",
+          "route_id": "station-mansion",
+          "schedule_id": "station-mansion-weekday",
+          "note": "ヨーカドー経由",
+          "stops": [
+            {
+              "stop_id": "station",
+              "time": "13:38",
+              "name": "海浜幕張駅"
+            },
+            {
+              "stop_id": "yokado",
+              "time": "13:46",
+              "name": "ヨーカドー前"
+            },
+            {
+              "stop_id": "mansion",
+              "time": "13:53",
+              "name": "コロンブスシティ"
+            }
+          ],
+          "departure": "13:38",
+          "arrival": "13:53"
+        },
+        {
+          "id": "station-mansion-14-08",
+          "route_id": "station-mansion",
+          "schedule_id": "station-mansion-weekday",
+          "note": null,
+          "stops": [
+            {
+              "stop_id": "station",
+              "time": "14:08",
+              "name": "海浜幕張駅"
+            },
+            {
+              "stop_id": "mansion",
+              "time": "14:16",
+              "name": "コロンブスシティ"
+            }
+          ],
+          "departure": "14:08",
+          "arrival": "14:16"
+        },
+        {
+          "id": "station-mansion-14-38",
+          "route_id": "station-mansion",
+          "schedule_id": "station-mansion-weekday",
+          "note": "ヨーカドー経由",
+          "stops": [
+            {
+              "stop_id": "station",
+              "time": "14:38",
+              "name": "海浜幕張駅"
+            },
+            {
+              "stop_id": "yokado",
+              "time": "14:46",
+              "name": "ヨーカドー前"
+            },
+            {
+              "stop_id": "mansion",
+              "time": "14:53",
+              "name": "コロンブスシティ"
+            }
+          ],
+          "departure": "14:38",
+          "arrival": "14:53"
+        },
+        {
+          "id": "station-mansion-15-08",
+          "route_id": "station-mansion",
+          "schedule_id": "station-mansion-weekday",
+          "note": null,
+          "stops": [
+            {
+              "stop_id": "station",
+              "time": "15:08",
+              "name": "海浜幕張駅"
+            },
+            {
+              "stop_id": "mansion",
+              "time": "15:16",
+              "name": "コロンブスシティ"
+            }
+          ],
+          "departure": "15:08",
+          "arrival": "15:16"
+        },
+        {
+          "id": "station-mansion-15-38",
+          "route_id": "station-mansion",
+          "schedule_id": "station-mansion-weekday",
+          "note": "ヨーカドー経由",
+          "stops": [
+            {
+              "stop_id": "station",
+              "time": "15:38",
+              "name": "海浜幕張駅"
+            },
+            {
+              "stop_id": "yokado",
+              "time": "15:46",
+              "name": "ヨーカドー前"
+            },
+            {
+              "stop_id": "mansion",
+              "time": "15:53",
+              "name": "コロンブスシティ"
+            }
+          ],
+          "departure": "15:38",
+          "arrival": "15:53"
+        },
+        {
+          "id": "station-mansion-16-08",
+          "route_id": "station-mansion",
+          "schedule_id": "station-mansion-weekday",
+          "note": null,
+          "stops": [
+            {
+              "stop_id": "station",
+              "time": "16:08",
+              "name": "海浜幕張駅"
+            },
+            {
+              "stop_id": "mansion",
+              "time": "16:16",
+              "name": "コロンブスシティ"
+            }
+          ],
+          "departure": "16:08",
+          "arrival": "16:16"
+        },
+        {
+          "id": "station-mansion-16-38",
+          "route_id": "station-mansion",
+          "schedule_id": "station-mansion-weekday",
+          "note": "ヨーカドー経由",
+          "stops": [
+            {
+              "stop_id": "station",
+              "time": "16:38",
+              "name": "海浜幕張駅"
+            },
+            {
+              "stop_id": "yokado",
+              "time": "16:46",
+              "name": "ヨーカドー前"
+            },
+            {
+              "stop_id": "mansion",
+              "time": "16:53",
+              "name": "コロンブスシティ"
+            }
+          ],
+          "departure": "16:38",
+          "arrival": "16:53"
+        },
+        {
+          "id": "station-mansion-17-12",
+          "route_id": "station-mansion",
+          "schedule_id": "station-mansion-weekday",
+          "note": null,
+          "stops": [
+            {
+              "stop_id": "station",
+              "time": "17:12",
+              "name": "海浜幕張駅"
+            },
+            {
+              "stop_id": "mansion",
+              "time": "17:19",
+              "name": "コロンブスシティ"
+            }
+          ],
+          "departure": "17:12",
+          "arrival": "17:19"
+        },
+        {
+          "id": "station-mansion-17-46",
+          "route_id": "station-mansion",
+          "schedule_id": "station-mansion-weekday",
+          "note": null,
+          "stops": [
+            {
+              "stop_id": "station",
+              "time": "17:46",
+              "name": "海浜幕張駅"
+            },
+            {
+              "stop_id": "mansion",
+              "time": "17:53",
+              "name": "コロンブスシティ"
+            }
+          ],
+          "departure": "17:46",
+          "arrival": "17:53"
+        },
+        {
+          "id": "station-mansion-18-11",
+          "route_id": "station-mansion",
+          "schedule_id": "station-mansion-weekday",
+          "note": null,
+          "stops": [
+            {
+              "stop_id": "station",
+              "time": "18:11",
+              "name": "海浜幕張駅"
+            },
+            {
+              "stop_id": "mansion",
+              "time": "18:18",
+              "name": "コロンブスシティ"
+            }
+          ],
+          "departure": "18:11",
+          "arrival": "18:18"
+        },
+        {
+          "id": "station-mansion-18-28",
+          "route_id": "station-mansion",
+          "schedule_id": "station-mansion-weekday",
+          "note": null,
+          "stops": [
+            {
+              "stop_id": "station",
+              "time": "18:28",
+              "name": "海浜幕張駅"
+            },
+            {
+              "stop_id": "mansion",
+              "time": "18:35",
+              "name": "コロンブスシティ"
+            }
+          ],
+          "departure": "18:28",
+          "arrival": "18:35"
+        },
+        {
+          "id": "station-mansion-18-46",
+          "route_id": "station-mansion",
+          "schedule_id": "station-mansion-weekday",
+          "note": null,
+          "stops": [
+            {
+              "stop_id": "station",
+              "time": "18:46",
+              "name": "海浜幕張駅"
+            },
+            {
+              "stop_id": "mansion",
+              "time": "18:53",
+              "name": "コロンブスシティ"
+            }
+          ],
+          "departure": "18:46",
+          "arrival": "18:53"
+        },
+        {
+          "id": "station-mansion-19-10",
+          "route_id": "station-mansion",
+          "schedule_id": "station-mansion-weekday",
+          "note": null,
+          "stops": [
+            {
+              "stop_id": "station",
+              "time": "19:10",
+              "name": "海浜幕張駅"
+            },
+            {
+              "stop_id": "mansion",
+              "time": "19:17",
+              "name": "コロンブスシティ"
+            }
+          ],
+          "departure": "19:10",
+          "arrival": "19:17"
+        },
+        {
+          "id": "station-mansion-19-29",
+          "route_id": "station-mansion",
+          "schedule_id": "station-mansion-weekday",
+          "note": null,
+          "stops": [
+            {
+              "stop_id": "station",
+              "time": "19:29",
+              "name": "海浜幕張駅"
+            },
+            {
+              "stop_id": "mansion",
+              "time": "19:36",
+              "name": "コロンブスシティ"
+            }
+          ],
+          "departure": "19:29",
+          "arrival": "19:36"
+        },
+        {
+          "id": "station-mansion-19-48",
+          "route_id": "station-mansion",
+          "schedule_id": "station-mansion-weekday",
+          "note": null,
+          "stops": [
+            {
+              "stop_id": "station",
+              "time": "19:48",
+              "name": "海浜幕張駅"
+            },
+            {
+              "stop_id": "mansion",
+              "time": "19:55",
+              "name": "コロンブスシティ"
+            }
+          ],
+          "departure": "19:48",
+          "arrival": "19:55"
+        },
+        {
+          "id": "station-mansion-20-08",
+          "route_id": "station-mansion",
+          "schedule_id": "station-mansion-weekday",
+          "note": null,
+          "stops": [
+            {
+              "stop_id": "station",
+              "time": "20:08",
+              "name": "海浜幕張駅"
+            },
+            {
+              "stop_id": "mansion",
+              "time": "20:15",
+              "name": "コロンブスシティ"
+            }
+          ],
+          "departure": "20:08",
+          "arrival": "20:15"
+        },
+        {
+          "id": "station-mansion-20-26",
+          "route_id": "station-mansion",
+          "schedule_id": "station-mansion-weekday",
+          "note": null,
+          "stops": [
+            {
+              "stop_id": "station",
+              "time": "20:26",
+              "name": "海浜幕張駅"
+            },
+            {
+              "stop_id": "mansion",
+              "time": "20:33",
+              "name": "コロンブスシティ"
+            }
+          ],
+          "departure": "20:26",
+          "arrival": "20:33"
+        },
+        {
+          "id": "station-mansion-20-43",
+          "route_id": "station-mansion",
+          "schedule_id": "station-mansion-weekday",
+          "note": null,
+          "stops": [
+            {
+              "stop_id": "station",
+              "time": "20:43",
+              "name": "海浜幕張駅"
+            },
+            {
+              "stop_id": "mansion",
+              "time": "20:50",
+              "name": "コロンブスシティ"
+            }
+          ],
+          "departure": "20:43",
+          "arrival": "20:50"
+        },
+        {
+          "id": "station-mansion-21-00",
+          "route_id": "station-mansion",
+          "schedule_id": "station-mansion-weekday",
+          "note": null,
+          "stops": [
+            {
+              "stop_id": "station",
+              "time": "21:00",
+              "name": "海浜幕張駅"
+            },
+            {
+              "stop_id": "mansion",
+              "time": "21:07",
+              "name": "コロンブスシティ"
+            }
+          ],
+          "departure": "21:00",
+          "arrival": "21:07"
+        },
+        {
+          "id": "station-mansion-21-17",
+          "route_id": "station-mansion",
+          "schedule_id": "station-mansion-weekday",
+          "note": null,
+          "stops": [
+            {
+              "stop_id": "station",
+              "time": "21:17",
+              "name": "海浜幕張駅"
+            },
+            {
+              "stop_id": "mansion",
+              "time": "21:24",
+              "name": "コロンブスシティ"
+            }
+          ],
+          "departure": "21:17",
+          "arrival": "21:24"
+        },
+        {
+          "id": "station-mansion-21-39",
+          "route_id": "station-mansion",
+          "schedule_id": "station-mansion-weekday",
+          "note": null,
+          "stops": [
+            {
+              "stop_id": "station",
+              "time": "21:39",
+              "name": "海浜幕張駅"
+            },
+            {
+              "stop_id": "mansion",
+              "time": "21:46",
+              "name": "コロンブスシティ"
+            }
+          ],
+          "departure": "21:39",
+          "arrival": "21:46"
+        },
+        {
+          "id": "station-mansion-22-04",
+          "route_id": "station-mansion",
+          "schedule_id": "station-mansion-weekday",
+          "note": null,
+          "stops": [
+            {
+              "stop_id": "station",
+              "time": "22:04",
+              "name": "海浜幕張駅"
+            },
+            {
+              "stop_id": "mansion",
+              "time": "22:11",
+              "name": "コロンブスシティ"
+            }
+          ],
+          "departure": "22:04",
+          "arrival": "22:11"
+        },
+        {
+          "id": "station-mansion-22-28",
+          "route_id": "station-mansion",
+          "schedule_id": "station-mansion-weekday",
+          "note": null,
+          "stops": [
+            {
+              "stop_id": "station",
+              "time": "22:28",
+              "name": "海浜幕張駅"
+            },
+            {
+              "stop_id": "mansion",
+              "time": "22:35",
+              "name": "コロンブスシティ"
+            }
+          ],
+          "departure": "22:28",
+          "arrival": "22:35"
+        },
+        {
+          "id": "station-mansion-22-46",
+          "route_id": "station-mansion",
+          "schedule_id": "station-mansion-weekday",
+          "note": null,
+          "stops": [
+            {
+              "stop_id": "station",
+              "time": "22:46",
+              "name": "海浜幕張駅"
+            },
+            {
+              "stop_id": "mansion",
+              "time": "22:53",
+              "name": "コロンブスシティ"
+            }
+          ],
+          "departure": "22:46",
+          "arrival": "22:53"
+        },
+        {
+          "id": "station-mansion-23-15",
+          "route_id": "station-mansion",
+          "schedule_id": "station-mansion-weekday",
+          "note": null,
+          "stops": [
+            {
+              "stop_id": "station",
+              "time": "23:15",
+              "name": "海浜幕張駅"
+            },
+            {
+              "stop_id": "mansion",
+              "time": "23:22",
+              "name": "コロンブスシティ"
+            }
+          ],
+          "departure": "23:15",
+          "arrival": "23:22"
+        },
+        {
+          "id": "station-mansion-23-47",
+          "route_id": "station-mansion",
+          "schedule_id": "station-mansion-weekday",
+          "note": null,
+          "stops": [
+            {
+              "stop_id": "station",
+              "time": "23:47",
+              "name": "海浜幕張駅"
+            },
+            {
+              "stop_id": "mansion",
+              "time": "23:54",
+              "name": "コロンブスシティ"
+            }
+          ],
+          "departure": "23:47",
+          "arrival": "23:54"
+        },
+        {
+          "id": "station-mansion-6-11",
+          "route_id": "station-mansion",
+          "schedule_id": "station-mansion-weekday",
+          "note": null,
+          "stops": [
+            {
+              "stop_id": "station",
+              "time": "6:11",
+              "name": "海浜幕張駅"
+            },
+            {
+              "stop_id": "mansion",
+              "time": "6:18",
+              "name": "コロンブスシティ"
+            }
+          ],
+          "departure": "6:11",
+          "arrival": "6:18"
+        },
+        {
+          "id": "station-mansion-6-38",
+          "route_id": "station-mansion",
+          "schedule_id": "station-mansion-weekday",
+          "note": null,
+          "stops": [
+            {
+              "stop_id": "station",
+              "time": "6:38",
+              "name": "海浜幕張駅"
+            },
+            {
+              "stop_id": "mansion",
+              "time": "6:45",
+              "name": "コロンブスシティ"
+            }
+          ],
+          "departure": "6:38",
+          "arrival": "6:45"
+        },
+        {
+          "id": "station-mansion-6-48",
+          "route_id": "station-mansion",
+          "schedule_id": "station-mansion-weekday",
+          "note": null,
+          "stops": [
+            {
+              "stop_id": "station",
+              "time": "6:48",
+              "name": "海浜幕張駅"
+            },
+            {
+              "stop_id": "mansion",
+              "time": "6:55",
+              "name": "コロンブスシティ"
+            }
+          ],
+          "departure": "6:48",
+          "arrival": "6:55"
+        },
+        {
+          "id": "station-mansion-6-58",
+          "route_id": "station-mansion",
+          "schedule_id": "station-mansion-weekday",
+          "note": null,
+          "stops": [
+            {
+              "stop_id": "station",
+              "time": "6:58",
+              "name": "海浜幕張駅"
+            },
+            {
+              "stop_id": "mansion",
+              "time": "7:05",
+              "name": "コロンブスシティ"
+            }
+          ],
+          "departure": "6:58",
+          "arrival": "7:05"
+        },
+        {
+          "id": "station-mansion-7-08",
+          "route_id": "station-mansion",
+          "schedule_id": "station-mansion-weekday",
+          "note": null,
+          "stops": [
+            {
+              "stop_id": "station",
+              "time": "7:08",
+              "name": "海浜幕張駅"
+            },
+            {
+              "stop_id": "mansion",
+              "time": "7:15",
+              "name": "コロンブスシティ"
+            }
+          ],
+          "departure": "7:08",
+          "arrival": "7:15"
+        },
+        {
+          "id": "station-mansion-7-18",
+          "route_id": "station-mansion",
+          "schedule_id": "station-mansion-weekday",
+          "note": null,
+          "stops": [
+            {
+              "stop_id": "station",
+              "time": "7:18",
+              "name": "海浜幕張駅"
+            },
+            {
+              "stop_id": "mansion",
+              "time": "7:25",
+              "name": "コロンブスシティ"
+            }
+          ],
+          "departure": "7:18",
+          "arrival": "7:25"
+        },
+        {
+          "id": "station-mansion-7-28",
+          "route_id": "station-mansion",
+          "schedule_id": "station-mansion-weekday",
+          "note": null,
+          "stops": [
+            {
+              "stop_id": "station",
+              "time": "7:28",
+              "name": "海浜幕張駅"
+            },
+            {
+              "stop_id": "mansion",
+              "time": "7:35",
+              "name": "コロンブスシティ"
+            }
+          ],
+          "departure": "7:28",
+          "arrival": "7:35"
+        },
+        {
+          "id": "station-mansion-7-38",
+          "route_id": "station-mansion",
+          "schedule_id": "station-mansion-weekday",
+          "note": null,
+          "stops": [
+            {
+              "stop_id": "station",
+              "time": "7:38",
+              "name": "海浜幕張駅"
+            },
+            {
+              "stop_id": "mansion",
+              "time": "7:45",
+              "name": "コロンブスシティ"
+            }
+          ],
+          "departure": "7:38",
+          "arrival": "7:45"
+        },
+        {
+          "id": "station-mansion-7-48",
+          "route_id": "station-mansion",
+          "schedule_id": "station-mansion-weekday",
+          "note": null,
+          "stops": [
+            {
+              "stop_id": "station",
+              "time": "7:48",
+              "name": "海浜幕張駅"
+            },
+            {
+              "stop_id": "mansion",
+              "time": "7:55",
+              "name": "コロンブスシティ"
+            }
+          ],
+          "departure": "7:48",
+          "arrival": "7:55"
+        },
+        {
+          "id": "station-mansion-7-58",
+          "route_id": "station-mansion",
+          "schedule_id": "station-mansion-weekday",
+          "note": null,
+          "stops": [
+            {
+              "stop_id": "station",
+              "time": "7:58",
+              "name": "海浜幕張駅"
+            },
+            {
+              "stop_id": "mansion",
+              "time": "8:05",
+              "name": "コロンブスシティ"
+            }
+          ],
+          "departure": "7:58",
+          "arrival": "8:05"
+        },
+        {
+          "id": "station-mansion-8-08",
+          "route_id": "station-mansion",
+          "schedule_id": "station-mansion-weekday",
+          "note": null,
+          "stops": [
+            {
+              "stop_id": "station",
+              "time": "8:08",
+              "name": "海浜幕張駅"
+            },
+            {
+              "stop_id": "mansion",
+              "time": "8:15",
+              "name": "コロンブスシティ"
+            }
+          ],
+          "departure": "8:08",
+          "arrival": "8:15"
+        },
+        {
+          "id": "station-mansion-8-18",
+          "route_id": "station-mansion",
+          "schedule_id": "station-mansion-weekday",
+          "note": null,
+          "stops": [
+            {
+              "stop_id": "station",
+              "time": "8:18",
+              "name": "海浜幕張駅"
+            },
+            {
+              "stop_id": "mansion",
+              "time": "8:25",
+              "name": "コロンブスシティ"
+            }
+          ],
+          "departure": "8:18",
+          "arrival": "8:25"
+        },
+        {
+          "id": "station-mansion-8-28",
+          "route_id": "station-mansion",
+          "schedule_id": "station-mansion-weekday",
+          "note": null,
+          "stops": [
+            {
+              "stop_id": "station",
+              "time": "8:28",
+              "name": "海浜幕張駅"
+            },
+            {
+              "stop_id": "mansion",
+              "time": "8:35",
+              "name": "コロンブスシティ"
+            }
+          ],
+          "departure": "8:28",
+          "arrival": "8:35"
+        },
+        {
+          "id": "station-mansion-8-48",
+          "route_id": "station-mansion",
+          "schedule_id": "station-mansion-weekday",
+          "note": null,
+          "stops": [
+            {
+              "stop_id": "station",
+              "time": "8:48",
+              "name": "海浜幕張駅"
+            },
+            {
+              "stop_id": "mansion",
+              "time": "8:55",
+              "name": "コロンブスシティ"
+            }
+          ],
+          "departure": "8:48",
+          "arrival": "8:55"
+        },
+        {
+          "id": "station-mansion-9-38",
+          "route_id": "station-mansion",
+          "schedule_id": "station-mansion-weekday",
+          "note": "ヨーカドー経由",
+          "stops": [
+            {
+              "stop_id": "station",
+              "time": "9:38",
+              "name": "海浜幕張駅"
+            },
+            {
+              "stop_id": "yokado",
+              "time": "9:46",
+              "name": "ヨーカドー前"
+            },
+            {
+              "stop_id": "mansion",
+              "time": "9:53",
+              "name": "コロンブスシティ"
+            }
+          ],
+          "departure": "9:38",
+          "arrival": "9:53"
+        }
+      ]
+    },
+    {
+      "schema_version": 1,
+      "route_id": "station-yokado",
+      "route_name": "海浜幕張駅 → ヨーカドー前",
+      "version": 1,
+      "updated_at": "2026-10-09T02:50:14.634964+00:00",
+      "schedules": [
+        {
+          "id": "station-yokado-holiday",
+          "route_id": "station-yokado",
+          "kind": "holiday",
+          "service_date": null,
+          "valid_from": null,
+          "valid_until": null,
+          "is_suspended": true,
+          "priority": 0
+        },
+        {
+          "id": "station-yokado-weekday",
+          "route_id": "station-yokado",
+          "kind": "weekday",
+          "service_date": null,
+          "valid_from": null,
+          "valid_until": null,
+          "is_suspended": false,
+          "priority": 0
+        },
+        {
+          "id": "station-yokado-weekend",
+          "route_id": "station-yokado",
+          "kind": "weekend",
+          "service_date": null,
+          "valid_from": null,
+          "valid_until": null,
+          "is_suspended": true,
+          "priority": 0
+        }
+      ],
+      "buses": [
+        {
+          "id": "station-yokado-10-38",
+          "route_id": "station-yokado",
+          "schedule_id": "station-yokado-weekday",
+          "note": "お買い物便",
+          "stops": [
+            {
+              "stop_id": "station",
+              "time": "10:38",
+              "name": "海浜幕張駅"
+            },
+            {
+              "stop_id": "yokado",
+              "time": "10:46",
+              "name": "ヨーカドー前"
+            }
+          ],
+          "departure": "10:38",
+          "arrival": "10:46"
+        },
+        {
+          "id": "station-yokado-11-38",
+          "route_id": "station-yokado",
+          "schedule_id": "station-yokado-weekday",
+          "note": "お買い物便",
+          "stops": [
+            {
+              "stop_id": "station",
+              "time": "11:38",
+              "name": "海浜幕張駅"
+            },
+            {
+              "stop_id": "yokado",
+              "time": "11:46",
+              "name": "ヨーカドー前"
+            }
+          ],
+          "departure": "11:38",
+          "arrival": "11:46"
+        },
+        {
+          "id": "station-yokado-13-38",
+          "route_id": "station-yokado",
+          "schedule_id": "station-yokado-weekday",
+          "note": "お買い物便",
+          "stops": [
+            {
+              "stop_id": "station",
+              "time": "13:38",
+              "name": "海浜幕張駅"
+            },
+            {
+              "stop_id": "yokado",
+              "time": "13:46",
+              "name": "ヨーカドー前"
+            }
+          ],
+          "departure": "13:38",
+          "arrival": "13:46"
+        },
+        {
+          "id": "station-yokado-14-38",
+          "route_id": "station-yokado",
+          "schedule_id": "station-yokado-weekday",
+          "note": "お買い物便",
+          "stops": [
+            {
+              "stop_id": "station",
+              "time": "14:38",
+              "name": "海浜幕張駅"
+            },
+            {
+              "stop_id": "yokado",
+              "time": "14:46",
+              "name": "ヨーカドー前"
+            }
+          ],
+          "departure": "14:38",
+          "arrival": "14:46"
+        },
+        {
+          "id": "station-yokado-15-38",
+          "route_id": "station-yokado",
+          "schedule_id": "station-yokado-weekday",
+          "note": "お買い物便",
+          "stops": [
+            {
+              "stop_id": "station",
+              "time": "15:38",
+              "name": "海浜幕張駅"
+            },
+            {
+              "stop_id": "yokado",
+              "time": "15:46",
+              "name": "ヨーカドー前"
+            }
+          ],
+          "departure": "15:38",
+          "arrival": "15:46"
+        },
+        {
+          "id": "station-yokado-16-38",
+          "route_id": "station-yokado",
+          "schedule_id": "station-yokado-weekday",
+          "note": "お買い物便",
+          "stops": [
+            {
+              "stop_id": "station",
+              "time": "16:38",
+              "name": "海浜幕張駅"
+            },
+            {
+              "stop_id": "yokado",
+              "time": "16:46",
+              "name": "ヨーカドー前"
+            }
+          ],
+          "departure": "16:38",
+          "arrival": "16:46"
+        },
+        {
+          "id": "station-yokado-9-38",
+          "route_id": "station-yokado",
+          "schedule_id": "station-yokado-weekday",
+          "note": "お買い物便",
+          "stops": [
+            {
+              "stop_id": "station",
+              "time": "9:38",
+              "name": "海浜幕張駅"
+            },
+            {
+              "stop_id": "yokado",
+              "time": "9:46",
+              "name": "ヨーカドー前"
+            }
+          ],
+          "departure": "9:38",
+          "arrival": "9:46"
+        }
+      ]
+    },
+    {
+      "schema_version": 1,
+      "route_id": "yokado-mansion",
+      "route_name": "ヨーカドー前 → コロンブスシティ",
+      "version": 1,
+      "updated_at": "2026-10-09T02:50:14.634972+00:00",
+      "schedules": [
+        {
+          "id": "yokado-mansion-holiday",
+          "route_id": "yokado-mansion",
+          "kind": "holiday",
+          "service_date": null,
+          "valid_from": null,
+          "valid_until": null,
+          "is_suspended": true,
+          "priority": 0
+        },
+        {
+          "id": "yokado-mansion-weekday",
+          "route_id": "yokado-mansion",
+          "kind": "weekday",
+          "service_date": null,
+          "valid_from": null,
+          "valid_until": null,
+          "is_suspended": false,
+          "priority": 0
+        },
+        {
+          "id": "yokado-mansion-weekend",
+          "route_id": "yokado-mansion",
+          "kind": "weekend",
+          "service_date": null,
+          "valid_from": null,
+          "valid_until": null,
+          "is_suspended": true,
+          "priority": 0
+        }
+      ],
+      "buses": [
+        {
+          "id": "yokado-mansion-10-46",
+          "route_id": "yokado-mansion",
+          "schedule_id": "yokado-mansion-weekday",
+          "note": "お買い物便",
+          "stops": [
+            {
+              "stop_id": "yokado",
+              "time": "10:46",
+              "name": "ヨーカドー前"
+            },
+            {
+              "stop_id": "mansion",
+              "time": "10:53",
+              "name": "コロンブスシティ"
+            }
+          ],
+          "departure": "10:46",
+          "arrival": "10:53"
+        },
+        {
+          "id": "yokado-mansion-11-46",
+          "route_id": "yokado-mansion",
+          "schedule_id": "yokado-mansion-weekday",
+          "note": "お買い物便",
+          "stops": [
+            {
+              "stop_id": "yokado",
+              "time": "11:46",
+              "name": "ヨーカドー前"
+            },
+            {
+              "stop_id": "mansion",
+              "time": "11:53",
+              "name": "コロンブスシティ"
+            }
+          ],
+          "departure": "11:46",
+          "arrival": "11:53"
+        },
+        {
+          "id": "yokado-mansion-13-46",
+          "route_id": "yokado-mansion",
+          "schedule_id": "yokado-mansion-weekday",
+          "note": "お買い物便",
+          "stops": [
+            {
+              "stop_id": "yokado",
+              "time": "13:46",
+              "name": "ヨーカドー前"
+            },
+            {
+              "stop_id": "mansion",
+              "time": "13:53",
+              "name": "コロンブスシティ"
+            }
+          ],
+          "departure": "13:46",
+          "arrival": "13:53"
+        },
+        {
+          "id": "yokado-mansion-14-46",
+          "route_id": "yokado-mansion",
+          "schedule_id": "yokado-mansion-weekday",
+          "note": "お買い物便",
+          "stops": [
+            {
+              "stop_id": "yokado",
+              "time": "14:46",
+              "name": "ヨーカドー前"
+            },
+            {
+              "stop_id": "mansion",
+              "time": "14:53",
+              "name": "コロンブスシティ"
+            }
+          ],
+          "departure": "14:46",
+          "arrival": "14:53"
+        },
+        {
+          "id": "yokado-mansion-15-46",
+          "route_id": "yokado-mansion",
+          "schedule_id": "yokado-mansion-weekday",
+          "note": "お買い物便",
+          "stops": [
+            {
+              "stop_id": "yokado",
+              "time": "15:46",
+              "name": "ヨーカドー前"
+            },
+            {
+              "stop_id": "mansion",
+              "time": "15:53",
+              "name": "コロンブスシティ"
+            }
+          ],
+          "departure": "15:46",
+          "arrival": "15:53"
+        },
+        {
+          "id": "yokado-mansion-16-46",
+          "route_id": "yokado-mansion",
+          "schedule_id": "yokado-mansion-weekday",
+          "note": "お買い物便",
+          "stops": [
+            {
+              "stop_id": "yokado",
+              "time": "16:46",
+              "name": "ヨーカドー前"
+            },
+            {
+              "stop_id": "mansion",
+              "time": "16:53",
+              "name": "コロンブスシティ"
+            }
+          ],
+          "departure": "16:46",
+          "arrival": "16:53"
+        },
+        {
+          "id": "yokado-mansion-9-46",
+          "route_id": "yokado-mansion",
+          "schedule_id": "yokado-mansion-weekday",
+          "note": "お買い物便",
+          "stops": [
+            {
+              "stop_id": "yokado",
+              "time": "9:46",
+              "name": "ヨーカドー前"
+            },
+            {
+              "stop_id": "mansion",
+              "time": "9:53",
+              "name": "コロンブスシティ"
+            }
+          ],
+          "departure": "9:46",
+          "arrival": "9:53"
+        }
+      ]
+    }
+  ]
+}

@@ -7,5 +7,6 @@ enum AppLogger {
     static let notifications = Logger(subsystem: subsystem, category: "notifications")
     static let persistence = Logger(subsystem: subsystem, category: "persistence")
     static let performance = Logger(subsystem: subsystem, category: "performance")
+    static let timetable = Logger(subsystem: subsystem, category: "timetable")
     static let weather = Logger(subsystem: subsystem, category: "weather")
 }

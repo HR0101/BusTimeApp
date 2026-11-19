@@ -5,6 +5,8 @@ import Foundation
 struct Bus: Identifiable {
     var stops: [BusStopTime]
     var note: String?
+    /// API schedules pin a trip to its chosen service day, including special weekend service.
+    var scheduledServiceDate: Date? = nil
     
     var departure: String {
         stops.first?.time ?? ""

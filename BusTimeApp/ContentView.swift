@@ -86,6 +86,7 @@ struct ContentView: View {
   @ObservedObject private var shortcutRequestCenter = ShortcutRequestCenter.shared
   @SceneStorage("selectedMainTab") private var selectedTab: MainTab = .home
   @Environment(\.scenePhase) private var scenePhase
+  @Environment(\.colorScheme) private var systemColorScheme
   @Environment(\.dynamicTypeSize) private var dynamicTypeSize
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -93,7 +94,12 @@ struct ContentView: View {
   private let paletteAnimationDuration: Double = 0.9
 
   private var palette: SkyPalette {
-    skyClock.palette
+    // 日付は背景の時計と同じものを使い、時刻・季節・日の出と日の入りを同じ瞬間に揃えます。
+    SkyPalette.at(
+      hour: skyClock.palette.hour,
+      day: skyClock.palette.day,
+      colorScheme: settingsViewModel.paletteColorScheme(systemColorScheme: systemColorScheme)
+    )
   }
 
   private var scheduledBusIDs: Set<String> {
@@ -121,8 +127,10 @@ struct ContentView: View {
           handlePendingShortcutRequest()
         }
         .task {
+          await viewModel.refreshTimetables()
           await weatherViewModel.refreshIfNeeded()
         }
+        .task { await viewModel.watchTimetableConnectivity() }
         .onOpenURL { url in
           // ウィジェットのタップで開かれたときは、その経路に合わせます。
           guard let route = SharedAppData.route(from: url) else { return }
@@ -136,7 +144,10 @@ struct ContentView: View {
             viewModel.refreshForAppActivation()
             viewModel.checkLocationAndSetOrigin()
             settingsViewModel.refreshLiveActivityAvailability()
-            Task { await weatherViewModel.refreshIfNeeded() }
+            Task {
+              await viewModel.refreshTimetables()
+              await weatherViewModel.refreshIfNeeded()
+            }
             handlePendingShortcutRequest()
           } else {
             setAutomaticUpdatesActive(false)
@@ -368,6 +379,10 @@ struct ContentView: View {
           helpAction: { coordinator.send(.showTutorial) }
         )
 
+        serviceDayNotice
+        departuresSection
+        TimetableSyncBanner(viewModel: viewModel)
+
         RouteHeaderCard(
           viewModel: viewModel,
           locationAction: viewModel.useCurrentLocationForRoute
@@ -375,9 +390,7 @@ struct ContentView: View {
 
         ServiceDayTimeCard(viewModel: viewModel)
 
-        serviceDayNotice
-        departuresSection
-
+        followingDepartures
         serviceFooter
       }
       .padding(.horizontal, horizontalPadding)
@@ -387,12 +400,12 @@ struct ContentView: View {
       .frame(maxWidth: SkyMetrics.contentMaxWidth)
       .frame(maxWidth: .infinity)
     }
+    .refreshable { await viewModel.refreshTimetables() }
   }
 
   /// 便の情報をまとめたカードです。
   ///
-  /// 次の便とそれに続く便は同じ「いつ乗れるか」の話なので、
-  /// カードを分けずに1枚へ収め、区切り線だけで役割を分けています。
+  /// 最も重要な発車時刻と通知操作を、条件入力より上に置きます。
   @ViewBuilder
   private var departuresSection: some View {
     if case let .failed(message) = viewModel.state {
@@ -414,7 +427,6 @@ struct ContentView: View {
           notifyAction: { selectBus(nextBus) }
         )
 
-        followingDepartures
       }
       .frame(maxWidth: .infinity, alignment: .leading)
       .skyCard(padding: 20)
@@ -434,8 +446,6 @@ struct ContentView: View {
     let followingBuses = Array(viewModel.searchResults.dropFirst())
 
     if !followingBuses.isEmpty {
-      SkyDivider()
-
       VStack(alignment: .leading, spacing: 8) {
         SkySectionLabel(text: viewModel.followingSectionTitle)
 
@@ -449,6 +459,7 @@ struct ContentView: View {
           )
         }
       }
+      .skyCard(padding: 20)
     }
   }
 

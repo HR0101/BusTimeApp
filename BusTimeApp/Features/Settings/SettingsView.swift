@@ -114,8 +114,9 @@ struct SettingsView: View {
     return HStack(spacing: 8) {
       ForEach(previewHours, id: \.hour) { item in
         VStack(spacing: 8) {
+          // 日付は背景本体と同じものを使い、今日の背景と同じ空の移り変わりを見せます。
           SkyCanvas()
-            .environment(\.sky, SkyPalette.at(hour: item.hour))
+            .environment(\.sky, SkyPalette.at(hour: item.hour, day: sky.day))
             .frame(height: 80)
             .clipShape(RoundedRectangle(cornerRadius: SkyMetrics.controlRadius, style: .continuous))
 

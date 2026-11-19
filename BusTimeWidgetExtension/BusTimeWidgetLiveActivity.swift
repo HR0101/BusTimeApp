@@ -3,6 +3,9 @@ import WidgetKit
 import SwiftUI
 
 struct BusTimeWidgetLiveActivity: Widget {
+    /// 残り時間は通常の情報色です。表示場所で警告の意味を変えません。
+    private let countdownColor = Color(red: 0.15, green: 0.50, blue: 0.75)
+
     var body: some WidgetConfiguration {
         ActivityConfiguration(for: BusActivityAttributes.self) { context in
             HStack(alignment: .center) {
@@ -30,9 +33,9 @@ struct BusTimeWidgetLiveActivity: Widget {
                 
                 Spacer(minLength: 10)
                 
-                // 標準タイマーはアプリが停止中でもシステム側で表示を更新します。
+                // 右側: 出発までの時間を、秒を含まない時間・分表記で表示
                 VStack(alignment: .trailing, spacing: 0) {
-                    if context.state.isDeparted {
+                    if context.showsDeparted {
                         Text(L10n.Remaining.departed)
                             .font(.headline.bold())
                             .foregroundColor(Color.gray)
@@ -46,10 +49,10 @@ struct BusTimeWidgetLiveActivity: Widget {
                             .foregroundColor(Color.gray)
                         
                         RemainingDepartureTimeText(
-                            departureDate: context.attributes.departureDate,
-                            isUrgent: context.isDepartureUrgent
+                            departureDate: context.attributes.departureDate
                         )
                             .font(.headline.bold())
+                            .foregroundColor(countdownColor)
                             .multilineTextAlignment(.trailing)
                     }
                 }
@@ -66,12 +69,12 @@ struct BusTimeWidgetLiveActivity: Widget {
                         .font(.headline)
                 }
                 DynamicIslandExpandedRegion(.trailing) {
-                    if !context.state.isDeparted {
+                    if !context.showsDeparted {
                         RemainingDepartureTimeText(
-                            departureDate: context.attributes.departureDate,
-                            isUrgent: context.isDepartureUrgent
+                            departureDate: context.attributes.departureDate
                         )
                             .font(.title2.bold())
+                            .foregroundColor(countdownColor)
                     } else {
                         Text(L10n.Widget.departedShort)
                             .foregroundColor(.gray)
@@ -86,11 +89,11 @@ struct BusTimeWidgetLiveActivity: Widget {
                 Image(systemName: "bus.fill")
                     .foregroundColor(.blue)
             } compactTrailing: {
-                if !context.state.isDeparted {
+                if !context.showsDeparted {
                     RemainingDepartureTimeText(
-                        departureDate: context.attributes.departureDate,
-                        isUrgent: context.isDepartureUrgent
+                        departureDate: context.attributes.departureDate
                     )
+                        .foregroundColor(countdownColor)
                         .bold()
                         .lineLimit(1)
                         .minimumScaleFactor(0.7)
@@ -106,27 +109,51 @@ struct BusTimeWidgetLiveActivity: Widget {
 }
 
 private extension ActivityViewContext where Attributes == BusActivityAttributes {
-    var isDepartureUrgent: Bool {
-        if #available(iOS 16.2, *), isStale {
-            return true
+    /// 残り時間の代わりに「出発済み」を出すかどうかです。
+    var showsDeparted: Bool {
+        let hasPassedStaleDate: Bool
+        if #available(iOS 16.2, *) {
+            hasPassedStaleDate = isStale
+        } else {
+            hasPassedStaleDate = false
         }
-        return Date.now >= attributes.urgencyDate
+        return attributes.showsDeparted(state: state, isStale: hasPassedStaleDate, now: .now)
     }
 }
 
+/// 出発までの残り時間です。
+///
+/// Live Activityは一度描いた内容を保存して表示するため、`TimelineView`では描き直されません。
+/// アプリが停止していても減っていくよう、システムが時刻に合わせて数え進める表示を使います。
 private struct RemainingDepartureTimeText: View {
     let departureDate: Date
-    let isUrgent: Bool
+
+    /// 数え始める時刻です。描いた時点から出発時刻までを数えます。
+    private var countdownStart: Date {
+        min(.now, departureDate)
+    }
 
     var body: some View {
-        // TimelineViewはLive Activityの定期再描画を保証しません。
-        // 終端で0に止まる標準タイマーを使い、出発後のカウントアップを防ぎます。
-        Text(
-            timerInterval: min(Date.now, departureDate)...departureDate,
-            countsDown: true,
-            showsHours: true
-        )
-        .monospacedDigit()
-        .foregroundColor(isUrgent ? .red : Color(red: 0.15, green: 0.50, blue: 0.75))
+        if #available(iOS 18.0, *) {
+            // 秒は出さず、時間・分の単位で減っていく表示にします。
+            Text(
+                .currentDate,
+                format: .timer(
+                    countingDownIn: countdownStart..<departureDate,
+                    showsHours: true,
+                    maxFieldCount: 2,
+                    maxPrecision: .seconds(60)
+                )
+            )
+        } else {
+            // iOS 18より前には分単位で数え進める表示がないため、秒を含むタイマーで代替します。
+            // 止まったままの表示より、減っていく表示を優先します。
+            Text(
+                timerInterval: countdownStart...departureDate,
+                countsDown: true,
+                showsHours: true
+            )
+            .monospacedDigit()
+        }
     }
 }
