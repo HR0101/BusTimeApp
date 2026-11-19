@@ -46,7 +46,7 @@ struct TimetableSyncBanner: View {
                   Task { await viewModel.refreshTimetables() }
               } label: {
                   Image(systemName: "arrow.clockwise")
-                      .frame(minWidth: 44, minHeight: 44)
+                      .frame(minWidth: SkyMetrics.minimumTapSize, minHeight: SkyMetrics.minimumTapSize)
               }
               .accessibilityLabel(L10n.Sync.refresh)
               .disabled(info.connection == .syncing)
@@ -55,7 +55,7 @@ struct TimetableSyncBanner: View {
             .foregroundStyle(sky.ink)
             .fixedSize(horizontal: false, vertical: true)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .skyCard(padding: 14)
+            .skyCard(padding: 16)
         }
     }
 }

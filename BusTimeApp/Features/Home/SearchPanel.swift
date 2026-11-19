@@ -13,6 +13,8 @@ import SwiftUI
 struct RouteHeaderCard: View {
   @Environment(\.sky) private var sky
   @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+  /// iPhoneの「ボタンの形」設定です。
+  @Environment(\.accessibilityShowButtonShapes) private var showButtonShapes
 
   @ObservedObject var viewModel: HomeViewModel
   let locationAction: () -> Void
@@ -40,14 +42,14 @@ struct RouteHeaderCard: View {
       }
 
       if viewModel.isLocationPermissionDenied {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 4) {
           SkyNoticeRow(
             message: L10n.Route.locationPermissionDenied,
             systemImage: "location.slash.fill",
             isWarning: true
           )
           Button(L10n.Route.openLocationSettings, action: viewModel.openAppSettings)
-            .dynamicFont(size: 12, relativeTo: .caption, weight: .bold, design: .rounded)
+            .dynamicFont(size: 13, relativeTo: .footnote, weight: .medium, design: .rounded)
             .foregroundStyle(sky.accentReadable)
             .frame(minHeight: SkyMetrics.minimumTapSize, alignment: .leading)
         }
@@ -65,16 +67,16 @@ struct RouteHeaderCard: View {
   @ViewBuilder
   private var routeRow: some View {
     if dynamicTypeSize.isAccessibilitySize {
-      VStack(alignment: .leading, spacing: 6) {
-        HStack(spacing: 6) {
+      VStack(alignment: .leading, spacing: 8) {
+        HStack(spacing: 8) {
           originMenu
           Spacer(minLength: 0)
           swapButton
         }
 
-        HStack(spacing: 6) {
+        HStack(spacing: 8) {
           Image(systemName: "arrow.turn.down.right")
-            .font(.caption.weight(.bold))
+            .font(.caption.weight(.medium))
             .foregroundStyle(sky.inkSecondary)
           destinationMenu
         }
@@ -94,7 +96,7 @@ struct RouteHeaderCard: View {
 
   private var arrowIcon: some View {
     Image(systemName: "arrow.right")
-      .dynamicFont(size: 13, relativeTo: .headline, weight: .bold)
+      .dynamicFont(size: 13, relativeTo: .headline, weight: .medium)
       .foregroundStyle(sky.inkSecondary)
       .accessibilityHidden(true)
   }
@@ -137,7 +139,7 @@ struct RouteHeaderCard: View {
         }
       }
     } label: {
-      HStack(spacing: 3) {
+      HStack(spacing: 4) {
         ZStack(alignment: .leading) {
           // 最も長い停留所名を見えない下敷きとして重ね、枠の幅を固定します。
           // 選んでいる名前の長さで幅が決まると、入れ替えたときに
@@ -152,7 +154,7 @@ struct RouteHeaderCard: View {
         .accessibilityHidden(true)
 
         Image(systemName: "chevron.down")
-          .font(.caption2.weight(.bold))
+          .font(.caption2.weight(.medium))
           .foregroundStyle(sky.inkSecondary)
       }
       .frame(minHeight: SkyMetrics.minimumTapSize)
@@ -168,7 +170,7 @@ struct RouteHeaderCard: View {
       .dynamicFont(
         size: stopNameSize,
         relativeTo: .headline,
-        weight: .bold,
+        weight: .semibold,
         design: .rounded
       )
       .foregroundStyle(sky.ink)
@@ -183,8 +185,9 @@ struct RouteHeaderCard: View {
       viewModel.swapEndpoints()
     } label: {
       Image(systemName: "arrow.left.arrow.right")
-        .dynamicFont(size: 14, relativeTo: .body, weight: .bold)
-        .foregroundStyle(viewModel.canSwapEndpoints ? sky.accent : sky.inkFaint)
+        .dynamicFont(size: 16, relativeTo: .body, weight: .medium)
+        // 強調色は主要な操作のために取っておき、入れ替えは文字と同じ色で示します。
+        .foregroundStyle(viewModel.canSwapEndpoints ? sky.inkSecondary : sky.inkFaint)
         .scaledTapTarget()
     }
     .buttonStyle(SkyPressStyle())
@@ -201,14 +204,14 @@ struct RouteHeaderCard: View {
   /// 現在地へ合わせ直す操作を添えます。
   private var decisionRow: some View {
     DynamicTypeStack(verticalAlignment: .center, spacing: 8) {
-      HStack(spacing: 6) {
+      HStack(spacing: 8) {
         Image(systemName: viewModel.routeDecision.systemName)
-          .font(.caption2.weight(.bold))
-          .foregroundStyle(sky.ink)
+          .font(.caption.weight(.medium))
+          .foregroundStyle(sky.inkSecondary)
 
         Text(viewModel.routeDecisionDescription)
-          .dynamicFont(size: 12, relativeTo: .caption, weight: .bold)
-          .foregroundStyle(sky.ink)
+          .dynamicFont(size: 12, relativeTo: .caption, weight: .regular)
+          .foregroundStyle(sky.inkSecondary)
           .fixedSize(horizontal: false, vertical: true)
       }
       .frame(maxWidth: .infinity, alignment: .leading)
@@ -217,10 +220,10 @@ struct RouteHeaderCard: View {
         locationButton
       }
     }
-    .padding(.horizontal, 10)
+    .padding(.horizontal, 12)
     .padding(.vertical, 8)
     .background(
-      RoundedRectangle(cornerRadius: 10, style: .continuous)
+      RoundedRectangle(cornerRadius: SkyMetrics.controlRadius, style: .continuous)
         .fill(sky.surfaceOpaque)
     )
   }
@@ -230,13 +233,17 @@ struct RouteHeaderCard: View {
       SkyHaptics.tap()
       locationAction()
     } label: {
-      Label(L10n.Route.useCurrentLocation, systemImage: "location.fill")
-        .dynamicFont(size: 12, relativeTo: .caption, weight: .bold, design: .rounded)
-        .foregroundStyle(sky.accentReadable)
+      Label(L10n.Route.useCurrentLocation, systemImage: "location")
+        .dynamicFont(size: 12, relativeTo: .caption, weight: .medium, design: .rounded)
+        .foregroundStyle(sky.ink)
         .padding(.horizontal, 12)
         .frame(minHeight: SkyMetrics.minimumTapSize)
         .background(
-          Capsule().stroke(sky.accent.opacity(0.4), lineWidth: SkyMetrics.borderWidth)
+          RoundedRectangle(cornerRadius: SkyMetrics.controlRadius, style: .continuous)
+            .stroke(
+              sky.ink.opacity(SkyButtonOutline.opacity(showButtonShapes: showButtonShapes)),
+              lineWidth: SkyMetrics.borderWidth
+            )
         )
     }
     .buttonStyle(SkyPressStyle())
@@ -256,6 +263,8 @@ struct ServiceDayTimeCard: View {
   @Environment(\.sky) private var sky
   @Environment(\.dynamicTypeSize) private var dynamicTypeSize
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
+  /// iPhoneの「ボタンの形」設定です。
+  @Environment(\.accessibilityShowButtonShapes) private var showButtonShapes
 
   @ObservedObject var viewModel: HomeViewModel
 
@@ -275,7 +284,7 @@ struct ServiceDayTimeCard: View {
   /// 運行日の選択です。平日ダイヤが1本しかないため、
   /// 日付そのものではなく運行日の単位で選びます。
   private var serviceDayChips: some View {
-    DynamicTypeStack(spacing: 8) {
+    DynamicTypeStack(spacing: SkySegmentTrackMetrics.inset) {
       ForEach(HomeViewModel.ServiceDay.allCases) { day in
         SkyChip(
           title: viewModel.serviceDayDisplayName(for: day),
@@ -287,10 +296,11 @@ struct ServiceDayTimeCard: View {
         }
       }
     }
+    .skySegmentTrack()
   }
 
   private var searchTypeChips: some View {
-    DynamicTypeStack(spacing: 8) {
+    DynamicTypeStack(spacing: SkySegmentTrackMetrics.inset) {
       SkyChip(
         title: HomeViewModel.SearchType.departure.shortTitle,
         isSelected: viewModel.searchType == .departure
@@ -308,6 +318,7 @@ struct ServiceDayTimeCard: View {
         }
       }
     }
+    .skySegmentTrack()
   }
 
   @ViewBuilder
@@ -316,7 +327,7 @@ struct ServiceDayTimeCard: View {
     if !viewModel.isViewingToday {
       timePicker
     } else if dynamicTypeSize.isAccessibilitySize {
-      VStack(alignment: .leading, spacing: 10) {
+      VStack(alignment: .leading, spacing: 12) {
         timePicker
         currentTimeButton
           .frame(maxWidth: .infinity, alignment: .trailing)
@@ -333,7 +344,7 @@ struct ServiceDayTimeCard: View {
   private var timePicker: some View {
     VStack(alignment: .leading, spacing: 4) {
       Text(viewModel.searchType.timeTitle)
-        .dynamicFont(size: 11, relativeTo: .caption2, weight: .bold)
+        .dynamicFont(size: 12, relativeTo: .caption, weight: .medium)
         .foregroundStyle(sky.inkSecondary)
         .fixedSize(horizontal: false, vertical: true)
 
@@ -348,7 +359,10 @@ struct ServiceDayTimeCard: View {
           .foregroundStyle(sky.ink)
           .padding(.horizontal, 12)
           .frame(minHeight: SkyMetrics.minimumTapSize)
-          .background(RoundedRectangle(cornerRadius: 10).fill(sky.surfaceOpaque))
+          .background(
+            RoundedRectangle(cornerRadius: SkyMetrics.controlRadius, style: .continuous)
+              .fill(sky.surfaceOpaque)
+          )
       }
       .buttonStyle(SkyPressStyle())
       .accessibilityLabel(viewModel.searchType.timeTitle)
@@ -383,12 +397,16 @@ struct ServiceDayTimeCard: View {
       viewModel.setSearchToCurrentTime()
     } label: {
       Label(L10n.When.currentTime, systemImage: "clock.arrow.circlepath")
-        .dynamicFont(size: 13, relativeTo: .footnote, weight: .bold, design: .rounded)
+        .dynamicFont(size: 13, relativeTo: .footnote, weight: .medium, design: .rounded)
         .foregroundStyle(sky.ink)
-        .padding(.horizontal, 14)
+        .padding(.horizontal, 12)
         .frame(minHeight: SkyMetrics.minimumTapSize)
         .background(
-          Capsule().stroke(sky.ink.opacity(0.24), lineWidth: SkyMetrics.borderWidth)
+          RoundedRectangle(cornerRadius: SkyMetrics.controlRadius, style: .continuous)
+            .stroke(
+              sky.ink.opacity(SkyButtonOutline.opacity(showButtonShapes: showButtonShapes)),
+              lineWidth: SkyMetrics.borderWidth
+            )
         )
     }
     .buttonStyle(SkyPressStyle())
@@ -398,25 +416,32 @@ struct ServiceDayTimeCard: View {
   /// 何件見つかったかを、条件を変えた手元に出します。
   /// 結果カードはこのすぐ下にありますが、条件を変えた瞬間の手応えを
   /// 同じ場所で返すための行です。
+  ///
+  /// 見つかったときは件数と並び順だけを短く出し、印は付けません。
+  /// 見つからなかったときだけ注意の印を添え、ふだんとの違いを形でも示します。
   private var resultSummary: some View {
-    HStack(alignment: .firstTextBaseline, spacing: 6) {
-      Image(systemName: viewModel.searchResults.isEmpty ? "exclamationmark.circle.fill" : "checkmark.circle.fill")
-        // 状態はアイコンの形で区別できるため、文字と同じ高コントラスト色を使います。
-        // カード背景が時刻・天候で変わっても説明全体を読みやすく保てます。
-        .foregroundStyle(sky.ink)
-        .accessibilityHidden(true)
+    HStack(alignment: .firstTextBaseline, spacing: 8) {
+      if viewModel.searchResults.isEmpty {
+        Image(systemName: "exclamationmark.circle")
+          // 状態はアイコンの形で区別できるため、文字と同じ高コントラスト色を使います。
+          // カード背景が時刻・天候で変わっても説明全体を読みやすく保てます。
+          .font(.caption.weight(.medium))
+          .foregroundStyle(sky.ink)
+          .accessibilityHidden(true)
+      }
       Text(viewModel.searchResultDescription)
-        .dynamicFont(size: 12, relativeTo: .caption, weight: .bold, design: .rounded)
+        .dynamicFont(size: 13, relativeTo: .footnote, weight: .regular, design: .rounded)
+        .monospacedDigit()
         .foregroundStyle(sky.ink)
         .fixedSize(horizontal: false, vertical: true)
     }
-    .padding(.horizontal, 10)
+    .padding(.horizontal, 12)
     .padding(.vertical, 8)
     .frame(maxWidth: .infinity, alignment: .leading)
     // 背景アニメーションの明暗が文字の直下へ透けないようにし、
     // どの時刻・天候でも検索結果の説明を同じコントラストで表示します。
     .background(
-      RoundedRectangle(cornerRadius: 10, style: .continuous)
+      RoundedRectangle(cornerRadius: SkyMetrics.controlRadius, style: .continuous)
         .fill(sky.surfaceOpaque)
     )
   }

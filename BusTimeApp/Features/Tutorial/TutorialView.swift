@@ -43,7 +43,7 @@ struct TutorialView: View {
       }
     }
     .padding(.horizontal, SkyMetrics.screenPadding)
-    .padding(.top, 18)
+    .padding(.top, 16)
   }
 
   private var advanceButton: some View {
@@ -60,18 +60,18 @@ struct TutorialView: View {
         Spacer()
         Image(systemName: viewModel.isLastPage ? "checkmark" : "arrow.right")
       }
-      .dynamicFont(size: 15, relativeTo: .subheadline, weight: .bold, design: .rounded)
+      .dynamicFont(size: 15, relativeTo: .subheadline, weight: .semibold, design: .rounded)
       .foregroundStyle(sky.accentInk)
       .padding(.horizontal, 20)
       .frame(maxWidth: .infinity, minHeight: 52)
       .background(
-        RoundedRectangle(cornerRadius: 16, style: .continuous)
+        RoundedRectangle(cornerRadius: SkyMetrics.innerRadius, style: .continuous)
           .fill(sky.accent)
       )
     }
     .buttonStyle(SkyPressStyle())
     .padding(.horizontal, SkyMetrics.screenPadding)
-    .padding(.bottom, 22)
+    .padding(.bottom, 24)
   }
 }
 
@@ -90,7 +90,7 @@ struct TutorialPage: View {
 
   var body: some View {
     ScrollView(showsIndicators: false) {
-      VStack(spacing: dynamicTypeSize.isAccessibilitySize ? 18 : 24) {
+      VStack(spacing: dynamicTypeSize.isAccessibilitySize ? 16 : 24) {
         Spacer(minLength: dynamicTypeSize.isAccessibilitySize ? 12 : 48)
 
         Image(systemName: systemName)
@@ -98,13 +98,13 @@ struct TutorialPage: View {
           .foregroundStyle(sky.accentReadable)
 
         Text(title)
-          .dynamicFont(size: 26, relativeTo: .title, weight: .bold, design: .rounded)
+          .dynamicFont(size: 28, relativeTo: .title, weight: .semibold, design: .rounded)
           .foregroundStyle(sky.ink)
           .multilineTextAlignment(.center)
           .fixedSize(horizontal: false, vertical: true)
 
         Text(description)
-          .dynamicFont(size: 14, relativeTo: .subheadline, weight: .medium)
+          .dynamicFont(size: 15, relativeTo: .subheadline, weight: .regular)
           .foregroundStyle(sky.inkSecondary)
           .multilineTextAlignment(.center)
           .fixedSize(horizontal: false, vertical: true)

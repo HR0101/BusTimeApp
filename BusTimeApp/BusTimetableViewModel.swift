@@ -793,6 +793,9 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
         } else {
             searchResultDescription = L10n.Search.resultCount(searchResults.count, searchType.explanation)
         }
+        // 残り時間は便ごとに持っているため、結果が入れ替わったらすぐ数え直します。
+        // 次の定期更新まで待つと、その間「計算中」のままになるためです。
+        updateCountdown()
         send(.searchSucceeded(hasResults: !searchResults.isEmpty))
     }
 
@@ -1206,7 +1209,9 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
         lastActivityRemainingMinutes = activity.content.state.remainingMinutes
     }
     
-    func startLiveActivity(for bus: Bus) {
+    /// `routeName` を省略すると、いま画面で選んでいる経路の名前を使います。
+    /// ショートカットのように、画面の経路とは別の経路の便を始めるときに指定します。
+    func startLiveActivity(for bus: Bus, routeName: String? = nil) {
         restoreLiveActivity()
 
         if let trackedBusId, trackedBusId != bus.id {
@@ -1249,7 +1254,7 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
             originName: bus.originName,
             destinationName: bus.destinationName,
             departureDate: departureDate,
-            routeName: selectedRoute.rawValue
+            routeName: routeName ?? selectedRoute.rawValue
         )
 
         let remaining = max(0, Int(ceil(departureDate.timeIntervalSince(currentDate) / 60)))

@@ -1274,6 +1274,32 @@ struct BusTimeAppTests {
         #expect(viewModel.followingSectionTitle == "このあとの便")
     }
 
+    @Test @MainActor
+    func searchCalculatesRemainingMinutesWithoutWaitingForTimer() {
+        let viewModel = HomeViewModel(
+            nowProvider: { makeTestDate(hour: 8) },
+            defaults: makeIsolatedDefaults()
+        )
+        viewModel.performSearch()
+
+        // 経路や検索方法を変えると別の便が並びます。
+        // 定期更新を待たずに、新しい便の残り時間が入っていることを確かめます。
+        viewModel.selectOrigin(.mansion)
+        viewModel.performSearch()
+        #expect(!viewModel.searchResults.isEmpty)
+        for bus in viewModel.searchResults {
+            #expect(viewModel.remainingMinutes[bus.id] != nil, "\(bus.departure)発の残り時間がありません")
+        }
+
+        viewModel.searchType = .arrival
+        viewModel.searchTime = makeTestDate(hour: 9)
+        viewModel.performSearch()
+        #expect(!viewModel.searchResults.isEmpty)
+        for bus in viewModel.searchResults {
+            #expect(viewModel.remainingMinutes[bus.id] != nil, "\(bus.departure)発の残り時間がありません")
+        }
+    }
+
     // MARK: - 深夜の検索
 
     @Test @MainActor
@@ -2132,6 +2158,238 @@ struct BusTimeAppTests {
         #expect(answer != L10n.Shortcut.noService)
     }
 
+    // MARK: - ショートカット（経路を指定するアクション）
+
+    @Test
+    func shortcutAnswerForAnExplicitRouteUsesThatRoute() {
+        // 経路を指定したときは、アプリの自動判断ではなくその経路の次の便を答えます。
+        let answer = NextBusAnswer.answer(for: .stationToYokado, at: makeTestDate(hour: 10))
+
+        #expect(answer?.text.contains("海浜幕張駅 → ヨーカドー前") == true)
+        // 買い物便は海浜幕張駅を毎時38分に出るので、10時の次は10:38です。
+        #expect(answer?.departureDate == makeTestDate(hour: 10, minute: 38))
+    }
+
+    @Test
+    func shortcutRouteOptionsCoverEveryRouteOfTheApp() {
+        // 経路が増えたときにショートカットの選択肢へ入れ忘れると、ここで気づけます。
+        #expect(BusRouteOption.allCases.count == BusRoute.allCases.count)
+        for route in BusRoute.allCases {
+            #expect(BusRouteOption(route: route).route == route)
+        }
+    }
+
+    @Test
+    func shortcutOptionsKeepTheirStoredIdentifiers() {
+        // 利用者のショートカットに保存される値です。変えると作成済みのショートカットが壊れます。
+        #expect(BusRouteOption.allCases.map(\.rawValue) == [
+            "mansionToStation",
+            "stationToMansion",
+            "mansionToYokado",
+            "stationToYokado",
+            "yokadoToMansion"
+        ])
+        #expect(BusAlertLeadTime.allCases.map(\.rawValue) == [
+            "fiveMinutes",
+            "tenMinutes",
+            "fifteenMinutes"
+        ])
+    }
+
+    @Test
+    func shortcutLeadTimesAreTheSameChoicesAsTheAppsAlerts() {
+        #expect(BusAlertLeadTime.allCases.map(\.minutes) == [5, 10, 15])
+    }
+
+    @Test
+    func busAlertSelectionPicksTheNextBusOnTheRoute() {
+        let result = ShortcutBusSelector.select(
+            on: .stationToYokado,
+            minutesBefore: 5,
+            now: makeTestDate(hour: 10)
+        )
+
+        guard case let .success(bus) = result else {
+            Issue.record("次の便が選ばれませんでした")
+            return
+        }
+        #expect(bus.departure == "10:38")
+    }
+
+    @Test
+    func busAlertSelectionSkipsABusWhoseAlertTimeHasPassed() {
+        // 10:25の時点で15分前の通知は、10:38発なら10:23で過ぎています。
+        // 通知が間に合う次の便（11:38発）を選びます。
+        let result = ShortcutBusSelector.select(
+            on: .stationToYokado,
+            minutesBefore: 15,
+            now: makeTestDate(hour: 10, minute: 25)
+        )
+
+        guard case let .success(bus) = result else {
+            Issue.record("通知が間に合う便が選ばれませんでした")
+            return
+        }
+        #expect(bus.departure == "11:38")
+    }
+
+    @Test
+    func busAlertSelectionKeepsMinutePrecisionAtTheAlertBoundary() throws {
+        let alertTime = makeTestDate(hour: 10, minute: 23)
+        let withinAlertMinute = try ShortcutBusSelector.select(
+            on: .stationToYokado,
+            minutesBefore: 15,
+            now: alertTime.addingTimeInterval(59)
+        ).get()
+        let afterAlertMinute = try ShortcutBusSelector.select(
+            on: .stationToYokado,
+            minutesBefore: 15,
+            now: alertTime.addingTimeInterval(60)
+        ).get()
+
+        #expect(withinAlertMinute.departure == "10:38")
+        #expect(afterAlertMinute.departure == "11:38")
+    }
+
+    @Test
+    func busAlertSelectionUsesThePreviousServiceDayForLateNightBuses() throws {
+        // 土曜0時台でも、金曜の運行日に属する最終便は通知の対象です。
+        let bus = try ShortcutBusSelector.select(
+            on: .stationToMansion,
+            minutesBefore: 5,
+            now: makeTestDate(day: 15, hour: 0)
+        ).get()
+
+        #expect(bus.departure == "0:13")
+    }
+
+    @Test
+    func busAlertSelectionDoesNotCarryOverAfterTheLastLateNightBus() {
+        let result = ShortcutBusSelector.select(
+            on: .stationToMansion,
+            minutesBefore: 5,
+            now: makeTestDate(day: 15, hour: 0, minute: 14)
+        )
+
+        guard case let .failure(failure) = result else {
+            Issue.record("最終便の後に、別の運行日の便が選ばれました")
+            return
+        }
+        #expect(failure == .noBusAvailable)
+    }
+
+    @Test
+    func busAlertSelectionRefusesANonServiceDay() {
+        // 2026年8月15日は土曜日で、運休日です。
+        let result = ShortcutBusSelector.select(
+            on: .mansionToStation,
+            minutesBefore: 5,
+            now: makeTestDate(day: 15, hour: 10)
+        )
+
+        guard case let .failure(failure) = result else {
+            Issue.record("運休日なのに便が選ばれました")
+            return
+        }
+        #expect(failure == .noService)
+    }
+
+    @Test
+    func busAlertSelectionDoesNotCarryOverToTheNextServiceDay() {
+        // ヨーカドー前行きは16:30発が最終です。17時には翌運行日の便へ繰り越さず断ります。
+        // 画面でも、他の運行日の便には通知を設定できないためです。
+        let result = ShortcutBusSelector.select(
+            on: .mansionToYokado,
+            minutesBefore: 5,
+            now: makeTestDate(hour: 17)
+        )
+
+        guard case let .failure(failure) = result else {
+            Issue.record("今日の便がないのに、別の運行日の便が選ばれました")
+            return
+        }
+        #expect(failure == .noBusAvailable)
+    }
+
+    @Test
+    func shortcutOutcomeThrowsInsteadOfPretendingToSucceed() throws {
+        // 自動化の途中で失敗に気づけるよう、失敗は成功の文ではなくエラーにします。
+        #expect(try ShortcutOutcome.succeeded("設定しました").requireSuccessMessage() == "設定しました")
+        #expect(throws: ShortcutActionError.self) {
+            try ShortcutOutcome.failed("理由").requireSuccessMessage()
+        }
+        #expect(throws: ShortcutActionError.self) {
+            try ShortcutOutcome.noResponse.requireSuccessMessage()
+        }
+    }
+
+    @Test @MainActor
+    func shortcutRequestIsHandedToTheAppAndTheResultReturnsToTheShortcut() async {
+        let center = ShortcutRequestCenter()
+        let waiting = Task { @MainActor in
+            await center.submit(.openRoute(.mansionToStation))
+        }
+        await waitUntilPending(center)
+
+        let request = center.takePendingRequest()
+        #expect(request?.action == .openRoute(.mansionToStation))
+        // 受け取った依頼は、預かり中ではなくなります。
+        #expect(center.pendingRequest == nil)
+        #expect(center.takePendingRequest() == nil)
+
+        if let request {
+            center.finish(request.id, with: .succeeded("開きました"))
+            // 同じ依頼に再度結果を返しても、再開は一度だけです。
+            center.finish(request.id, with: .failed("二度目"))
+        }
+        #expect(await waiting.value == .succeeded("開きました"))
+    }
+
+    @Test @MainActor
+    func shortcutRequestTimesOutWhenTheAppNeverAnswers() async {
+        let center = ShortcutRequestCenter(responseTimeout: .milliseconds(50))
+
+        let outcome = await center.submit(.openRoute(.mansionToStation))
+
+        #expect(outcome == .noResponse)
+        #expect(center.pendingRequest == nil)
+    }
+
+    @Test @MainActor
+    func aNewShortcutRequestReplacesOneTheAppHasNotTakenYet() async {
+        let center = ShortcutRequestCenter()
+        let first = Task { @MainActor in
+            await center.submit(.openRoute(.mansionToStation))
+        }
+        await waitUntilPending(center)
+
+        let second = Task { @MainActor in
+            await center.submit(.openRoute(.stationToMansion))
+        }
+        // 受け取られないまま置き換えられた依頼は、待たせ続けずに返します。
+        #expect(await first.value == .noResponse)
+
+        await waitUntilPending(center)
+        let request = center.takePendingRequest()
+        #expect(request?.action == .openRoute(.stationToMansion))
+
+        if let request {
+            center.finish(request.id, with: .succeeded("開きました"))
+        }
+        #expect(await second.value == .succeeded("開きました"))
+    }
+
+    /// 依頼が預けられるまで、他の処理へ実行を譲って待ちます。
+    @MainActor
+    private func waitUntilPending(_ center: ShortcutRequestCenter) async {
+        let maximumYields = 1_000
+        var yields = 0
+        while center.pendingRequest == nil && yields < maximumYields {
+            await Task.yield()
+            yields += 1
+        }
+    }
+
     // MARK: - ウィジェットのタップ先
 
     @Test
@@ -2310,9 +2568,12 @@ struct BusTimeAppTests {
     @Test @MainActor
     func weekendKeepsTheNoticeAndStillShowsWeekdayTimes() {
         let saturday = makeTestDate(day: 15, hour: 8)
+        // 同梱ダイヤの運休判定を確かめるため、端末に保存されたAPIの時刻表は使いません。
+        // 保存済みの時刻表があると、運休の理由が「運行ダイヤの設定」に変わってしまいます。
         let viewModel = HomeViewModel(
             nowProvider: { saturday },
-            defaults: makeIsolatedDefaults()
+            defaults: makeIsolatedDefaults(),
+            timetableRepository: nil
         )
         viewModel.searchTime = saturday
         viewModel.performSearch()
