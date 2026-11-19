@@ -74,7 +74,7 @@ final class BusTimeAppUITests: XCTestCase {
         timetableTab.tap()
 
         // 時刻表タブだけに出る案内文で、画面が切り替わったことを確かめます。
-        let timetableGuidance = app.staticTexts["経路を変えるときは、ホームタブで出発地と目的地を選んでください"]
+        let timetableGuidance = app.staticTexts["経路はホームで変更できます"]
         XCTAssertTrue(timetableGuidance.waitForExistence(timeout: 5))
 
         app.buttons["ホームタブ"].tap()
@@ -230,19 +230,19 @@ final class BusTimeAppUITests: XCTestCase {
                 language: "ja",
                 locale: "ja_JP",
                 timetableTab: "時刻表タブ",
-                timetableHint: "経路を変えるときは、ホームタブで出発地と目的地を選んでください"
+                timetableHint: "経路はホームで変更できます"
             ),
             (
                 language: "en",
                 locale: "en_US",
                 timetableTab: "Timetable tab",
-                timetableHint: "To change the route, choose the stops on the Home tab"
+                timetableHint: "Change the route on Home"
             ),
             (
                 language: "zh-Hans",
                 locale: "zh_CN",
                 timetableTab: "时刻表标签页",
-                timetableHint: "要更改路线，请在首页标签页选择出发地和目的地"
+                timetableHint: "可在首页更改路线"
             )
         ]
 

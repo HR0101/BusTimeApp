@@ -18,7 +18,7 @@ struct NotificationManagementView: View {
         }
         .padding(.horizontal, SkyMetrics.screenPadding)
         .padding(.top, 16)
-        .padding(.bottom, 30)
+        .padding(.bottom, 32)
       }
       .background(SkyBackground())
       .navigationTitle(L10n.Manage.title)
@@ -26,7 +26,7 @@ struct NotificationManagementView: View {
       .toolbar {
         ToolbarItem(placement: .navigationBarTrailing) {
           Button(L10n.Common.close) { dismiss() }
-            .fontWeight(.bold)
+            .fontWeight(.semibold)
             .foregroundStyle(sky.accentReadable)
         }
       }
@@ -40,23 +40,23 @@ struct NotificationManagementView: View {
   private var permissionCard: some View {
     DynamicTypeStack(verticalAlignment: .top, spacing: 12) {
       Image(systemName: isAuthorized ? "checkmark.circle.fill" : "bell.slash.fill")
-        .dynamicFont(size: 20, relativeTo: .title3, weight: .semibold)
+        .dynamicFont(size: 20, relativeTo: .title3, weight: .medium)
         .foregroundStyle(isAuthorized ? sky.positive : sky.warning)
 
-      VStack(alignment: .leading, spacing: 6) {
+      VStack(alignment: .leading, spacing: 4) {
         Text(viewModel.permissionStatus.title)
-          .dynamicFont(size: 15, relativeTo: .subheadline, weight: .bold, design: .rounded)
+          .dynamicFont(size: 15, relativeTo: .subheadline, weight: .semibold, design: .rounded)
           .foregroundStyle(sky.ink)
           .fixedSize(horizontal: false, vertical: true)
 
         Text(L10n.Manage.permissionMessage)
-          .dynamicFont(size: 12, relativeTo: .caption, weight: .medium)
+          .dynamicFont(size: 12, relativeTo: .caption, weight: .regular)
           .foregroundStyle(sky.inkSecondary)
           .fixedSize(horizontal: false, vertical: true)
 
         if viewModel.permissionStatus == .denied {
           Button(L10n.Manage.openNotificationSettings, action: viewModel.openNotificationSettings)
-            .dynamicFont(size: 13, relativeTo: .footnote, weight: .bold, design: .rounded)
+            .dynamicFont(size: 13, relativeTo: .footnote, weight: .medium, design: .rounded)
             .foregroundStyle(sky.accentReadable)
             .frame(minHeight: SkyMetrics.minimumTapSize, alignment: .leading)
         }
@@ -68,22 +68,22 @@ struct NotificationManagementView: View {
   }
 
   private var liveActivityCard: some View {
-    VStack(alignment: .leading, spacing: 10) {
+    VStack(alignment: .leading, spacing: 12) {
       SkySectionLabel(text: "Live Activity")
 
       if liveActivityBusID != nil {
         Text(L10n.Manage.liveActivityShowing)
-          .dynamicFont(size: 13, relativeTo: .footnote, weight: .medium)
+          .dynamicFont(size: 13, relativeTo: .footnote, weight: .regular)
           .foregroundStyle(sky.inkSecondary)
           .fixedSize(horizontal: false, vertical: true)
 
         Button(L10n.Manage.endLiveActivity, action: onEndLiveActivity)
-          .dynamicFont(size: 14, relativeTo: .subheadline, weight: .bold, design: .rounded)
+          .dynamicFont(size: 14, relativeTo: .subheadline, weight: .medium, design: .rounded)
           .foregroundStyle(sky.ink)
           .frame(minHeight: SkyMetrics.minimumTapSize, alignment: .leading)
       } else {
         Text(L10n.Manage.noLiveActivity)
-          .dynamicFont(size: 13, relativeTo: .footnote, weight: .medium)
+          .dynamicFont(size: 13, relativeTo: .footnote, weight: .regular)
           .foregroundStyle(sky.inkSecondary)
           .fixedSize(horizontal: false, vertical: true)
       }
@@ -101,16 +101,16 @@ struct NotificationManagementView: View {
           Button(L10n.Manage.clearAll) {
             viewModel.cancelAllNotifications()
           }
-          .dynamicFont(size: 12, relativeTo: .caption, weight: .bold, design: .rounded)
+          .dynamicFont(size: 13, relativeTo: .footnote, weight: .medium, design: .rounded)
           .foregroundStyle(sky.ink)
         }
       }
 
       if viewModel.scheduledNotifications.isEmpty {
         Text(L10n.Manage.empty)
-          .dynamicFont(size: 14, relativeTo: .subheadline, weight: .medium)
+          .dynamicFont(size: 14, relativeTo: .subheadline, weight: .regular)
           .foregroundStyle(sky.inkSecondary)
-          .padding(.vertical, 10)
+          .padding(.vertical, 8)
       } else {
         ForEach(viewModel.scheduledNotifications) { item in
           notificationRow(for: item)
@@ -121,21 +121,21 @@ struct NotificationManagementView: View {
 
   private func notificationRow(for item: ScheduledBusNotification) -> some View {
     DynamicTypeStack(verticalAlignment: .top, spacing: 12) {
-      Image(systemName: "bell.badge.fill")
-        .dynamicFont(size: 14, relativeTo: .body, weight: .semibold)
+      Image(systemName: "bell.fill")
+        .dynamicFont(size: 16, relativeTo: .body, weight: .medium)
         .foregroundStyle(sky.accentReadable)
 
       VStack(alignment: .leading, spacing: 4) {
         Text(item.busDescription)
-          .dynamicFont(size: 14, relativeTo: .subheadline, weight: .bold, design: .rounded)
+          .dynamicFont(size: 15, relativeTo: .subheadline, weight: .semibold, design: .rounded)
           .foregroundStyle(sky.ink)
           .fixedSize(horizontal: false, vertical: true)
         Text(L10n.Manage.notificationRow(item.notificationDescription))
-          .dynamicFont(size: 12, relativeTo: .caption, weight: .bold)
-          .foregroundStyle(sky.accentReadable)
+          .dynamicFont(size: 12, relativeTo: .caption, weight: .medium)
+          .foregroundStyle(sky.inkSecondary)
           .fixedSize(horizontal: false, vertical: true)
         Text(item.routeName)
-          .dynamicFont(size: 11, relativeTo: .caption2, weight: .medium)
+          .dynamicFont(size: 12, relativeTo: .caption, weight: .regular)
           .foregroundStyle(sky.inkSecondary)
           .fixedSize(horizontal: false, vertical: true)
       }
@@ -145,13 +145,13 @@ struct NotificationManagementView: View {
         viewModel.cancelNotification(for: item)
       } label: {
         Image(systemName: "trash")
-          .dynamicFont(size: 14, relativeTo: .body, weight: .semibold)
+          .dynamicFont(size: 16, relativeTo: .body, weight: .regular)
           .foregroundStyle(sky.warning)
           .scaledTapTarget()
       }
       .buttonStyle(SkyPressStyle())
       .accessibilityLabel(L10n.Manage.cancelOne)
     }
-    .skyCard(radius: 16, padding: 14)
+    .skyCard(radius: 16, padding: 16)
   }
 }

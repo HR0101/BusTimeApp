@@ -16,6 +16,13 @@ public struct BusActivityAttributes: ActivityAttributes, Sendable {
     public var destinationName: String
     public var departureDate: Date
     public var routeName: String
+
+    private static let urgencyLeadTime: TimeInterval = 5 * 60
+
+    /// アプリの停止中にも色を切り替えるため、Live Activityの期限に使います。
+    public var urgencyDate: Date {
+        departureDate.addingTimeInterval(-Self.urgencyLeadTime)
+    }
 }
 
 /// Live Activityで表示する残り時間を、秒を含まない表記へ変換します。

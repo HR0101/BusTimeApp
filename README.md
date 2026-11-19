@@ -123,7 +123,11 @@
 - ウィジェットは許可済みの場合だけ位置情報を1回取得し、キャッシュがあれば待たずに利用します。手動経路がある場合は位置情報より優先します。
 - アプリとウィジェットはApp Groupで前回の行き先と手動経路を共有します。共有領域が利用できない場合もアプリ単体は標準の保存領域へフォールバックします。
 - ウィジェットをタップすると独自URLで表示中の経路を渡し、アプリのホームを同じ経路で開きます。URLには日本語ではなく安定した停留所IDを使います。
-- App Intent「次のバス」を日本語・英語の呼びかけで登録しています。アプリを開かず、経路、出発、到着、残り時間を1文で返します。
+- 「ショートカット」アプリのアクションとして、次の3つを登録しています。Siriは日本語・英語の呼びかけで起動できます。
+  - 「次のバスを調べる」：アプリを開かず、経路、出発、到着、残り時間を1文で返します。経路は省略でき、省略時はアプリと同じ判断で決めます。出発日時を値として返すので、後続のアクションへ渡せます。
+  - 「経路を指定して開く」：指定した経路のホームを開きます。ウィジェットのタップと同じく「自分で選んだ経路」として扱い、位置情報で上書きしません。
+  - 「次の便の通知を設定」：指定した経路の次の便に、5・10・15分前の通知を設定します。Live Activityも同時に開始できます。運休日や今日これから通知できる便がないときは、別の運行日へ繰り越さず失敗として終えます。
+- 状態を変える後ろの2つは、アプリを開いて既存の通知・Live Activity処理で実行します。通知の保存内容は画面のViewModelが持ち、Live Activityは前面でないと開始できないためです。依頼は`ShortcutRequestCenter`が受け渡し、15秒以内に処理されなければショートカットを失敗として終えます。
 
 ### 7. 時刻・季節・実際の天気で変わるピクセルアート
 
@@ -229,7 +233,7 @@ Open-Meteo ─> 天気キャッシュ ─> 時刻・季節連動のピクセル�
 | `Features/Settings` / `Tutorial` | 表示・カード・Live Activity設定と初回ガイド |
 | `DesignSystem` | 時刻・季節配色、ピクセル背景、カード、ボタン、Dynamic Type、ハプティクス |
 | `BusTimeWidgetExtension` | ホーム／ロック画面ウィジェット、Live Activity、Dynamic Island |
-| `Features/Shortcuts` | App IntentとSiri向けの次便回答 |
+| `Features/Shortcuts` | App Intent3種（次便回答、経路を開く、通知・Live Activity開始）と、アプリ画面への依頼の受け渡し |
 | `Localization` / `Scripts` | 3言語のString Catalogと型付きAPIの生成 |
 
 UIへ状態を公開するサービスの多くは`@MainActor`へ寄せ、天気取得はプロトコル、時刻はProvider、保存先は`UserDefaults`注入にして、通信・時計・保存状態をテストから差し替えられるようにしています。SwiftのStrict Concurrency Checkingは`targeted`、コンパイラ警告はエラーとして扱います。
@@ -268,7 +272,7 @@ UIへ状態を公開するサービスの多くは`@MainActor`へ寄せ、天気
 | Medium Widget | 経路、次便とその次の便、残り時間 | 同上 | Smallより詳細な便情報を表示 |
 | Accessory Rectangular | ロック画面向けの次便概要 | 同上 | 表示領域に合わせ情報量を制限 |
 | Live Activity | 経路、出発・到着、残り分、出発済み状態 | アプリ側から開始・終了 | ロック画面、Dynamic Islandの展開・コンパクト・最小表示に対応 |
-| Siri／ショートカット | 経路、出発、到着、残り時間を一文で回答 | 「次のバス」Intentを実行 | UIを開かず共有ダイヤから計算 |
+| Siri／ショートカット | 経路、出発、到着、残り時間を一文で回答。通知設定の結果も一文で回答 | 「次のバスを調べる」「経路を指定して開く」「次の便の通知を設定」を実行 | 次便回答はUIを開かず共有ダイヤから計算。後ろの2つはアプリを開き、画面と同じ処理で実行 |
 
 ### 検索条件と結果の意味
 
@@ -487,7 +491,11 @@ Deep Linkは`bustimeapp://route/<origin>-<destination>`形式です。停留所�
 | `Features/Weather/WeatherModels.swift` | 天気状態、雨量段階、WMO解釈、Service Error |
 | `Features/Weather/WeatherService.swift` | Open-Meteo通信、Response decode、Debug Stub |
 | `Features/Weather/WeatherViewModel.swift` | 15分更新、1分監視、Cache、Backoff、lifecycle |
-| `Features/Shortcuts/NextBusIntent.swift` | App Intent、Siri回答、Shortcut Phrase |
+| `Features/Shortcuts/NextBusIntent.swift` | 次便回答のApp Intent、Siri回答、Shortcut Phraseの登録 |
+| `Features/Shortcuts/OpenRouteIntent.swift` | 指定経路のホームを開くApp Intent |
+| `Features/Shortcuts/StartBusAlertIntent.swift` | 次の便の通知・Live Activityを開始するApp Intentと、対象便の選択 |
+| `Features/Shortcuts/ShortcutOptions.swift` | ショートカットで選べる経路・通知タイミング（`AppEnum`）と経路の自動判断 |
+| `Features/Shortcuts/ShortcutRequestCenter.swift` | ショートカットから画面への依頼の受け渡し、結果の返却、タイムアウト |
 
 ### Shared・Design System・Localization
 
@@ -506,7 +514,7 @@ Deep Linkは`bustimeapp://route/<origin>-<destination>`形式です。停留所�
 | `DesignSystem/DynamicTypeSupport.swift` | Scaled font、Bold Text、文字サイズに応じたLayout helper |
 | `DesignSystem/SkyHaptics.swift` | タップ・成功・失敗のHaptic境界 |
 | `Localization/L10n.swift` | 生成された型付きLocalization API。直接編集しない |
-| `Localization/Localizable.xcstrings` | 235件の画面・通知・Widget・Siri文言を持つ生成済みString Catalog |
+| `Localization/Localizable.xcstrings` | 257件の画面・通知・Widget・Siri文言を持つ生成済みString Catalog |
 | `Localization/InfoPlist.xcstrings` | 位置情報の使用理由を日本語・英語・簡体字中国語で表示するString Catalog |
 
 ### Widget、テスト、設定、生成ツール
@@ -520,7 +528,7 @@ Deep Linkは`bustimeapp://route/<origin>-<destination>`形式です。停留所�
 | `BusTimeAppTests/BusTimeAppTests.swift` | Swift Testingによるドメイン・状態・表示計算のテスト |
 | `BusTimeAppUITests/BusTimeAppUITests.swift` | XCTest UI操作、Dynamic Type、言語、RTL、Accessibility Audit |
 | `BusTimeAppUITests/BusTimeAppUITestsLaunchTests.swift` | 起動確認とScreenshot Attachment |
-| `Scripts/localization_strings.py` | 235件の翻訳対訳を持つ唯一の原本 |
+| `Scripts/localization_strings.py` | 257件の翻訳対訳を持つ唯一の原本 |
 | `Scripts/generate_l10n.py` | String Catalogと`L10n.swift`の生成・差分検査 |
 | `.github/workflows/ci.yml` | Xcode Matrix、Test、Widget、Lint、Artifact、Summary |
 | `BusTimeApp-Info.plist` | URL Scheme定義 |
@@ -729,7 +737,7 @@ WidgetKitのTimeline再要求時刻はシステムが最終決定します。現
 - Small、Medium、Accessory Rectangularを別レイアウトにし、Smallの主時刻は`ScaledMetric`へ追従させます。
 - タップ時は表示中の経路をDeep Linkでアプリへ渡すため、Widgetとアプリの文脈が途切れません。
 
-Live Activity側では、ロック画面とDynamic Islandに同じ`BusActivityAttributes`を使い、表示テキストは`TimelineView(.everyMinute)`で進めます。アプリからのActivity更新は残り分が変わったときだけ送り、秒単位の無意味な更新を避けています。
+Live Activity側では、ロック画面とDynamic Islandに同じ`BusActivityAttributes`を使い、`Text(timerInterval:countsDown:showsHours:)`で出発までの時間を表示します。秒を含む標準タイマーはシステム側で進むため、アプリが停止中でもカウントダウンできます。残り時間は通常は青、5分以内は赤で表示します。出発5分前を`staleDate`に設定し、`context.isStale`を使ってアプリの停止中にも赤に切り替えます。アプリからのActivity更新でもこの期限を保持します。停止中に出発時刻を過ぎると赤い`0:00`で止まり、アプリが出発済みの状態を更新すると「出発済み」に切り替わります。
 
 #### トレードオフ
 
@@ -737,7 +745,7 @@ Live Activity側では、ロック画面とDynamic Islandに同じ`BusActivityAt
 
 #### 検証
 
-Deep Linkの往復、別URLの拒否、アプリ側の経路切り替え、Live Activityの秒を含まない残り時間を単体テストしています。CIではWidget Extensionをアプリ本体とは別にビルドします。
+Deep Linkの往復、別URLの拒否、アプリ側の経路切り替え、残り時間フォーマッターを単体テストしています。Live Activityの標準タイマーについては、実機でアプリをバックグラウンドに移し、ロック画面・Dynamic Islandの残り時間と出発後の表示を確認します。CIではWidget Extensionをアプリ本体とは別にビルドします。
 
 ### 8. ピクセル背景をCanvasで生成しながら描画負荷を抑える
 
@@ -806,7 +814,7 @@ Canvas生成によりアセット数を抑え、条件の組み合わせを表�
 
 #### 設計と実装
 
-- `Scripts/localization_strings.py`を235件の文言の唯一の原本にしています。
+- `Scripts/localization_strings.py`を257件の文言の唯一の原本にしています。
 - Pythonスクリプトが日本語・英語・簡体字中国語のString Catalogと、`L10n.Result.nextBus`のような型付きSwift APIを同時生成します。
 - キーの重複を生成前に検出します。
 - 引数の型からSwift関数を生成し、言語規則が必要な文言はString Catalogのplural variationと`localizedStringWithFormat`を使います。
@@ -1150,6 +1158,10 @@ UIテストでは、ホーム／時刻表の遷移、最大Dynamic Typeでの主
 #### Widget・Siri・Deep Link
 
 - `shortcutAnswerNamesTheRouteAndTheNextDeparture`: Siri回答の経路・次便内容
+- `shortcutAnswerForAnExplicitRouteUsesThatRoute`: 経路を指定した回答と、値として返す出発日時
+- `shortcutRouteOptionsCoverEveryRouteOfTheApp`、`shortcutOptionsKeepTheirStoredIdentifiers`: 経路の増減への追従と、保存される識別子の固定
+- `busAlertSelectionPicksTheNextBusOnTheRoute`、`busAlertSelectionSkipsABusWhoseAlertTimeHasPassed`、`busAlertSelectionRefusesANonServiceDay`、`busAlertSelectionDoesNotCarryOverToTheNextServiceDay`: 通知対象の便の選択
+- `shortcutRequestIsHandedToTheAppAndTheResultReturnsToTheShortcut`、`shortcutRequestTimesOutWhenTheAppNeverAnswers`、`aNewShortcutRequestReplacesOneTheAppHasNotTakenYet`: 画面への依頼の受け渡し
 - `widgetLinkCarriesTheRouteBothWays`: Deep Linkの往復変換
 - `widgetLinkIgnoresOtherURLs`: 他scheme／hostを拒否
 - `openingFromTheWidgetSwitchesTheRoute`: Widgetからアプリの経路切替
@@ -1262,7 +1274,7 @@ Simulator向けCIなので、`CODE_SIGN_IDENTITY=""`、`CODE_SIGNING_REQUIRED=NO
 
 `lint`ジョブは次の役割を持ちます。
 
-- `generate_l10n.py --check`で、235件の対訳原本とString Catalog／`L10n.swift`の生成結果が一致するか確認する
+- `generate_l10n.py --check`で、257件の対訳原本とString Catalog／`L10n.swift`の生成結果が一致するか確認する
 - `xcodebuild analyze`で、通常ビルドだけでは検出しにくい問題を静的解析する
 - Swiftファイル一覧をSummaryへ出し、どのコードが解析対象か確認できるようにする
 - TODO、FIXME、HACK、XXXを一覧化し、未完事項を見えないままにしない
@@ -1362,6 +1374,7 @@ CIの説明では「cacheがあるから高速」と断定せず、設定先が�
 3. `BusSchedule.timetables`へ便を登録し、現在地推薦、相手停留所保存、最終便後Fallbackを確認します。
 4. Deep LinkのIdentifierを一度公開したら変更しません。変更が必要なら旧URLもdecodeできるMigrationを用意します。
 5. Widgetの各Family、Siri回答、検索Menu、経路Swap、VoiceOver Label、多言語文言を確認します。
+6. ショートカット3種は実機の「ショートカット」アプリで確認します。特に「次の便の通知を設定」のLive Activity開始は、前面でないと開始できないためシミュレータだけでは不十分です。
 6. App Groupへ保存済みの旧raw valueを読んだときのFallbackをTestします。
 
 ### 祝日データを更新する
@@ -1426,6 +1439,14 @@ CIの説明では「cacheがあるから高速」と断定せず、設定先が�
 - 固定値、画面、保存Key、Target設定、CI保証が変わった場合はREADMEを同じPRで更新した
 
 ## プライバシー概要
+
+プライバシーポリシー・利用規約の本文はポートフォリオサイトで管理し、アプリの設定画面から外部ブラウザで開きます。
+
+- プライバシーポリシー: https://hr0101.dev/apps/bustimeapp/privacy/
+- 利用規約: https://hr0101.dev/apps/bustimeapp/terms/
+- ページのソース: `/Users/Rhara/portfolio_site/src/app/apps/bustimeapp/{privacy,terms}/page.tsx`
+
+公開時は `portfolio_site` の静的ビルドを既存のS3・CloudFrontへ反映し、両URLがHTTP 200で本文を表示することを確認してください。App Store ConnectのプライバシーポリシーURLにも同じURLを設定します。
 
 | 項目 | 扱い |
 | --- | --- |

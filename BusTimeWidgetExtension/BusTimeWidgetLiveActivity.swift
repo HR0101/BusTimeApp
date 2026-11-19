@@ -30,7 +30,7 @@ struct BusTimeWidgetLiveActivity: Widget {
                 
                 Spacer(minLength: 10)
                 
-                // 右側: 出発までの時間を、秒を含まない時間・分表記で表示
+                // 標準タイマーはアプリが停止中でもシステム側で表示を更新します。
                 VStack(alignment: .trailing, spacing: 0) {
                     if context.state.isDeparted {
                         Text(L10n.Remaining.departed)
@@ -46,10 +46,10 @@ struct BusTimeWidgetLiveActivity: Widget {
                             .foregroundColor(Color.gray)
                         
                         RemainingDepartureTimeText(
-                            departureDate: context.attributes.departureDate
+                            departureDate: context.attributes.departureDate,
+                            isUrgent: context.isDepartureUrgent
                         )
                             .font(.headline.bold())
-                            .foregroundColor(Color(red: 0.15, green: 0.50, blue: 0.75))
                             .multilineTextAlignment(.trailing)
                     }
                 }
@@ -68,10 +68,10 @@ struct BusTimeWidgetLiveActivity: Widget {
                 DynamicIslandExpandedRegion(.trailing) {
                     if !context.state.isDeparted {
                         RemainingDepartureTimeText(
-                            departureDate: context.attributes.departureDate
+                            departureDate: context.attributes.departureDate,
+                            isUrgent: context.isDepartureUrgent
                         )
                             .font(.title2.bold())
-                            .foregroundColor(.red)
                     } else {
                         Text(L10n.Widget.departedShort)
                             .foregroundColor(.gray)
@@ -88,9 +88,9 @@ struct BusTimeWidgetLiveActivity: Widget {
             } compactTrailing: {
                 if !context.state.isDeparted {
                     RemainingDepartureTimeText(
-                        departureDate: context.attributes.departureDate
+                        departureDate: context.attributes.departureDate,
+                        isUrgent: context.isDepartureUrgent
                     )
-                        .foregroundColor(.red)
                         .bold()
                         .lineLimit(1)
                         .minimumScaleFactor(0.7)
@@ -105,17 +105,28 @@ struct BusTimeWidgetLiveActivity: Widget {
     }
 }
 
+private extension ActivityViewContext where Attributes == BusActivityAttributes {
+    var isDepartureUrgent: Bool {
+        if #available(iOS 16.2, *), isStale {
+            return true
+        }
+        return Date.now >= attributes.urgencyDate
+    }
+}
+
 private struct RemainingDepartureTimeText: View {
     let departureDate: Date
+    let isUrgent: Bool
 
     var body: some View {
-        TimelineView(.everyMinute) { timeline in
-            Text(
-                BusRemainingTimeFormatter.string(
-                    until: departureDate,
-                    now: timeline.date
-                )
-            )
-        }
+        // TimelineViewはLive Activityの定期再描画を保証しません。
+        // 終端で0に止まる標準タイマーを使い、出発後のカウントアップを防ぎます。
+        Text(
+            timerInterval: min(Date.now, departureDate)...departureDate,
+            countsDown: true,
+            showsHours: true
+        )
+        .monospacedDigit()
+        .foregroundColor(isUrgent ? .red : Color(red: 0.15, green: 0.50, blue: 0.75))
     }
 }

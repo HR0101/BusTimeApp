@@ -46,11 +46,11 @@ private struct SkyTabBar: View {
       tabButton(.home)
       tabButton(.timetable)
     }
-    .padding(5)
+    .padding(4)
     .background(Capsule().fill(sky.surface))
     .overlay(Capsule().stroke(sky.surfaceBorder, lineWidth: SkyMetrics.borderWidth))
     .padding(.horizontal, SkyMetrics.screenPadding)
-    .padding(.top, 6)
+    .padding(.top, 8)
   }
 
   private func tabButton(_ tab: MainTab) -> some View {
@@ -62,7 +62,7 @@ private struct SkyTabBar: View {
       }
     } label: {
       Label(tab.title, systemImage: tab.systemName)
-        .dynamicFont(size: 14, relativeTo: .subheadline, weight: .bold, design: .rounded)
+        .dynamicFont(size: 14, relativeTo: .subheadline, weight: .semibold, design: .rounded)
         .foregroundStyle(isSelected ? sky.accentInk : sky.ink)
         .frame(maxWidth: .infinity, minHeight: SkyMetrics.minimumTapSize)
         .background(Capsule().fill(isSelected ? sky.accent : Color.clear))
@@ -82,6 +82,8 @@ struct ContentView: View {
   @StateObject private var notificationViewModel = NotificationViewModel()
   @StateObject private var skyClock = SkyClock()
   @StateObject private var weatherViewModel = WeatherViewModel()
+  /// ショートカットから預けられた依頼の受け渡し口です。
+  @ObservedObject private var shortcutRequestCenter = ShortcutRequestCenter.shared
   @SceneStorage("selectedMainTab") private var selectedTab: MainTab = .home
   @Environment(\.scenePhase) private var scenePhase
   @Environment(\.dynamicTypeSize) private var dynamicTypeSize
@@ -115,6 +117,8 @@ struct ContentView: View {
           viewModel.checkLocationAndSetOrigin()
           notificationViewModel.refresh()
           setAutomaticUpdatesActive(true)
+          // アプリが起動していないところへ届いた依頼は、画面が出てから受け取ります。
+          handlePendingShortcutRequest()
         }
         .task {
           await weatherViewModel.refreshIfNeeded()
@@ -133,9 +137,17 @@ struct ContentView: View {
             viewModel.checkLocationAndSetOrigin()
             settingsViewModel.refreshLiveActivityAvailability()
             Task { await weatherViewModel.refreshIfNeeded() }
+            handlePendingShortcutRequest()
           } else {
             setAutomaticUpdatesActive(false)
           }
+        }
+        .onChange(of: shortcutRequestCenter.pendingRequest?.id) { _ in
+          handlePendingShortcutRequest()
+        }
+        // 説明画面などを閉じて通常のホームへ戻ったら、預かっていた依頼を実行します。
+        .onChange(of: coordinator.state) { _ in
+          handlePendingShortcutRequest()
         }
         // 経路・検索方法・時刻のいずれを変えても、その場で結果へ反映します。
         // 実行ボタンを置かないぶん、変更が即座に画面へ出ることを保証します。
@@ -369,7 +381,7 @@ struct ContentView: View {
         serviceFooter
       }
       .padding(.horizontal, horizontalPadding)
-      .padding(.top, 10)
+      .padding(.top, 8)
       .padding(.bottom, SkyMetrics.scrollBottomInset)
       // 横に広い画面では、1行が長くなりすぎないところで幅を止めて中央に置きます。
       .frame(maxWidth: SkyMetrics.contentMaxWidth)
@@ -424,7 +436,7 @@ struct ContentView: View {
     if !followingBuses.isEmpty {
       SkyDivider()
 
-      VStack(alignment: .leading, spacing: 10) {
+      VStack(alignment: .leading, spacing: 8) {
         SkySectionLabel(text: viewModel.followingSectionTitle)
 
         ForEach(followingBuses) { bus in
@@ -459,7 +471,7 @@ struct ContentView: View {
         .fill(palette.positive)
         .frame(width: 6, height: 6)
       Text(L10n.Result.footer)
-        .dynamicFont(size: 11, relativeTo: .caption2, weight: .medium)
+        .dynamicFont(size: 12, relativeTo: .caption, weight: .regular)
         .foregroundStyle(palette.inkSecondary)
         .fixedSize(horizontal: false, vertical: true)
     }
@@ -494,6 +506,7 @@ struct ContentView: View {
           ?? settingsViewModel.shouldUseLiveActivity
         let liveActivityMessage = startLiveActivityIfNeeded(
           for: bus,
+          routeName: viewModel.selectedRoute.rawValue,
           shouldStart: shouldStartLiveActivity
         )
         // 通知の登録は結果が文字でしか分からないので、成否を手応えでも返します。
@@ -512,7 +525,11 @@ struct ContentView: View {
     }
   }
 
-  private func startLiveActivityIfNeeded(for bus: Bus, shouldStart: Bool) -> String {
+  private func startLiveActivityIfNeeded(
+    for bus: Bus,
+    routeName: String,
+    shouldStart: Bool
+  ) -> String {
     guard shouldStart else { return "" }
 
     if viewModel.trackedBusId == bus.id {
@@ -523,7 +540,7 @@ struct ContentView: View {
       return L10n.Notify.onlyNormalNotification
     }
 
-    viewModel.startLiveActivity(for: bus)
+    viewModel.startLiveActivity(for: bus, routeName: routeName)
     if viewModel.trackedBusId == bus.id {
       return L10n.Notify.liveActivityStarted
     }
@@ -531,6 +548,111 @@ struct ContentView: View {
     // 通常通知は登録済みなので、Live Activityの失敗も同じ完了画面で伝えます。
     viewModel.liveActivityError = nil
     return L10n.Notify.liveActivityFailed
+  }
+
+  // MARK: - ショートカットからの依頼
+
+  /// ショートカットから預かった依頼を、画面が受けられる状態のときに実行します。
+  ///
+  /// Live Activityは前面でないと開始できず、説明画面やSheetの表示中に割り込むと
+  /// 表示中の内容を閉じてしまいます。そのため、通常のホームを見せられるようになるまで
+  /// 依頼は預かったままにします。
+  private func handlePendingShortcutRequest() {
+    guard scenePhase == .active,
+          coordinator.state == .dashboard,
+          let request = shortcutRequestCenter.takePendingRequest() else {
+      return
+    }
+
+    switch request.action {
+    case let .openRoute(route):
+      // ウィジェットのタップと同じく、選んだ経路をそのまま画面へ反映します。
+      viewModel.selectRouteFromWidget(route)
+      selectedTab = .home
+      shortcutRequestCenter.finish(request.id, with: .succeeded(route.rawValue))
+
+    case let .startBusAlert(route, minutesBefore, startsLiveActivity):
+      scheduleBusAlertFromShortcut(
+        requestID: request.id,
+        route: route,
+        minutesBefore: minutesBefore,
+        startsLiveActivity: startsLiveActivity
+      )
+    }
+  }
+
+  /// 指定した経路の次の便に通知を設定し、結果をショートカットへ返します。
+  ///
+  /// 登録やLive Activityの開始は、画面から操作したときと同じ処理を通します。
+  /// 権限の拒否や過去になる通知などの扱いが、画面操作と食い違わないようにするためです。
+  private func scheduleBusAlertFromShortcut(
+    requestID: UUID,
+    route: BusRoute,
+    minutesBefore: Int,
+    startsLiveActivity: Bool
+  ) {
+    let now = AppDate.now()
+
+    let bus: Bus
+    switch ShortcutBusSelector.select(on: route, minutesBefore: minutesBefore, now: now) {
+    case let .success(selectedBus):
+      bus = selectedBus
+    case let .failure(failure):
+      SkyHaptics.failure()
+      coordinator.send(.notificationScheduled(failure.message))
+      shortcutRequestCenter.finish(requestID, with: .failed(failure.message))
+      return
+    }
+
+    notificationViewModel.scheduleNotification(
+      for: bus,
+      routeName: route.rawValue,
+      minutesBefore: minutesBefore,
+      now: now
+    ) { result in
+      switch result {
+      case let .success(item):
+        // 画面の選択を変えずに済むよう、Live Activityには指定の経路名を渡します。
+        let liveActivityMessage = startLiveActivityIfNeeded(
+          for: bus,
+          routeName: route.rawValue,
+          shouldStart: startsLiveActivity
+        )
+        SkyHaptics.success()
+        coordinator.send(.notificationScheduled(
+          L10n.Notify.scheduledMessage(
+            item.busDescription,
+            item.notificationDescription,
+            liveActivityMessage
+          )
+        ))
+        shortcutRequestCenter.finish(
+          requestID,
+          with: .succeeded(shortcutSuccessMessage(
+            route: route,
+            bus: bus,
+            minutesBefore: minutesBefore,
+            liveActivityMessage: liveActivityMessage
+          ))
+        )
+      case let .failure(error):
+        SkyHaptics.failure()
+        coordinator.send(.notificationScheduled(error.localizedDescription))
+        shortcutRequestCenter.finish(requestID, with: .failed(error.localizedDescription))
+      }
+    }
+  }
+
+  /// ショートカットが返す文です。画面の完了表示より短くまとめます。
+  private func shortcutSuccessMessage(
+    route: BusRoute,
+    bus: Bus,
+    minutesBefore: Int,
+    liveActivityMessage: String
+  ) -> String {
+    let scheduled = L10n.Shortcut.alertScheduled(route.rawValue, bus.departure, minutesBefore)
+    let liveActivity = liveActivityMessage.trimmingCharacters(in: .whitespacesAndNewlines)
+    return liveActivity.isEmpty ? scheduled : "\(scheduled)\n\(liveActivity)"
   }
 }
 

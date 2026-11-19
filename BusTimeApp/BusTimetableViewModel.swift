@@ -696,6 +696,9 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
         } else {
             searchResultDescription = L10n.Search.resultCount(searchResults.count, searchType.explanation)
         }
+        // 残り時間は便ごとに持っているため、結果が入れ替わったらすぐ数え直します。
+        // 次の定期更新まで待つと、その間「計算中」のままになるためです。
+        updateCountdown()
         send(.searchSucceeded(hasResults: !searchResults.isEmpty))
     }
 
@@ -1026,7 +1029,9 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
         lastActivityRemainingMinutes = activity.content.state.remainingMinutes
     }
     
-    func startLiveActivity(for bus: Bus) {
+    /// `routeName` を省略すると、いま画面で選んでいる経路の名前を使います。
+    /// ショートカットのように、画面の経路とは別の経路の便を始めるときに指定します。
+    func startLiveActivity(for bus: Bus, routeName: String? = nil) {
         restoreLiveActivity()
 
         if let trackedBusId, trackedBusId != bus.id {
@@ -1066,12 +1071,12 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
             originName: bus.originName,
             destinationName: bus.destinationName,
             departureDate: departureDate,
-            routeName: selectedRoute.rawValue
+            routeName: routeName ?? selectedRoute.rawValue
         )
 
         let remaining = max(0, Int(ceil(departureDate.timeIntervalSince(currentDate) / 60)))
         let contentState = BusActivityAttributes.ContentState(remainingMinutes: remaining, isDeparted: false)
-        let activityContent = ActivityContent(state: contentState, staleDate: departureDate)
+        let activityContent = ActivityContent(state: contentState, staleDate: attributes.urgencyDate)
 
         do {
             let activity = try Activity.request(
@@ -1094,7 +1099,11 @@ class HomeViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
         Task { @MainActor [weak self] in
             guard let self, let activity = self.currentActivity else { return }
             let contentState = BusActivityAttributes.ContentState(remainingMinutes: remainingMinutes, isDeparted: isDeparted)
-            let activityContent = ActivityContent(state: contentState, staleDate: nil)
+            // 停止中も5分前に赤へ切り替わるよう、色の切り替え時刻を保持します。
+            let activityContent = ActivityContent(
+                state: contentState,
+                staleDate: activity.attributes.urgencyDate
+            )
             
             await activity.update(activityContent)
             

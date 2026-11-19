@@ -26,6 +26,46 @@ public enum L10n {
     }
     /// 次に出るバスが見つかりませんでした。
     public static var noService: String { String(localized: "shortcut.noService") }
+    /// 経路
+    public static var routeParameter: String { String(localized: "shortcut.routeParameter") }
+    /// 指定しないときは、アプリと同じ判断（自分で選んだ経路、なければ時間帯と前回の行き先）で決めます。
+    public static var routeAutoDescription: String { String(localized: "shortcut.routeAutoDescription") }
+    /// コロンブスシティ → 海浜幕張駅
+    public static var routeMansionToStation: String { String(localized: "shortcut.routeMansionToStation") }
+    /// 海浜幕張駅 → コロンブスシティ
+    public static var routeStationToMansion: String { String(localized: "shortcut.routeStationToMansion") }
+    /// コロンブスシティ → ヨーカドー前
+    public static var routeMansionToYokado: String { String(localized: "shortcut.routeMansionToYokado") }
+    /// 海浜幕張駅 → ヨーカドー前
+    public static var routeStationToYokado: String { String(localized: "shortcut.routeStationToYokado") }
+    /// ヨーカドー前 → コロンブスシティ
+    public static var routeYokadoToMansion: String { String(localized: "shortcut.routeYokadoToMansion") }
+    /// 通知のタイミング
+    public static var leadTimeParameter: String { String(localized: "shortcut.leadTimeParameter") }
+    /// 5分前
+    public static var leadTimeFiveMinutes: String { String(localized: "shortcut.leadTimeFiveMinutes") }
+    /// 10分前
+    public static var leadTimeTenMinutes: String { String(localized: "shortcut.leadTimeTenMinutes") }
+    /// 15分前
+    public static var leadTimeFifteenMinutes: String { String(localized: "shortcut.leadTimeFifteenMinutes") }
+    /// Live Activityも開始
+    public static var liveActivityParameter: String { String(localized: "shortcut.liveActivityParameter") }
+    /// 経路を指定して開く
+    public static var openRouteTitle: String { String(localized: "shortcut.openRouteTitle") }
+    /// 選んだ経路のホームをアプリで開きます。
+    public static var openRouteDescription: String { String(localized: "shortcut.openRouteDescription") }
+    /// 次の便の通知を設定
+    public static var startAlertTitle: String { String(localized: "shortcut.startAlertTitle") }
+    /// 選んだ経路の次の便に通知を設定します。Live Activityも一緒に開始できます。
+    public static var startAlertDescription: String { String(localized: "shortcut.startAlertDescription") }
+    /// %1$@の%2$@発の便に、%3$lld分前の通知を設定しました。
+    public static func alertScheduled(_ arg0: String, _ arg1: String, _ arg2: Int) -> String {
+      String.localizedStringWithFormat(String(localized: "shortcut.alertScheduled"), arg0, arg1, arg2)
+    }
+    /// この経路には、今日これから通知を設定できる便がありません。
+    public static var noBusToAlert: String { String(localized: "shortcut.noBusToAlert") }
+    /// アプリでの処理が完了しませんでした。アプリを開いて確認してください。
+    public static var noResponse: String { String(localized: "shortcut.noResponse") }
   }
 
   public enum Common {
@@ -123,9 +163,9 @@ public enum L10n {
     public static var departureTimeTitle: String { String(localized: "when.departureTimeTitle") }
     /// この時刻までに到着
     public static var arrivalTimeTitle: String { String(localized: "when.arrivalTimeTitle") }
-    /// 指定した時刻以降に出発する便を、早い順に表示します
+    /// 出発の早い順
     public static var departureExplanation: String { String(localized: "when.departureExplanation") }
-    /// 指定した時刻までに目的地へ着く便を、到着時刻が近い順に表示します
+    /// 到着が指定時刻に近い順
     public static var arrivalExplanation: String { String(localized: "when.arrivalExplanation") }
     /// 現在時刻
     public static var currentTime: String { String(localized: "when.currentTime") }
@@ -223,11 +263,11 @@ public enum L10n {
     public static var resultInitial: String { String(localized: "search.resultInitial") }
     /// 条件に合う便がありません。時刻または目的地を変更してください
     public static var noResults: String { String(localized: "search.noResults") }
-    /// %lld便見つかりました。運休日のため平日ダイヤの時刻です
+    /// 平日ダイヤの%lld便・本日は運休
     public static func resultCountSuspended(_ arg0: Int) -> String {
       String.localizedStringWithFormat(String(localized: "search.resultCountSuspended"), arg0)
     }
-    /// %1$lld便見つかりました。%2$@
+    /// %1$lld便・%2$@
     public static func resultCount(_ arg0: Int, _ arg1: String) -> String {
       String.localizedStringWithFormat(String(localized: "search.resultCount"), arg0, arg1)
     }
@@ -458,12 +498,10 @@ public enum L10n {
     public static func serviceCount(_ arg0: Int) -> String {
       String.localizedStringWithFormat(String(localized: "timetable.serviceCount"), arg0)
     }
-    /// 経路を変えるときは、ホームタブで出発地と目的地を選んでください
+    /// 経路はホームで変更できます
     public static var routeHint: String { String(localized: "timetable.routeHint") }
     /// 時刻をタップすると通知できます
     public static var notificationHintTitle: String { String(localized: "timetable.notificationHintTitle") }
-    /// 選んだ便が出発する前にお知らせします。設定した時刻は色が変わります。
-    public static var notificationHintBody: String { String(localized: "timetable.notificationHintBody") }
     /// %lld時台
     public static func hourAccessibility(_ arg0: Int) -> String {
       String.localizedStringWithFormat(String(localized: "timetable.hourAccessibility"), arg0)
@@ -489,6 +527,14 @@ public enum L10n {
   }
 
   public enum Settings {
+    /// プライバシー・利用規約
+    public static var legalSection: String { String(localized: "settings.legalSection") }
+    /// プライバシーポリシー
+    public static var privacyPolicy: String { String(localized: "settings.privacyPolicy") }
+    /// 利用規約
+    public static var termsOfUse: String { String(localized: "settings.termsOfUse") }
+    /// ブラウザで開発者のWebサイトを開きます。本文は日本語で掲載しています。
+    public static var legalWebsiteNotice: String { String(localized: "settings.legalWebsiteNotice") }
     /// 設定
     public static var title: String { String(localized: "settings.title") }
     /// 画面の色

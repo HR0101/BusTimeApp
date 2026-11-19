@@ -13,6 +13,7 @@ struct SettingsView: View {
           appearanceCard
           cardOpacityCard
           liveActivityCard
+          legalCard
         }
         .padding(.horizontal, SkyMetrics.screenPadding)
         .padding(.top, 16)
@@ -24,7 +25,7 @@ struct SettingsView: View {
       .toolbar {
         ToolbarItem(placement: .navigationBarTrailing) {
           Button(L10n.Common.done) { dismiss() }
-            .fontWeight(.bold)
+            .fontWeight(.semibold)
             .foregroundStyle(sky.accentReadable)
         }
       }
@@ -42,12 +43,12 @@ struct SettingsView: View {
       SkySectionLabel(text: L10n.Settings.appearanceSection)
 
       Text(L10n.Settings.appearanceTitle)
-        .dynamicFont(size: 18, relativeTo: .title3, weight: .bold, design: .rounded)
+        .dynamicFont(size: 18, relativeTo: .title3, weight: .semibold, design: .rounded)
         .foregroundStyle(sky.ink)
         .fixedSize(horizontal: false, vertical: true)
 
       Text(L10n.Settings.appearanceDescription)
-        .dynamicFont(size: 13, relativeTo: .footnote, weight: .medium)
+        .dynamicFont(size: 13, relativeTo: .footnote, weight: .regular)
         .foregroundStyle(sky.inkSecondary)
         .fixedSize(horizontal: false, vertical: true)
 
@@ -73,7 +74,7 @@ struct SettingsView: View {
       )
 
       Text(L10n.Settings.weatherNotice)
-        .dynamicFont(size: 11, relativeTo: .caption2, weight: .medium)
+        .dynamicFont(size: 12, relativeTo: .caption, weight: .regular)
         .foregroundStyle(sky.inkSecondary)
         .fixedSize(horizontal: false, vertical: true)
     }
@@ -112,14 +113,14 @@ struct SettingsView: View {
 
     return HStack(spacing: 8) {
       ForEach(previewHours, id: \.hour) { item in
-        VStack(spacing: 6) {
+        VStack(spacing: 8) {
           SkyCanvas()
             .environment(\.sky, SkyPalette.at(hour: item.hour))
-            .frame(height: 78)
-            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+            .frame(height: 80)
+            .clipShape(RoundedRectangle(cornerRadius: SkyMetrics.controlRadius, style: .continuous))
 
           Text(item.label)
-            .dynamicFont(size: 11, relativeTo: .caption2, weight: .bold)
+            .dynamicFont(size: 12, relativeTo: .caption, weight: .medium)
             .foregroundStyle(sky.inkSecondary)
         }
       }
@@ -134,13 +135,13 @@ struct SettingsView: View {
       SkySectionLabel(text: L10n.Settings.cardOpacitySection)
 
       Text(L10n.Settings.cardOpacityDescription)
-        .dynamicFont(size: 13, relativeTo: .footnote, weight: .medium)
+        .dynamicFont(size: 13, relativeTo: .footnote, weight: .regular)
         .foregroundStyle(sky.inkSecondary)
         .fixedSize(horizontal: false, vertical: true)
 
       HStack(spacing: 12) {
         Text(L10n.Settings.cardOpacityLight)
-          .dynamicFont(size: 11, relativeTo: .caption2, weight: .bold)
+          .dynamicFont(size: 12, relativeTo: .caption, weight: .medium)
           .foregroundStyle(sky.inkSecondary)
 
         Slider(
@@ -154,12 +155,35 @@ struct SettingsView: View {
         .accessibilityLabel(L10n.Settings.cardOpacitySection)
 
         Text(L10n.Settings.cardOpacityDense)
-          .dynamicFont(size: 11, relativeTo: .caption2, weight: .bold)
+          .dynamicFont(size: 12, relativeTo: .caption, weight: .medium)
           .foregroundStyle(sky.inkSecondary)
       }
 
       SkyNoticeRow(message: L10n.Settings.cardOpacityNotice)
     }
+    .frame(maxWidth: .infinity, alignment: .leading)
+    .skyCard()
+  }
+
+  private var legalCard: some View {
+    VStack(alignment: .leading, spacing: 12) {
+      SkySectionLabel(text: L10n.Settings.legalSection)
+      Link(destination: URL(string: "https://hr0101.dev/apps/bustimeapp/privacy/")!) {
+        Label(L10n.Settings.privacyPolicy, systemImage: "arrow.up.right.square")
+          .frame(maxWidth: .infinity, alignment: .leading)
+          .padding(.vertical, 8)
+      }
+      Link(destination: URL(string: "https://hr0101.dev/apps/bustimeapp/terms/")!) {
+        Label(L10n.Settings.termsOfUse, systemImage: "arrow.up.right.square")
+          .frame(maxWidth: .infinity, alignment: .leading)
+          .padding(.vertical, 8)
+      }
+      Text(L10n.Settings.legalWebsiteNotice)
+        .dynamicFont(size: 12, relativeTo: .caption, weight: .regular)
+        .foregroundStyle(sky.inkSecondary)
+        .fixedSize(horizontal: false, vertical: true)
+    }
+    .tint(sky.accentReadable)
     .frame(maxWidth: .infinity, alignment: .leading)
     .skyCard()
   }
@@ -176,10 +200,10 @@ struct SettingsView: View {
       ) {
         VStack(alignment: .leading, spacing: 4) {
           Text(L10n.Settings.liveActivityToggle)
-            .dynamicFont(size: 15, relativeTo: .subheadline, weight: .bold, design: .rounded)
+            .dynamicFont(size: 15, relativeTo: .subheadline, weight: .semibold, design: .rounded)
             .foregroundStyle(sky.ink)
           Text(L10n.Settings.liveActivityDescription)
-            .dynamicFont(size: 12, relativeTo: .caption, weight: .medium)
+            .dynamicFont(size: 12, relativeTo: .caption, weight: .regular)
             .foregroundStyle(sky.inkSecondary)
             .fixedSize(horizontal: false, vertical: true)
         }
