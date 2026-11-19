@@ -33,12 +33,12 @@
 ## 対応環境
 
 - iPhone専用
-- iOS 16.2以降
+- iOS 27.0以降
 - SwiftUI
 - アプリ本体、単体テスト、UIテスト、Widget Extensionの4ターゲット
 - 外部パッケージ依存なし
 
-ホーム画面ウィジェットとLive Activityを同梱しています。ウィジェット拡張自体のDeployment TargetはiOS 16.1です。
+ホーム画面ウィジェットとLive Activityを同梱しています。アプリ本体、ウィジェット拡張、テストのDeployment TargetはすべてiOS 27.0です。
 
 ## 対応する停留所と経路
 
@@ -110,7 +110,7 @@
 - 通知一覧では個別削除と全件削除ができ、期限切れの保存データは起動時に整理します。
 - 通知の保存形式にはバージョンを持たせ、旧形式からの移行を実装しています。壊れた保存データを無理に上書きしません。
 - Live Activityはロック画面とDynamic Islandの展開・コンパクト・最小表示に対応し、経路、出発／到着、残り時間、出発済み状態を表示します。
-- 残り時間はシステムが時刻に合わせて数え進める表示を使い、アプリが停止していても減っていきます。iOS 18以降は秒を出さない時間・分表記、iOS 16.2〜17は秒を含むタイマーで表示します。
+- 残り時間はシステムが時刻に合わせて数え進める表示を使い、アプリが停止していても減っていきます。秒を出さない時間・分表記で表示します。
 - 出発時刻をActivityの期限（`staleDate`）として開始時と更新時の両方で渡し、アプリから更新が届かなくても出発後は「出発済み」に切り替えます。アプリからの更新は残り分が変わったときだけ送り、過剰な更新を避けます。
 - 実行中のLive Activityは再起動後に復元できます。別便が表示中、機能が許可されていない、すでに出発済みなどの失敗理由も案内します。
 - 対応端末ではLive Activityを初期状態で有効にし、設定画面のToggleでいつでも変更・保存できます。
@@ -184,7 +184,7 @@
 - 夕暮れの途中で文字色だけが灰色へ溶けないよう、文字とカード面を同じしきい値で一括切り替えします。
 - 背景との相対輝度からアクセント上の文字色を白／黒で選びます。1日24時間×四季について、本文、アクセント、警告・成功色のコントラストを単体テストしています。
 - 未選択のチップにも背景を持たせ、景色の明暗に左右されにくくしています。
-- iOS 26以降ではシステムのLiquid Glassに沿うタブを使い、それ以前では同じ世界観のカプセル型タブバーを表示します。
+- システムのLiquid Glassに沿うタブを使います。iOS 26より前のためのカプセル型タブバーはコードに残っていますが、iOS 27.0以上を対象にしているため使われません。
 - 画面の本文幅は最大520 ptに抑え、大きいiPhoneでも視線移動が広がりすぎないようにしています。
 - ハプティクスはタップ、成功、失敗という明示的な操作結果だけに使い、自動更新では鳴らしません。
 
@@ -475,7 +475,7 @@ Deep Linkは`bustimeapp://route/<origin>-<destination>`形式です。停留所�
 | 項目 | アプリ本体 | Widget Extension |
 | --- | --- | --- |
 | Bundle ID | `com.hara.BusTimeApp` | `com.hara.BusTimeApp.BusTimeWidgetExtension` |
-| Deployment Target | iOS 16.2 | iOS 16.1 |
+| Deployment Target | iOS 27.0 | iOS 27.0 |
 | Device Family | iPhoneのみ | 親アプリに同梱 |
 | Orientation | Portraitのみ | Widgetの各Familyに従う |
 | App Group | `group.com.hara.BusTimeApp` | 同左 |
@@ -765,7 +765,7 @@ WidgetKitのTimeline再要求時刻はシステムが最終決定します。現
 - Small、Medium、Accessory Rectangularを別レイアウトにし、Smallの主時刻は`ScaledMetric`へ追従させます。
 - タップ時は表示中の経路をDeep Linkでアプリへ渡すため、Widgetとアプリの文脈が途切れません。
 
-Live Activity側では、ロック画面とDynamic Islandに同じ`BusActivityAttributes`を使います。Live Activityは描いた内容を保存して表示するため、`TimelineView`では残り時間が進みません。iOS 18以降は`Text(.currentDate, format: .timer(...))`に1分単位の精度を指定し、システムに秒を含まない残り時間を数え進めさせます。iOS 16.2〜17では同じ役割の`Text(timerInterval:)`を使います。出発時刻は`staleDate`として毎回渡し、アプリが停止したまま出発しても期限切れをきっかけに「出発済み」へ描き直されます。アプリからのActivity更新は残り分が変わったときだけ送り、秒単位の無意味な更新を避けています。
+Live Activity側では、ロック画面とDynamic Islandに同じ`BusActivityAttributes`を使います。Live Activityは描いた内容を保存して表示するため、`TimelineView`では残り時間が進みません。`Text(.currentDate, format: .timer(...))`に1分単位の精度を指定し、システムに秒を含まない残り時間を数え進めさせます。iOS 18より前のための`Text(timerInterval:)`の分岐はコードに残っていますが、iOS 27.0以上では使われません。出発時刻は`staleDate`として毎回渡し、アプリが停止したまま出発しても期限切れをきっかけに「出発済み」へ描き直されます。アプリからのActivity更新は残り分が変わったときだけ送り、秒単位の無意味な更新を避けています。
 
 #### トレードオフ
 
@@ -900,7 +900,7 @@ Canvas生成によりアセット数を抑え、条件の組み合わせを表�
 - UIテストでは`-UITestNow`で時刻、`-forceWeather clear`で天気、`-SkyBackgroundStill`で背景、`-UITestResetState`で保存状態を固定します。
 - 単体テストは80件あり、運行日、経路推薦、状態遷移、通知、天気、配色、月相、Widget Deep Link、多言語日付を対象にしています。
 - UIテストは8件あり、主要導線、最大文字サイズ、アクセシビリティ監査、3言語、RTL、起動を対象にしています。
-- CIはXcode 16.2、16.4、26の複数環境でDebug／Releaseをビルドし、安定版2環境でテストとcoverageを記録します。
+- CIはXcode 27.0と27.2の2環境でDebug／Releaseをビルドし、両方でテストとcoverageを記録します。
 - Widget Extensionは別Schemeでビルドし、本体だけ通って拡張が壊れる状態を検出します。
 - `SWIFT_TREAT_WARNINGS_AS_ERRORS=YES`をプロジェクトとCIの両方で指定し、ローカル設定差で警告が見逃されないようにしています。
 - 静的解析、翻訳生成物、TODO／FIXME、警告件数、失敗ログ、xcresultを別々の証拠として残します。
@@ -1010,7 +1010,7 @@ xcodebuild build \
 xcodebuild test \
   -project BusTimeApp.xcodeproj \
   -scheme BusTimeApp \
-  -destination 'platform=iOS Simulator,name=iPhone 16,OS=18.5' \
+  -destination 'platform=iOS Simulator,name=iPhone 18 Pro,OS=27.2' \
   -testLanguage ja \
   -testRegion JP \
   -enableCodeCoverage YES
@@ -1248,7 +1248,7 @@ UIテストでは、ホーム／時刻表の遷移、最大Dynamic Typeでの主
 
 GitHub Actionsでは次を実行します。
 
-- Xcode 16.2／iOS 18.2、Xcode 16.4／iOS 18.5、Xcode 26／最新SDKのビルドマトリクス
+- Xcode 27.0／iOS 27.0、Xcode 27.2／iOS 27.2のビルドマトリクス
 - Debug／Releaseビルド
 - 安定版2環境での単体・UIテストとコードカバレッジ記録
 - Widget Extensionの独立ビルド
@@ -1280,25 +1280,24 @@ CIの目的は、単に一つの環境で`xcodebuild`を成功させることで
 
 同じブランチへ短時間に複数回pushした場合は、`concurrency`のgroupをworkflow名とGit refで作り、古い実行を`cancel-in-progress`で中止します。すでに古くなったcommitへmacOS Runnerを使い続けず、最新commitへ結果を早く返すためです。別ブランチのCIは異なるgroupなので互いに中断しません。
 
-#### 3種類のXcodeマトリクス
+#### 2種類のXcodeマトリクス
 
 | 環境 | この環境で確認したいこと | テスト方針 |
 | --- | --- | --- |
-| Xcode 16.2／iOS 18.2 | 現在の互換性基準となるXcode 16系でコンパイル・実行できること | Debug／Release、単体・UIテスト |
-| Xcode 16.4／iOS 18.5 | Xcode 16系の後期コンパイラとSDKでも警告や挙動が変わらないこと | Debug／Release、単体・UIテスト |
-| Xcode 26／最新SDK | `#available(iOS 26, *)`を含むコードが最新コンパイラで成立すること | Debug／Releaseのビルドのみ |
+| Xcode 27.0／iOS 27.0 | 最低対応OSのSDKとSimulatorでコンパイル・実行できること | Debug／Release、単体・UIテスト |
+| Xcode 27.2／iOS 27.2 | Xcode 27系の最新コンパイラとSDKでも警告や挙動が変わらないこと | Debug／Release、単体・UIテスト |
 
-1環境だけでは、ローカルで選ばれているXcodeには通るが別コンパイラでは警告がエラーになる、古いAPIのavailability指定が不足する、といった問題を見逃します。Xcode 16.2と16.4を両方残し、さらに最新Xcodeを先行してビルドすることで、現在の互換性と将来の互換性を別々に見ています。
+Deployment TargetをiOS 27.0にしているため、iOS 27 SDKを持たないXcode 16・26系ではビルドできません。どちらの環境も、Xcode 27系を載せたGitHub-hosted Runner（`xcode-27`、現在はPreview）で実行します。
 
-`strategy.fail-fast`は`false`です。例えばXcode 16.2だけが失敗しても16.4と26を最後まで実行し、特定バージョンの問題か全環境の問題かを1回のCIで判別するためです。所要時間を最短にするより、失敗分布を一度に得ることを優先しています。
+1環境だけでは、ローカルで選ばれているXcodeには通るが別コンパイラでは警告がエラーになる、といった問題を見逃します。最低対応OSと同じXcode 27.0と、最新のXcode 27.2を両方残し、最低対応OSでの動作と最新環境での互換性を別々に見ています。
 
-最新SDKの行は`generic/platform=iOS Simulator`を使います。これはビルド専用Destinationであり、アプリを起動してテストできません。そのため`matrix.ios_version != 'latest'`の条件でテストとcoverageを除外しています。最新環境はRunner上の具体的なSimulator名やOS版が変わりやすいため、まずコンパイラ・SDK互換性を安定して確認する役割に限定しています。
+`strategy.fail-fast`は`false`です。例えばXcode 27.0だけが失敗しても27.2を最後まで実行し、特定バージョンの問題か全環境の問題かを1回のCIで判別するためです。所要時間を最短にするより、失敗分布を一度に得ることを優先しています。
 
-なお、このマトリクスが確認するのはXcode／SDKの互換性です。アプリのDeployment TargetはiOS 16.2ですが、CIの実行先はiOS 18.2と18.5なので、「iOS 16.2実機上のランタイム互換性」までは証明していません。最低対応OS固有の動作まで保証するには、利用可能な旧Simulatorまたは実機テストを別途追加する必要があります。
+Xcode 27.0の行はiOS 27.0のSimulatorで実行するため、最低対応OSでの振る舞いまで確認できます。実機固有の動作（Live Activityの開始、位置情報など）は実機で確認します。
 
 #### Xcode選択にフォールバックを持たせる理由
 
-Xcode 16.2／16.4は`xcode-select`で明示的に選びます。GitHub-hosted Runnerのイメージ更新で指定minor版が一時的に消えた場合は、同じmajor版の最新Xcodeを探すフォールバックを持たせています。
+Xcode 27.0／27.2は`xcode-select`で明示的に選びます。GitHub-hosted Runnerのイメージ更新で指定minor版が一時的に消えた場合は、同じmajor版の最新Xcodeを探すフォールバックを持たせています。
 
 これはRunner更新だけでCI全体が止まることを避けるためですが、厳密なminor版再現性は弱くなります。ログへ実際の`xcodebuild -version`、macOS、Swift、Simulator Runtimeを出すことで、「指定版ではなくフォールバックで動いた」事実を追えるようにしています。リリース認証のように完全な再現性を優先する段階では、フォールバックせず指定Xcode不在を失敗にする判断も必要です。
 
@@ -1372,8 +1371,6 @@ CIの説明では「cacheがあるから高速」と断定せず、設定先が�
 
 | 未実施の項目 | 現在の判断 | 追加するなら |
 | --- | --- | --- |
-| iOS 16.2 Runtimeテスト | Runnerで安定して使えるiOS 18系を優先 | 旧Simulatorまたは実機Farmを追加 |
-| 最新XcodeでのUIテスト | generic Destinationでコンパイル互換性に限定 | Runner上のRuntimeを動的に解決して実行 |
 | coverage下限 | 境界条件の振る舞いテストを優先 | モジュール別・差分coverage Gate |
 | Release Archive／署名 | 証明書を持たないSimulator CIと分離 | 保護EnvironmentとApp Store Connect APIを使うRelease Workflow |
 | TestFlight自動配布 | 手動Archiveで配布判断を残す | tagまたは`release/**`から承認付きUpload |
@@ -1387,10 +1384,9 @@ CIの説明では「cacheがあるから高速」と断定せず、設定先が�
 
 | 失敗した場所 | 最初に確認するArtifact／出力 | 疑う範囲 |
 | --- | --- | --- |
-| Xcode 16.2だけ | `build-logs-18.2-xcode16.2` | 古いCompiler／SDKとの互換性、availability、警告差 |
-| Xcode 16.4だけ | `build-logs-18.5` | Xcode 16後期で変わった警告・Simulator挙動 |
-| Xcode 26だけ | `build-logs-latest` | 最新SDK、iOS 26条件分岐、将来のCompiler警告 |
-| 安定版2環境のTest | 各`test-results-...`の`xcresult` | 単体・UIのAssertion、Screenshot、Accessibility Audit、時刻固定 |
+| Xcode 27.0だけ | `build-logs-27.0` | 最低対応OSのSDK・Simulatorとの互換性、availability、警告差 |
+| Xcode 27.2だけ | `build-logs-27.2` | Xcode 27後期で変わった警告・Simulator挙動 |
+| 2環境のTest | 各`test-results-...`の`xcresult` | 単体・UIのAssertion、Screenshot、Accessibility Audit、時刻固定 |
 | Widgetだけ | `widget-build-logs` | Extension Info.plist、Entitlements、Target Membership、WidgetKit／ActivityKit |
 | 翻訳検査 | `Lint & Static Analysis` log | 対訳原本変更後の生成忘れ、生成物の直接編集 |
 | Analyzeだけ | `Lint & Static Analysis` log | 静的解析、Concurrency、未使用・到達不能などのCompiler診断 |

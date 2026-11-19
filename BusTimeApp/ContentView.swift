@@ -138,7 +138,7 @@ struct ContentView: View {
           // 検索結果はホームタブにあるので、そちらへ寄せます。
           selectedTab = .home
         }
-        .onChange(of: scenePhase) { newPhase in
+        .onChange(of: scenePhase) { _, newPhase in
           if newPhase == .active {
             setAutomaticUpdatesActive(true)
             viewModel.refreshForAppActivation()
@@ -153,27 +153,27 @@ struct ContentView: View {
             setAutomaticUpdatesActive(false)
           }
         }
-        .onChange(of: shortcutRequestCenter.pendingRequest?.id) { _ in
+        .onChange(of: shortcutRequestCenter.pendingRequest?.id) { _, _ in
           handlePendingShortcutRequest()
         }
         // 説明画面などを閉じて通常のホームへ戻ったら、預かっていた依頼を実行します。
-        .onChange(of: coordinator.state) { _ in
+        .onChange(of: coordinator.state) { _, _ in
           handlePendingShortcutRequest()
         }
         // 経路・検索方法・時刻のいずれを変えても、その場で結果へ反映します。
         // 実行ボタンを置かないぶん、変更が即座に画面へ出ることを保証します。
-        .onChange(of: viewModel.selectedRoute) { _ in
+        .onChange(of: viewModel.selectedRoute) { _, _ in
           viewModel.performSearch()
         }
-        .onChange(of: viewModel.serviceDay) { _ in
+        .onChange(of: viewModel.serviceDay) { _, _ in
           viewModel.persistSearchPreferences()
           viewModel.performSearch()
         }
-        .onChange(of: viewModel.searchType) { _ in
+        .onChange(of: viewModel.searchType) { _, _ in
           viewModel.persistSearchPreferences()
           viewModel.performSearch()
         }
-        .onChange(of: viewModel.searchTime) { _ in
+        .onChange(of: viewModel.searchTime) { _, _ in
           viewModel.persistSearchPreferences()
           viewModel.performSearch()
         }
@@ -278,7 +278,7 @@ struct ContentView: View {
         } message: {
           Text(coordinator.liveActivityErrorMessage ?? L10n.LiveActivity.genericError)
         }
-        .onChange(of: viewModel.liveActivityError) { errorMessage in
+        .onChange(of: viewModel.liveActivityError) { _, errorMessage in
           if let errorMessage {
             SkyHaptics.failure()
             coordinator.send(.liveActivityFailed(errorMessage))
