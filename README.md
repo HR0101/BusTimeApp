@@ -33,12 +33,12 @@
 ## 対応環境
 
 - iPhone専用
-- iOS 16.2以降
+- iOS 27.0以降
 - SwiftUI
 - アプリ本体、単体テスト、UIテスト、Widget Extensionの4ターゲット
 - 外部パッケージ依存なし
 
-ホーム画面ウィジェットとLive Activityを同梱しています。ウィジェット拡張自体のDeployment TargetはiOS 16.1です。
+ホーム画面ウィジェットとLive Activityを同梱しています。アプリ本体、ウィジェット拡張、テストのDeployment TargetはすべてiOS 27.0です。
 
 ## 対応する停留所と経路
 
@@ -110,7 +110,7 @@
 - 通知一覧では個別削除と全件削除ができ、期限切れの保存データは起動時に整理します。
 - 通知の保存形式にはバージョンを持たせ、旧形式からの移行を実装しています。壊れた保存データを無理に上書きしません。
 - Live Activityはロック画面とDynamic Islandの展開・コンパクト・最小表示に対応し、経路、出発／到着、残り時間、出発済み状態を表示します。
-- 残り時間はシステムが時刻に合わせて数え進める表示を使い、アプリが停止していても減っていきます。iOS 18以降は秒を出さない時間・分表記、iOS 16.2〜17は秒を含むタイマーで表示します。
+- 残り時間はシステムが時刻に合わせて数え進める表示を使い、アプリが停止していても減っていきます。秒を出さない時間・分表記で表示します。
 - 出発時刻をActivityの期限（`staleDate`）として開始時と更新時の両方で渡し、アプリから更新が届かなくても出発後は「出発済み」に切り替えます。アプリからの更新は残り分が変わったときだけ送り、過剰な更新を避けます。
 - 実行中のLive Activityは再起動後に復元できます。別便が表示中、機能が許可されていない、すでに出発済みなどの失敗理由も案内します。
 - 対応端末ではLive Activityを初期状態で有効にし、設定画面のToggleでいつでも変更・保存できます。
@@ -124,7 +124,11 @@
 - ウィジェットは許可済みの場合だけ位置情報を1回取得し、キャッシュがあれば待たずに利用します。手動経路がある場合は位置情報より優先します。
 - アプリとウィジェットはApp Groupで前回の行き先と手動経路を共有します。共有領域が利用できない場合もアプリ単体は標準の保存領域へフォールバックします。
 - ウィジェットをタップすると独自URLで表示中の経路を渡し、アプリのホームを同じ経路で開きます。URLには日本語ではなく安定した停留所IDを使います。
-- App Intent「次のバス」を日本語・英語の呼びかけで登録しています。アプリを開かず、経路、出発、到着、残り時間を1文で返します。
+- 「ショートカット」アプリのアクションとして、次の3つを登録しています。Siriは日本語・英語の呼びかけで起動できます。
+  - 「次のバスを調べる」：アプリを開かず、経路、出発、到着、残り時間を1文で返します。経路は省略でき、省略時はアプリと同じ判断で決めます。出発日時を値として返すので、後続のアクションへ渡せます。
+  - 「経路を指定して開く」：指定した経路のホームを開きます。ウィジェットのタップと同じく「自分で選んだ経路」として扱い、位置情報で上書きしません。
+  - 「次の便の通知を設定」：指定した経路の次の便に、5・10・15分前の通知を設定します。Live Activityも同時に開始できます。運休日や今日これから通知できる便がないときは、別の運行日へ繰り越さず失敗として終えます。
+- 状態を変える後ろの2つは、アプリを開いて既存の通知・Live Activity処理で実行します。通知の保存内容は画面のViewModelが持ち、Live Activityは前面でないと開始できないためです。依頼は`ShortcutRequestCenter`が受け渡し、15秒以内に処理されなければショートカットを失敗として終えます。
 
 ### 7. 時刻・季節・実際の天気で変わるピクセルアート
 
@@ -180,7 +184,7 @@
 - 夕暮れの途中で文字色だけが灰色へ溶けないよう、文字とカード面を同じしきい値で一括切り替えします。
 - 背景との相対輝度からアクセント上の文字色を白／黒で選びます。1日24時間×四季について、本文、アクセント、警告・成功色のコントラストを単体テストしています。
 - 未選択のチップにも背景を持たせ、景色の明暗に左右されにくくしています。
-- iOS 26以降ではシステムのLiquid Glassに沿うタブを使い、それ以前では同じ世界観のカプセル型タブバーを表示します。
+- システムのLiquid Glassに沿うタブを使います。iOS 26より前のためのカプセル型タブバーはコードに残っていますが、iOS 27.0以上を対象にしているため使われません。
 - 画面の本文幅は最大520 ptに抑え、大きいiPhoneでも視線移動が広がりすぎないようにしています。
 - ハプティクスはタップ、成功、失敗という明示的な操作結果だけに使い、自動更新では鳴らしません。
 
@@ -255,7 +259,7 @@ Open-Meteo ─> 天気キャッシュ ─> 時刻・季節連動のピクセル�
 | `Features/Settings` / `Tutorial` | 表示・カード・Live Activity設定と初回ガイド |
 | `DesignSystem` | 時刻・季節配色、ピクセル背景、カード、ボタン、Dynamic Type、ハプティクス |
 | `BusTimeWidgetExtension` | ホーム／ロック画面ウィジェット、Live Activity、Dynamic Island |
-| `Features/Shortcuts` | App IntentとSiri向けの次便回答 |
+| `Features/Shortcuts` | App Intent3種（次便回答、経路を開く、通知・Live Activity開始）と、アプリ画面への依頼の受け渡し |
 | `Localization` / `Scripts` | 3言語のString Catalogと型付きAPIの生成 |
 
 UIへ状態を公開するサービスの多くは`@MainActor`へ寄せ、天気取得はプロトコル、時刻はProvider、保存先は`UserDefaults`注入にして、通信・時計・保存状態をテストから差し替えられるようにしています。SwiftのStrict Concurrency Checkingは`targeted`、コンパイラ警告はエラーとして扱います。
@@ -294,7 +298,7 @@ UIへ状態を公開するサービスの多くは`@MainActor`へ寄せ、天気
 | Medium Widget | 経路、次便とその次の便、残り時間 | 同上 | Smallより詳細な便情報を表示 |
 | Accessory Rectangular | ロック画面向けの次便概要 | 同上 | 表示領域に合わせ情報量を制限 |
 | Live Activity | 経路、出発・到着、残り分、出発済み状態 | アプリ側から開始・終了 | ロック画面、Dynamic Islandの展開・コンパクト・最小表示に対応 |
-| Siri／ショートカット | 経路、出発、到着、残り時間を一文で回答 | 「次のバス」Intentを実行 | UIを開かず共有ダイヤから計算 |
+| Siri／ショートカット | 経路、出発、到着、残り時間を一文で回答。通知設定の結果も一文で回答 | 「次のバスを調べる」「経路を指定して開く」「次の便の通知を設定」を実行 | 次便回答はUIを開かず共有ダイヤから計算。後ろの2つはアプリを開き、画面と同じ処理で実行 |
 
 ### 検索条件と結果の意味
 
@@ -471,7 +475,7 @@ Deep Linkは`bustimeapp://route/<origin>-<destination>`形式です。停留所�
 | 項目 | アプリ本体 | Widget Extension |
 | --- | --- | --- |
 | Bundle ID | `com.hara.BusTimeApp` | `com.hara.BusTimeApp.BusTimeWidgetExtension` |
-| Deployment Target | iOS 16.2 | iOS 16.1 |
+| Deployment Target | iOS 27.0 | iOS 27.0 |
 | Device Family | iPhoneのみ | 親アプリに同梱 |
 | Orientation | Portraitのみ | Widgetの各Familyに従う |
 | App Group | `group.com.hara.BusTimeApp` | 同左 |
@@ -515,7 +519,11 @@ Deep Linkは`bustimeapp://route/<origin>-<destination>`形式です。停留所�
 | `Features/Weather/WeatherModels.swift` | 天気状態、雨量段階、WMO解釈、Service Error |
 | `Features/Weather/WeatherService.swift` | Open-Meteo通信、Response decode、Debug Stub |
 | `Features/Weather/WeatherViewModel.swift` | 15分更新、1分監視、Cache、Backoff、lifecycle |
-| `Features/Shortcuts/NextBusIntent.swift` | App Intent、Siri回答、Shortcut Phrase |
+| `Features/Shortcuts/NextBusIntent.swift` | 次便回答のApp Intent、Siri回答、Shortcut Phraseの登録 |
+| `Features/Shortcuts/OpenRouteIntent.swift` | 指定経路のホームを開くApp Intent |
+| `Features/Shortcuts/StartBusAlertIntent.swift` | 次の便の通知・Live Activityを開始するApp Intentと、対象便の選択 |
+| `Features/Shortcuts/ShortcutOptions.swift` | ショートカットで選べる経路・通知タイミング（`AppEnum`）と経路の自動判断 |
+| `Features/Shortcuts/ShortcutRequestCenter.swift` | ショートカットから画面への依頼の受け渡し、結果の返却、タイムアウト |
 
 ### Shared・Design System・Localization
 
@@ -534,7 +542,7 @@ Deep Linkは`bustimeapp://route/<origin>-<destination>`形式です。停留所�
 | `DesignSystem/DynamicTypeSupport.swift` | Scaled font、Bold Text、文字サイズに応じたLayout helper |
 | `DesignSystem/SkyHaptics.swift` | タップ・成功・失敗のHaptic境界 |
 | `Localization/L10n.swift` | 生成された型付きLocalization API。直接編集しない |
-| `Localization/Localizable.xcstrings` | 235件の画面・通知・Widget・Siri文言を持つ生成済みString Catalog |
+| `Localization/Localizable.xcstrings` | 272件の画面・通知・Widget・Siri文言を持つ生成済みString Catalog |
 | `Localization/InfoPlist.xcstrings` | 位置情報の使用理由を日本語・英語・簡体字中国語で表示するString Catalog |
 
 ### Widget、テスト、設定、生成ツール
@@ -548,7 +556,7 @@ Deep Linkは`bustimeapp://route/<origin>-<destination>`形式です。停留所�
 | `BusTimeAppTests/BusTimeAppTests.swift` | Swift Testingによるドメイン・状態・表示計算のテスト |
 | `BusTimeAppUITests/BusTimeAppUITests.swift` | XCTest UI操作、Dynamic Type、言語、RTL、Accessibility Audit |
 | `BusTimeAppUITests/BusTimeAppUITestsLaunchTests.swift` | 起動確認とScreenshot Attachment |
-| `Scripts/localization_strings.py` | 235件の翻訳対訳を持つ唯一の原本 |
+| `Scripts/localization_strings.py` | 272件の翻訳対訳を持つ唯一の原本 |
 | `Scripts/generate_l10n.py` | String Catalogと`L10n.swift`の生成・差分検査 |
 | `.github/workflows/ci.yml` | Xcode Matrix、Test、Widget、Lint、Artifact、Summary |
 | `BusTimeApp-Info.plist` | URL Scheme定義 |
@@ -757,7 +765,7 @@ WidgetKitのTimeline再要求時刻はシステムが最終決定します。現
 - Small、Medium、Accessory Rectangularを別レイアウトにし、Smallの主時刻は`ScaledMetric`へ追従させます。
 - タップ時は表示中の経路をDeep Linkでアプリへ渡すため、Widgetとアプリの文脈が途切れません。
 
-Live Activity側では、ロック画面とDynamic Islandに同じ`BusActivityAttributes`を使います。Live Activityは描いた内容を保存して表示するため、`TimelineView`では残り時間が進みません。iOS 18以降は`Text(.currentDate, format: .timer(...))`に1分単位の精度を指定し、システムに秒を含まない残り時間を数え進めさせます。iOS 16.2〜17では同じ役割の`Text(timerInterval:)`を使います。出発時刻は`staleDate`として毎回渡し、アプリが停止したまま出発しても期限切れをきっかけに「出発済み」へ描き直されます。アプリからのActivity更新は残り分が変わったときだけ送り、秒単位の無意味な更新を避けています。
+Live Activity側では、ロック画面とDynamic Islandに同じ`BusActivityAttributes`を使います。Live Activityは描いた内容を保存して表示するため、`TimelineView`では残り時間が進みません。`Text(.currentDate, format: .timer(...))`に1分単位の精度を指定し、システムに秒を含まない残り時間を数え進めさせます。iOS 18より前のための`Text(timerInterval:)`の分岐はコードに残っていますが、iOS 27.0以上では使われません。出発時刻は`staleDate`として毎回渡し、アプリが停止したまま出発しても期限切れをきっかけに「出発済み」へ描き直されます。アプリからのActivity更新は残り分が変わったときだけ送り、秒単位の無意味な更新を避けています。
 
 #### トレードオフ
 
@@ -835,7 +843,7 @@ Canvas生成によりアセット数を抑え、条件の組み合わせを表�
 
 #### 設計と実装
 
-- `Scripts/localization_strings.py`を235件の文言の唯一の原本にしています。
+- `Scripts/localization_strings.py`を272件の文言の唯一の原本にしています。
 - Pythonスクリプトが日本語・英語・簡体字中国語のString Catalogと、`L10n.Result.nextBus`のような型付きSwift APIを同時生成します。
 - キーの重複を生成前に検出します。
 - 引数の型からSwift関数を生成し、言語規則が必要な文言はString Catalogのplural variationと`localizedStringWithFormat`を使います。
@@ -892,7 +900,7 @@ Canvas生成によりアセット数を抑え、条件の組み合わせを表�
 - UIテストでは`-UITestNow`で時刻、`-forceWeather clear`で天気、`-SkyBackgroundStill`で背景、`-UITestResetState`で保存状態を固定します。
 - 単体テストは80件あり、運行日、経路推薦、状態遷移、通知、天気、配色、月相、Widget Deep Link、多言語日付を対象にしています。
 - UIテストは8件あり、主要導線、最大文字サイズ、アクセシビリティ監査、3言語、RTL、起動を対象にしています。
-- CIはXcode 16.2、16.4、26の複数環境でDebug／Releaseをビルドし、安定版2環境でテストとcoverageを記録します。
+- CIはXcode 27.0と27.2の2環境でDebug／Releaseをビルドし、両方でテストとcoverageを記録します。
 - Widget Extensionは別Schemeでビルドし、本体だけ通って拡張が壊れる状態を検出します。
 - `SWIFT_TREAT_WARNINGS_AS_ERRORS=YES`をプロジェクトとCIの両方で指定し、ローカル設定差で警告が見逃されないようにしています。
 - 静的解析、翻訳生成物、TODO／FIXME、警告件数、失敗ログ、xcresultを別々の証拠として残します。
@@ -1002,7 +1010,7 @@ xcodebuild build \
 xcodebuild test \
   -project BusTimeApp.xcodeproj \
   -scheme BusTimeApp \
-  -destination 'platform=iOS Simulator,name=iPhone 16,OS=18.5' \
+  -destination 'platform=iOS Simulator,name=iPhone 18 Pro,OS=27.2' \
   -testLanguage ja \
   -testRegion JP \
   -enableCodeCoverage YES
@@ -1212,6 +1220,10 @@ UIテストでは、ホーム／時刻表の遷移、最大Dynamic Typeでの主
 #### Widget・Siri・Deep Link
 
 - `shortcutAnswerNamesTheRouteAndTheNextDeparture`: Siri回答の経路・次便内容
+- `shortcutAnswerForAnExplicitRouteUsesThatRoute`: 経路を指定した回答と、値として返す出発日時
+- `shortcutRouteOptionsCoverEveryRouteOfTheApp`、`shortcutOptionsKeepTheirStoredIdentifiers`: 経路の増減への追従と、保存される識別子の固定
+- `busAlertSelectionPicksTheNextBusOnTheRoute`、`busAlertSelectionSkipsABusWhoseAlertTimeHasPassed`、`busAlertSelectionRefusesANonServiceDay`、`busAlertSelectionDoesNotCarryOverToTheNextServiceDay`: 通知対象の便の選択
+- `shortcutRequestIsHandedToTheAppAndTheResultReturnsToTheShortcut`、`shortcutRequestTimesOutWhenTheAppNeverAnswers`、`aNewShortcutRequestReplacesOneTheAppHasNotTakenYet`: 画面への依頼の受け渡し
 - `widgetLinkCarriesTheRouteBothWays`: Deep Linkの往復変換
 - `widgetLinkIgnoresOtherURLs`: 他scheme／hostを拒否
 - `openingFromTheWidgetSwitchesTheRoute`: Widgetからアプリの経路切替
@@ -1236,7 +1248,7 @@ UIテストでは、ホーム／時刻表の遷移、最大Dynamic Typeでの主
 
 GitHub Actionsでは次を実行します。
 
-- Xcode 16.2／iOS 18.2、Xcode 16.4／iOS 18.5、Xcode 26／最新SDKのビルドマトリクス
+- Xcode 27.0／iOS 27.0、Xcode 27.2／iOS 27.2のビルドマトリクス
 - Debug／Releaseビルド
 - 安定版2環境での単体・UIテストとコードカバレッジ記録
 - Widget Extensionの独立ビルド
@@ -1268,25 +1280,24 @@ CIの目的は、単に一つの環境で`xcodebuild`を成功させることで
 
 同じブランチへ短時間に複数回pushした場合は、`concurrency`のgroupをworkflow名とGit refで作り、古い実行を`cancel-in-progress`で中止します。すでに古くなったcommitへmacOS Runnerを使い続けず、最新commitへ結果を早く返すためです。別ブランチのCIは異なるgroupなので互いに中断しません。
 
-#### 3種類のXcodeマトリクス
+#### 2種類のXcodeマトリクス
 
 | 環境 | この環境で確認したいこと | テスト方針 |
 | --- | --- | --- |
-| Xcode 16.2／iOS 18.2 | 現在の互換性基準となるXcode 16系でコンパイル・実行できること | Debug／Release、単体・UIテスト |
-| Xcode 16.4／iOS 18.5 | Xcode 16系の後期コンパイラとSDKでも警告や挙動が変わらないこと | Debug／Release、単体・UIテスト |
-| Xcode 26／最新SDK | `#available(iOS 26, *)`を含むコードが最新コンパイラで成立すること | Debug／Releaseのビルドのみ |
+| Xcode 27.0／iOS 27.0 | 最低対応OSのSDKとSimulatorでコンパイル・実行できること | Debug／Release、単体・UIテスト |
+| Xcode 27.2／iOS 27.2 | Xcode 27系の最新コンパイラとSDKでも警告や挙動が変わらないこと | Debug／Release、単体・UIテスト |
 
-1環境だけでは、ローカルで選ばれているXcodeには通るが別コンパイラでは警告がエラーになる、古いAPIのavailability指定が不足する、といった問題を見逃します。Xcode 16.2と16.4を両方残し、さらに最新Xcodeを先行してビルドすることで、現在の互換性と将来の互換性を別々に見ています。
+Deployment TargetをiOS 27.0にしているため、iOS 27 SDKを持たないXcode 16・26系ではビルドできません。どちらの環境も、Xcode 27系を載せたGitHub-hosted Runner（`xcode-27`、現在はPreview）で実行します。
 
-`strategy.fail-fast`は`false`です。例えばXcode 16.2だけが失敗しても16.4と26を最後まで実行し、特定バージョンの問題か全環境の問題かを1回のCIで判別するためです。所要時間を最短にするより、失敗分布を一度に得ることを優先しています。
+1環境だけでは、ローカルで選ばれているXcodeには通るが別コンパイラでは警告がエラーになる、といった問題を見逃します。最低対応OSと同じXcode 27.0と、最新のXcode 27.2を両方残し、最低対応OSでの動作と最新環境での互換性を別々に見ています。
 
-最新SDKの行は`generic/platform=iOS Simulator`を使います。これはビルド専用Destinationであり、アプリを起動してテストできません。そのため`matrix.ios_version != 'latest'`の条件でテストとcoverageを除外しています。最新環境はRunner上の具体的なSimulator名やOS版が変わりやすいため、まずコンパイラ・SDK互換性を安定して確認する役割に限定しています。
+`strategy.fail-fast`は`false`です。例えばXcode 27.0だけが失敗しても27.2を最後まで実行し、特定バージョンの問題か全環境の問題かを1回のCIで判別するためです。所要時間を最短にするより、失敗分布を一度に得ることを優先しています。
 
-なお、このマトリクスが確認するのはXcode／SDKの互換性です。アプリのDeployment TargetはiOS 16.2ですが、CIの実行先はiOS 18.2と18.5なので、「iOS 16.2実機上のランタイム互換性」までは証明していません。最低対応OS固有の動作まで保証するには、利用可能な旧Simulatorまたは実機テストを別途追加する必要があります。
+Xcode 27.0の行はiOS 27.0のSimulatorで実行するため、最低対応OSでの振る舞いまで確認できます。実機固有の動作（Live Activityの開始、位置情報など）は実機で確認します。
 
 #### Xcode選択にフォールバックを持たせる理由
 
-Xcode 16.2／16.4は`xcode-select`で明示的に選びます。GitHub-hosted Runnerのイメージ更新で指定minor版が一時的に消えた場合は、同じmajor版の最新Xcodeを探すフォールバックを持たせています。
+Xcode 27.0／27.2は`xcode-select`で明示的に選びます。GitHub-hosted Runnerのイメージ更新で指定minor版が一時的に消えた場合は、同じmajor版の最新Xcodeを探すフォールバックを持たせています。
 
 これはRunner更新だけでCI全体が止まることを避けるためですが、厳密なminor版再現性は弱くなります。ログへ実際の`xcodebuild -version`、macOS、Swift、Simulator Runtimeを出すことで、「指定版ではなくフォールバックで動いた」事実を追えるようにしています。リリース認証のように完全な再現性を優先する段階では、フォールバックせず指定Xcode不在を失敗にする判断も必要です。
 
@@ -1324,7 +1335,7 @@ Simulator向けCIなので、`CODE_SIGN_IDENTITY=""`、`CODE_SIGNING_REQUIRED=NO
 
 `lint`ジョブは次の役割を持ちます。
 
-- `generate_l10n.py --check`で、235件の対訳原本とString Catalog／`L10n.swift`の生成結果が一致するか確認する
+- `generate_l10n.py --check`で、272件の対訳原本とString Catalog／`L10n.swift`の生成結果が一致するか確認する
 - `xcodebuild analyze`で、通常ビルドだけでは検出しにくい問題を静的解析する
 - Swiftファイル一覧をSummaryへ出し、どのコードが解析対象か確認できるようにする
 - TODO、FIXME、HACK、XXXを一覧化し、未完事項を見えないままにしない
@@ -1360,8 +1371,6 @@ CIの説明では「cacheがあるから高速」と断定せず、設定先が�
 
 | 未実施の項目 | 現在の判断 | 追加するなら |
 | --- | --- | --- |
-| iOS 16.2 Runtimeテスト | Runnerで安定して使えるiOS 18系を優先 | 旧Simulatorまたは実機Farmを追加 |
-| 最新XcodeでのUIテスト | generic Destinationでコンパイル互換性に限定 | Runner上のRuntimeを動的に解決して実行 |
 | coverage下限 | 境界条件の振る舞いテストを優先 | モジュール別・差分coverage Gate |
 | Release Archive／署名 | 証明書を持たないSimulator CIと分離 | 保護EnvironmentとApp Store Connect APIを使うRelease Workflow |
 | TestFlight自動配布 | 手動Archiveで配布判断を残す | tagまたは`release/**`から承認付きUpload |
@@ -1375,10 +1384,9 @@ CIの説明では「cacheがあるから高速」と断定せず、設定先が�
 
 | 失敗した場所 | 最初に確認するArtifact／出力 | 疑う範囲 |
 | --- | --- | --- |
-| Xcode 16.2だけ | `build-logs-18.2-xcode16.2` | 古いCompiler／SDKとの互換性、availability、警告差 |
-| Xcode 16.4だけ | `build-logs-18.5` | Xcode 16後期で変わった警告・Simulator挙動 |
-| Xcode 26だけ | `build-logs-latest` | 最新SDK、iOS 26条件分岐、将来のCompiler警告 |
-| 安定版2環境のTest | 各`test-results-...`の`xcresult` | 単体・UIのAssertion、Screenshot、Accessibility Audit、時刻固定 |
+| Xcode 27.0だけ | `build-logs-27.0` | 最低対応OSのSDK・Simulatorとの互換性、availability、警告差 |
+| Xcode 27.2だけ | `build-logs-27.2` | Xcode 27後期で変わった警告・Simulator挙動 |
+| 2環境のTest | 各`test-results-...`の`xcresult` | 単体・UIのAssertion、Screenshot、Accessibility Audit、時刻固定 |
 | Widgetだけ | `widget-build-logs` | Extension Info.plist、Entitlements、Target Membership、WidgetKit／ActivityKit |
 | 翻訳検査 | `Lint & Static Analysis` log | 対訳原本変更後の生成忘れ、生成物の直接編集 |
 | Analyzeだけ | `Lint & Static Analysis` log | 静的解析、Concurrency、未使用・到達不能などのCompiler診断 |
@@ -1424,6 +1432,7 @@ CIの説明では「cacheがあるから高速」と断定せず、設定先が�
 3. `BusSchedule.timetables`へ便を登録し、現在地推薦、相手停留所保存、最終便後Fallbackを確認します。
 4. Deep LinkのIdentifierを一度公開したら変更しません。変更が必要なら旧URLもdecodeできるMigrationを用意します。
 5. Widgetの各Family、Siri回答、検索Menu、経路Swap、VoiceOver Label、多言語文言を確認します。
+6. ショートカット3種は実機の「ショートカット」アプリで確認します。特に「次の便の通知を設定」のLive Activity開始は、前面でないと開始できないためシミュレータだけでは不十分です。
 6. App Groupへ保存済みの旧raw valueを読んだときのFallbackをTestします。
 
 ### 祝日データを更新する
@@ -1489,6 +1498,14 @@ CIの説明では「cacheがあるから高速」と断定せず、設定先が�
 - 固定値、画面、保存Key、Target設定、CI保証が変わった場合はREADMEを同じPRで更新した
 
 ## プライバシー概要
+
+プライバシーポリシー・利用規約の本文はポートフォリオサイトで管理し、アプリの設定画面から外部ブラウザで開きます。
+
+- プライバシーポリシー: https://hr0101.dev/apps/bustimeapp/privacy/
+- 利用規約: https://hr0101.dev/apps/bustimeapp/terms/
+- ページのソース: `/Users/Rhara/portfolio_site/src/app/apps/bustimeapp/{privacy,terms}/page.tsx`
+
+公開時は `portfolio_site` の静的ビルドを既存のS3・CloudFrontへ反映し、両URLがHTTP 200で本文を表示することを確認してください。App Store ConnectのプライバシーポリシーURLにも同じURLを設定します。
 
 | 項目 | 扱い |
 | --- | --- |

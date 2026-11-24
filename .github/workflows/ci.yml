@@ -1,11 +1,14 @@
 # =============================================================================
 # BusTimeApp CI - 幅広いバージョンでのビルド＆テスト
 # =============================================================================
-# macOS / Xcode の複数バージョンでビルドし、互換性を担保する
+# 最低対応の iOS 27.0 と最新の iOS 27.x でビルド・テストし、互換性を担保する
 #
 # マトリクス構成:
-#   - macos-14/15 + Xcode 16 系 (iOS 18 SDK)
-#   - macos-26  + Xcode 26 系 (最新 SDK)
+#   - xcode-27 Runner + Xcode 27.0 (iOS 27.0 SDK / 最低対応 OS)
+#   - xcode-27 Runner + Xcode 27.2 (iOS 27.2 SDK / 最新)
+#
+# Deployment Target を iOS 27.0 にしているため、iOS 27 SDK を持たない
+# macos-15 / macos-26 Runner（Xcode 16・26 系）ではビルドできません。
 # =============================================================================
 
 name: CI
@@ -33,26 +36,19 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # ── macOS 14 + Xcode 16.2 (iOS 18.2 SDK / Simulator) ──
-          - name: "Xcode 16.2 / iOS 18.2"
-            runner: macos-14
-            xcode: "16.2"
-            destination: "platform=iOS Simulator,name=iPhone 16,OS=18.2"
-            ios_version: "18.2-xcode16.2"
+          # ── Xcode 27.0 (iOS 27.0 SDK / 最低対応 OS の Simulator) ──
+          - name: "Xcode 27.0 / iOS 27.0"
+            runner: xcode-27
+            xcode: "27.0"
+            destination: "platform=iOS Simulator,name=iPhone 18 Pro,OS=27.0"
+            ios_version: "27.0"
 
-          # ── macOS 15 + Xcode 16.4 (iOS 18 SDK / 最新 16 系) ──
-          - name: "Xcode 16.4 / iOS 18"
-            runner: macos-15
-            xcode: "16.4"
-            destination: "platform=iOS Simulator,name=iPhone 16,OS=18.5"
-            ios_version: "18.5"
-
-          # ── macOS 26 + Xcode 26 (最新 SDK) ──
-          - name: "Xcode 26 / Latest iOS"
-            runner: macos-26
-            xcode: ""
-            destination: "generic/platform=iOS Simulator"
-            ios_version: "latest"
+          # ── Xcode 27.2 (iOS 27.2 SDK / 最新 27 系) ──
+          - name: "Xcode 27.2 / iOS 27.2"
+            runner: xcode-27
+            xcode: "27.2"
+            destination: "platform=iOS Simulator,name=iPhone 18 Pro,OS=27.2"
+            ios_version: "27.2"
 
     steps:
       # ── チェックアウト ──
@@ -225,7 +221,8 @@ jobs:
   # ---------------------------------------------------------------------------
   build-widget:
     name: "Build Widget Extension"
-    runs-on: macos-15
+    # iOS 27 SDK が必要なため、Xcode 27 系を持つ Runner を使います。
+    runs-on: xcode-27
     timeout-minutes: 15
 
     steps:
@@ -270,7 +267,8 @@ jobs:
   # ---------------------------------------------------------------------------
   lint:
     name: "Lint & Static Analysis"
-    runs-on: macos-15
+    # iOS 27 SDK が必要なため、Xcode 27 系を持つ Runner を使います。
+    runs-on: xcode-27
     timeout-minutes: 15
 
     steps:

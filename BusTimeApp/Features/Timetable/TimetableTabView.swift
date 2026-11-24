@@ -26,6 +26,8 @@ struct TimetableTabView: View {
   /// iPhoneの「色を使わず区別」設定です。
   /// オンのときは、色だけで示していた状態に形の手がかりを足します。
   @Environment(\.accessibilityDifferentiateWithoutColor) private var differentiateWithoutColor
+  /// iPhoneの「ボタンの形」設定です。
+  @Environment(\.accessibilityShowButtonShapes) private var showButtonShapes
 
   @State private var didScrollInitially = false
   @ObservedObject var viewModel: HomeViewModel
@@ -38,20 +40,22 @@ struct TimetableTabView: View {
   /// 時のラベルの幅です。2桁の時が折り返さない幅を確保します。
   private let hourLabelWidth: CGFloat = 24
   /// 時のラベルと分のマスのあいだの間隔です。
-  private let hourLabelSpacing: CGFloat = 6
+  private let hourLabelSpacing: CGFloat = 8
   /// マス同士の間隔です。
   private let cellSpacing: CGFloat = 2
   /// 行の左右の余白です。
-  private let rowPadding: CGFloat = 6
+  private let rowPadding: CGFloat = 8
+  /// 行の上下の余白です。
+  private let rowVerticalPadding: CGFloat = 4
   /// マスの角丸半径です。
-  private let cellRadius: CGFloat = 10
+  private let cellRadius: CGFloat = SkyMetrics.controlRadius
   /// 備考のある便に添える点の直径です。
   /// 小さく淡いと見落とすため、時刻の文字と同じ濃さでしっかり置きます。
-  private let noteMarkerSize: CGFloat = 5
+  private let noteMarkerSize: CGFloat = 4
 
   /// 画面左右の余白です。マスの幅を稼ぐため、他の画面より狭くしています。
   private var horizontalPadding: CGFloat {
-    dynamicTypeSize.isAccessibilitySize ? SkyMetrics.compactScreenPadding : 14
+    dynamicTypeSize.isAccessibilitySize ? SkyMetrics.compactScreenPadding : 16
   }
 
   /// 1行に並べる分のマスの数です。
@@ -83,17 +87,12 @@ struct TimetableTabView: View {
               isWarning: false
             )
           } else {
-            // 通知をまだ使っていない間だけ、操作の仕方を大きく案内します。
-            // 運休日は通知を設定できないため、案内も出しません。
-            if scheduledBusIDs.isEmpty, !viewModel.isServiceSuspended {
-              notificationHint
-            }
             timetableGrid
             legend
           }
         }
         .padding(.horizontal, horizontalPadding)
-        .padding(.top, 10)
+        .padding(.top, 8)
         .padding(.bottom, SkyMetrics.scrollBottomInset)
         // 横に広い画面では、1行が長くなりすぎないところで幅を止めて中央に置きます。
         .frame(maxWidth: SkyMetrics.contentMaxWidth)
@@ -111,55 +110,50 @@ struct TimetableTabView: View {
   // MARK: - 見出し
 
   private var header: some View {
-    VStack(alignment: .leading, spacing: 10) {
+    VStack(alignment: .leading, spacing: 8) {
       SkySectionLabel(text: L10n.Timetable.title)
 
-      DynamicTypeStack(verticalAlignment: .firstTextBaseline, spacing: 10) {
+      DynamicTypeStack(verticalAlignment: .firstTextBaseline, spacing: 12) {
         Text(viewModel.selectedRoute.rawValue)
-          .dynamicFont(size: 19, relativeTo: .title3, weight: .bold, design: .rounded)
+          .dynamicFont(size: 20, relativeTo: .title3, weight: .semibold, design: .rounded)
           .foregroundStyle(sky.ink)
           .fixedSize(horizontal: false, vertical: true)
           .frame(maxWidth: .infinity, alignment: .leading)
 
         Text(L10n.Timetable.serviceCount(viewModel.currentFullTimetable.count))
-          .dynamicFont(size: 13, relativeTo: .footnote, weight: .bold, design: .rounded)
+          .dynamicFont(size: 13, relativeTo: .footnote, weight: .medium, design: .rounded)
           .monospacedDigit()
-          .foregroundStyle(sky.accentReadable)
+          .foregroundStyle(sky.inkSecondary)
       }
 
-      SkyNoticeRow(
-        message: L10n.Timetable.routeHint,
-        systemImage: "arrow.left.arrow.right"
-      )
+      VStack(alignment: .leading, spacing: 4) {
+        SkyNoticeRow(
+          message: L10n.Timetable.routeHint,
+          systemImage: "arrow.left.arrow.right"
+        )
+
+        // 通知をまだ使っていない間だけ、操作の仕方を一行で添えます。
+        // 表そのものを押し下げないよう、別のカードにはしません。
+        // 運休日は通知を設定できないため、案内も出しません。
+        if showsNotificationHint {
+          SkyNoticeRow(
+            message: L10n.Timetable.notificationHintTitle,
+            systemImage: "bell"
+          )
+        }
+      }
+      .padding(.top, 4)
     }
     .frame(maxWidth: .infinity, alignment: .leading)
     .skyCard()
   }
 
-  /// 通知を一度も設定していない人へ、操作の仕方を伝える案内です。
-  /// 1件でも設定されていれば表示しません。
-  private var notificationHint: some View {
-    DynamicTypeStack(verticalAlignment: .top, spacing: 12) {
-      Image(systemName: "bell.badge")
-        .dynamicFont(size: 20, relativeTo: .title3, weight: .semibold)
-        .foregroundStyle(sky.accentReadable)
-
-      VStack(alignment: .leading, spacing: 5) {
-        Text(L10n.Timetable.notificationHintTitle)
-          .dynamicFont(size: 15, relativeTo: .subheadline, weight: .bold, design: .rounded)
-          .foregroundStyle(sky.ink)
-          .fixedSize(horizontal: false, vertical: true)
-
-        Text(L10n.Timetable.notificationHintBody)
-          .dynamicFont(size: 12, relativeTo: .caption, weight: .medium)
-          .foregroundStyle(sky.inkSecondary)
-          .fixedSize(horizontal: false, vertical: true)
-      }
-      .frame(maxWidth: .infinity, alignment: .leading)
-    }
-    .frame(maxWidth: .infinity, alignment: .leading)
-    .skyCard()
-    .accessibilityElement(children: .combine)
+  /// 通知の操作の仕方を案内するかどうかです。
+  /// 1件でも設定されていれば、もう操作を知っているので表示しません。
+  private var showsNotificationHint: Bool {
+    !viewModel.currentFullTimetable.isEmpty
+      && scheduledBusIDs.isEmpty
+      && !viewModel.isServiceSuspended
   }
 
   // MARK: - 時刻表
@@ -186,9 +180,9 @@ struct TimetableTabView: View {
     return HStack(alignment: .top, spacing: hourLabelSpacing) {
       // 時刻の数字そのものです。翻訳の対象ではないので verbatim で渡します。
       Text(verbatim: "\(group.hour)")
-        .dynamicFont(size: 17, relativeTo: .body, weight: .bold, design: .rounded)
+        .dynamicFont(size: 16, relativeTo: .body, weight: .semibold, design: .rounded)
         .monospacedDigit()
-        .foregroundStyle(isCurrentHour ? sky.accent : sky.inkSecondary)
+        .foregroundStyle(isCurrentHour ? sky.accentReadable : sky.inkSecondary)
         .lineLimit(1)
         .minimumScaleFactor(0.7)
         .frame(width: hourLabelWidth, alignment: .trailing)
@@ -210,7 +204,7 @@ struct TimetableTabView: View {
       .frame(maxWidth: .infinity, alignment: .leading)
     }
     .padding(.horizontal, rowPadding)
-    .padding(.vertical, 5)
+    .padding(.vertical, rowVerticalPadding)
     .frame(maxWidth: .infinity, alignment: .leading)
     .background(isCurrentHour ? sky.accentSoft : Color.clear)
     .accessibilityElement(children: .contain)
@@ -228,7 +222,7 @@ struct TimetableTabView: View {
     } label: {
       VStack(spacing: 0) {
         Text(minuteText(for: bus))
-          .dynamicFont(size: 16, relativeTo: .body, weight: .bold, design: .rounded)
+          .dynamicFont(size: 16, relativeTo: .body, weight: .medium, design: .rounded)
           .monospacedDigit()
           .foregroundStyle(isScheduled ? sky.accentInk : sky.ink)
 
@@ -249,7 +243,7 @@ struct TimetableTabView: View {
       .overlay(
         RoundedRectangle(cornerRadius: cellRadius, style: .continuous)
           .stroke(
-            isRecommended && !isScheduled ? sky.accent : sky.ink.opacity(0.26),
+            cellStrokeColor(isRecommended: isRecommended && !isScheduled),
             style: cellStrokeStyle(isRecommended: isRecommended && !isScheduled)
           )
       )
@@ -257,7 +251,7 @@ struct TimetableTabView: View {
       .overlay(alignment: .topTrailing) {
         if differentiateWithoutColor, isScheduled {
           Image(systemName: "bell.fill")
-            .dynamicFont(size: 9, relativeTo: .caption2, weight: .bold)
+            .dynamicFont(size: 9, relativeTo: .caption2, weight: .medium)
             .foregroundStyle(sky.accentInk)
             .padding(4)
         }
@@ -277,7 +271,7 @@ struct TimetableTabView: View {
   }
 
   private var legend: some View {
-    VStack(alignment: .leading, spacing: 6) {
+    VStack(alignment: .leading, spacing: 8) {
       // 色を使わず区別する設定では、色ではなく形の説明に切り替えます。
       SkyNoticeRow(
         message: differentiateWithoutColor
@@ -298,6 +292,20 @@ struct TimetableTabView: View {
         systemImage: "smallcircle.filled.circle"
       )
     }
+  }
+
+  /// マスの枠線の色です。
+  ///
+  /// 駅の時刻表と同じく、ふだんの分は枠で囲まずに数字だけを並べます。
+  /// 枠を引くのは検索条件に合う便だけにして、表の中で目立つものを絞ります。
+  /// 「ボタンの形」がオンのときは、押せる範囲が分かるようすべてのマスに枠を引きます。
+  private func cellStrokeColor(isRecommended: Bool) -> Color {
+    if isRecommended {
+      return sky.accent
+    }
+    return showButtonShapes
+      ? sky.ink.opacity(SkyButtonOutline.emphasized)
+      : Color.clear
   }
 
   /// マスの枠線です。

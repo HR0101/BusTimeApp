@@ -28,20 +28,20 @@ struct HomeHeaderBar: View {
   }
 
   private var brand: some View {
-    DynamicTypeStack(spacing: 10) {
+    DynamicTypeStack(spacing: 8) {
       Image(systemName: "bus.fill")
-        .dynamicFont(size: 17, relativeTo: .headline, weight: .bold)
+        .dynamicFont(size: 16, relativeTo: .headline, weight: .medium)
         .foregroundStyle(sky.accentReadable)
 
       VStack(alignment: .leading, spacing: 2) {
         Text(L10n.Home.brandName)
-          .dynamicFont(size: 16, relativeTo: .headline, weight: .bold, design: .rounded)
+          .dynamicFont(size: 16, relativeTo: .headline, weight: .semibold, design: .rounded)
           .foregroundStyle(sky.ink)
           .lineLimit(1)
           .minimumScaleFactor(0.8)
         Text(L10n.Home.serviceName)
-          .font(.caption2.weight(.semibold))
-          .foregroundStyle(sky.ink)
+          .font(.caption2.weight(.medium))
+          .foregroundStyle(sky.inkSecondary)
           .fixedSize(horizontal: false, vertical: true)
       }
     }
@@ -97,12 +97,12 @@ struct NextDepartureHero: View {
   /// 残り時間の数字の基準サイズです。
   private let countdownNumberSize: CGFloat = 76
   /// 残り時間の単位の基準サイズです。
-  private let countdownUnitSize: CGFloat = 25
+  private let countdownUnitSize: CGFloat = 24
   /// 1時間を分に直した値です。
   private let minutesPerHour = 60
 
   var body: some View {
-    VStack(alignment: .leading, spacing: 18) {
+    VStack(alignment: .leading, spacing: 16) {
       SkySectionLabel(text: sectionTitle)
 
       countdown
@@ -111,28 +111,20 @@ struct NextDepartureHero: View {
 
       SkyDivider()
 
-      VStack(alignment: .leading, spacing: 6) {
+      VStack(alignment: .leading, spacing: 4) {
         timeRow
         // 停留所名は固有名詞なので、そのまま並べます。
+        // 経路は上のカードでも選んでいるので、ここでは確認用の控えめな一行にします。
         Text(verbatim: "\(bus.originName) → \(bus.destinationName)")
-          .dynamicFont(size: 13, relativeTo: .footnote, weight: .bold)
-          .foregroundStyle(sky.ink)
+          .dynamicFont(size: 13, relativeTo: .footnote, weight: .regular)
+          .foregroundStyle(sky.inkSecondary)
           .fixedSize(horizontal: false, vertical: true)
-          .padding(.horizontal, 8)
-          .padding(.vertical, 5)
-          .background(
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
-              .fill(sky.surfaceOpaque)
-          )
 
         if let note = bus.note {
           Text(note)
-            .dynamicFont(size: 11, relativeTo: .caption2, weight: .bold, design: .rounded)
+            .dynamicFont(size: 12, relativeTo: .caption, weight: .medium, design: .rounded)
             .foregroundStyle(sky.accentReadable)
-            .padding(.horizontal, 9)
-            .padding(.vertical, 5)
-            .background(Capsule().fill(sky.accentSoft))
-            .padding(.top, 2)
+            .fixedSize(horizontal: false, vertical: true)
         }
       }
 
@@ -186,7 +178,7 @@ struct NextDepartureHero: View {
 
   private var countdownPrefix: some View {
     Text(L10n.Result.remainingPrefix)
-      .dynamicFont(size: 15, relativeTo: .subheadline, weight: .bold, design: .rounded)
+      .dynamicFont(size: 16, relativeTo: .subheadline, weight: .medium, design: .rounded)
       .foregroundStyle(sky.inkSecondary)
   }
 
@@ -201,7 +193,7 @@ struct NextDepartureHero: View {
       .dynamicFont(
         size: countdownNumberSize,
         relativeTo: .largeTitle,
-        weight: .bold,
+        weight: .semibold,
         design: .rounded
       )
       .monospacedDigit()
@@ -215,7 +207,7 @@ struct NextDepartureHero: View {
       .dynamicFont(
         size: countdownUnitSize,
         relativeTo: .title2,
-        weight: .bold,
+        weight: .medium,
         design: .rounded
       )
       .foregroundStyle(sky.ink)
@@ -224,7 +216,7 @@ struct NextDepartureHero: View {
   /// 数字を伴わない状態を、大きすぎない文字で表します。
   private func countdownPhrase(_ text: String) -> some View {
     Text(text)
-      .dynamicFont(size: 34, relativeTo: .largeTitle, weight: .bold, design: .rounded)
+      .dynamicFont(size: 32, relativeTo: .largeTitle, weight: .semibold, design: .rounded)
       .foregroundStyle(sky.ink)
       .lineLimit(1)
       .minimumScaleFactor(0.6)
@@ -258,25 +250,25 @@ struct NextDepartureHero: View {
   private var timeRow: some View {
     DynamicTypeStack(verticalAlignment: .lastTextBaseline, spacing: 8) {
       Text(bus.departure)
-        .dynamicFont(size: 27, relativeTo: .title, weight: .bold, design: .rounded)
+        .dynamicFont(size: 28, relativeTo: .title, weight: .semibold, design: .rounded)
         .monospacedDigit()
         .foregroundStyle(sky.ink)
         .minimumScaleFactor(0.7)
       Text(L10n.Result.departureSuffix)
-        .dynamicFont(size: 12, relativeTo: .caption, weight: .bold)
+        .dynamicFont(size: 12, relativeTo: .caption, weight: .medium)
         .foregroundStyle(sky.inkSecondary)
 
       Image(systemName: "arrow.right")
-        .font(.caption.weight(.bold))
+        .font(.caption.weight(.medium))
         .foregroundStyle(sky.inkFaint)
 
       Text(bus.arrival)
-        .dynamicFont(size: 21, relativeTo: .title3, weight: .bold, design: .rounded)
+        .dynamicFont(size: 20, relativeTo: .title3, weight: .medium, design: .rounded)
         .monospacedDigit()
         .foregroundStyle(sky.inkSecondary)
         .minimumScaleFactor(0.7)
       Text(L10n.Result.arrivalSuffix)
-        .dynamicFont(size: 12, relativeTo: .caption, weight: .bold)
+        .dynamicFont(size: 12, relativeTo: .caption, weight: .medium)
         .foregroundStyle(sky.inkSecondary)
     }
     .accessibilityElement(children: .combine)
@@ -324,23 +316,23 @@ struct UpcomingDepartureRow: View {
     Button(action: action) {
       DynamicTypeStack(verticalAlignment: .center, spacing: 12) {
         VStack(alignment: .leading, spacing: 4) {
-          HStack(alignment: .lastTextBaseline, spacing: 6) {
+          HStack(alignment: .lastTextBaseline, spacing: 8) {
             Text(bus.departure)
-              .dynamicFont(size: 20, relativeTo: .title3, weight: .bold, design: .rounded)
+              .dynamicFont(size: 20, relativeTo: .title3, weight: .semibold, design: .rounded)
               .monospacedDigit()
               .foregroundStyle(sky.ink)
             Image(systemName: "arrow.right")
-              .font(.caption2.weight(.bold))
+              .font(.caption2.weight(.medium))
               .foregroundStyle(sky.inkFaint)
             Text(bus.arrival)
-              .dynamicFont(size: 16, relativeTo: .body, weight: .semibold, design: .rounded)
+              .dynamicFont(size: 16, relativeTo: .body, weight: .medium, design: .rounded)
               .monospacedDigit()
               .foregroundStyle(sky.inkSecondary)
           }
 
           if let note = bus.note {
             Text(note)
-              .dynamicFont(size: 11, relativeTo: .caption2, weight: .medium)
+              .dynamicFont(size: 12, relativeTo: .caption, weight: .regular)
               .foregroundStyle(sky.inkSecondary)
           }
         }
@@ -348,13 +340,14 @@ struct UpcomingDepartureRow: View {
 
         if let countdown {
           Text(countdown)
-            .dynamicFont(size: 12, relativeTo: .caption, weight: .bold, design: .rounded)
+            .dynamicFont(size: 13, relativeTo: .footnote, weight: .medium, design: .rounded)
+            .monospacedDigit()
             .foregroundStyle(sky.inkSecondary)
         }
 
         if canSchedule {
           Image(systemName: isNotificationScheduled ? "bell.fill" : "bell")
-            .dynamicFont(size: 14, relativeTo: .body, weight: .semibold)
+            .dynamicFont(size: 16, relativeTo: .body, weight: .medium)
             .foregroundStyle(isNotificationScheduled ? sky.accent : sky.inkSecondary)
             .scaledTapTarget()
         }
@@ -387,18 +380,18 @@ struct NoticeCard: View {
   let isWarning: Bool
 
   var body: some View {
-    DynamicTypeStack(verticalAlignment: .top, spacing: 14) {
+    DynamicTypeStack(verticalAlignment: .top, spacing: 12) {
       Image(systemName: systemImage)
-        .dynamicFont(size: 24, relativeTo: .title3, weight: .semibold)
+        .dynamicFont(size: 20, relativeTo: .title3, weight: .medium)
         .foregroundStyle(isWarning ? sky.warning : sky.inkSecondary)
 
-      VStack(alignment: .leading, spacing: 6) {
+      VStack(alignment: .leading, spacing: 4) {
         Text(title)
-          .dynamicFont(size: 17, relativeTo: .headline, weight: .bold, design: .rounded)
+          .dynamicFont(size: 17, relativeTo: .headline, weight: .semibold, design: .rounded)
           .foregroundStyle(sky.ink)
           .fixedSize(horizontal: false, vertical: true)
         Text(message)
-          .dynamicFont(size: 13, relativeTo: .footnote, weight: .medium)
+          .dynamicFont(size: 13, relativeTo: .footnote, weight: .regular)
           .foregroundStyle(sky.inkSecondary)
           .fixedSize(horizontal: false, vertical: true)
       }

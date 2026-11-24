@@ -16,7 +16,6 @@
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
-			<!-- ウィジェットのタップでアプリを開き、その経路へ合わせるために使います。 -->
 			<key>CFBundleURLName</key>
 			<string>com.hara.BusTimeApp.route</string>
 			<key>CFBundleURLSchemes</key>

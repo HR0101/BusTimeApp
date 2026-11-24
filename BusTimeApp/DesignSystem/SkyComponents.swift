@@ -3,9 +3,13 @@ import SwiftUI
 /// 画面全体で共有する寸法です。値をここに集約し、画面ごとの数値のばらつきを防ぎます。
 enum SkyMetrics {
   /// カードの角丸半径です。
-  static let cardRadius: CGFloat = 22
-  /// カード内側の余白です。
-  static let cardPadding: CGFloat = 18
+  static let cardRadius: CGFloat = 20
+  /// カード内側の余白です。背景のピクセルと同じ4pt格子に乗せます。
+  static let cardPadding: CGFloat = 20
+  /// カードの中に敷く面（説明の帯や選択の溝）の角丸半径です。
+  static let innerRadius: CGFloat = 12
+  /// ボタンや入力欄など、操作部品の角丸半径です。
+  static let controlRadius: CGFloat = 8
   /// 画面左右の余白です。
   static let screenPadding: CGFloat = 20
   /// アクセシビリティ文字サイズ時の画面左右の余白です。
@@ -187,14 +191,14 @@ struct SkyPrimaryButton: View {
   let action: () -> Void
 
   /// ボタンの角丸半径です。
-  private let radius: CGFloat = 14
+  private let radius: CGFloat = SkyMetrics.innerRadius
 
   var body: some View {
     Button(action: action) {
       Label(title, systemImage: systemImage)
-        .dynamicFont(size: 15, relativeTo: .subheadline, weight: .bold, design: .rounded)
+        .dynamicFont(size: 15, relativeTo: .subheadline, weight: .semibold, design: .rounded)
         .foregroundStyle(sky.accentInk)
-        .padding(.horizontal, 18)
+        .padding(.horizontal, 20)
         .frame(minHeight: SkyMetrics.minimumTapSize)
         .background(
           RoundedRectangle(cornerRadius: radius, style: .continuous)
@@ -216,14 +220,14 @@ struct SkySecondaryButton: View {
   let action: () -> Void
 
   /// ボタンの角丸半径です。
-  private let radius: CGFloat = 14
+  private let radius: CGFloat = SkyMetrics.innerRadius
 
   var body: some View {
     Button(action: action) {
       Label(title, systemImage: systemImage)
-        .dynamicFont(size: 15, relativeTo: .subheadline, weight: .bold, design: .rounded)
+        .dynamicFont(size: 15, relativeTo: .subheadline, weight: .semibold, design: .rounded)
         .foregroundStyle(sky.ink)
-        .padding(.horizontal, 18)
+        .padding(.horizontal, 20)
         .frame(minHeight: SkyMetrics.minimumTapSize)
         .background(
           RoundedRectangle(cornerRadius: radius, style: .continuous)
@@ -251,7 +255,7 @@ struct SkyIconButton: View {
   var body: some View {
     Button(action: action) {
       Image(systemName: systemImage)
-        .dynamicFont(size: 16, relativeTo: .body, weight: .semibold)
+        .dynamicFont(size: 16, relativeTo: .body, weight: .medium)
         .foregroundStyle(isHighlighted ? sky.accentInk : sky.ink)
         .scaledTapTarget()
         // 風景の上に直接置くので、カードと同じ地を敷いて見え方を揃えます。
@@ -274,7 +278,13 @@ struct SkyIconButton: View {
   }
 }
 
-/// 2択以上の選択に使う、小さなチップです。
+/// 2択以上の選択に使う、溝の中の1区画です。
+///
+/// 選んでいる区画は、色で塗りつぶさずに一段持ち上げた面と輪郭で示します。
+/// 強調色は「この便を通知する」のような主要な操作のために取っておき、
+/// 条件の選択が画面でいちばん目立つことを避けるためです。
+/// 形の違いで選択が分かるので、「カラー以外で区別」がオンでも同じ見た目で伝わります。
+/// 並べるときは `skySegmentTrack()` で溝を敷きます。
 struct SkyChip: View {
   @Environment(\.sky) private var sky
   /// iPhoneの「ボタンの形」設定です。
@@ -284,56 +294,105 @@ struct SkyChip: View {
   let isSelected: Bool
   let action: () -> Void
 
+  /// 区画の角丸半径です。溝の角丸から溝の内側の余白を引いた値にして、角を揃えます。
+  private let radius: CGFloat = SkyMetrics.innerRadius - SkySegmentTrackMetrics.inset
+  /// 選んだ区画を持ち上げる面の濃さです。文字色を薄く重ね、昼夜どちらでも一段明暗が変わるようにします。
+  private let selectedFillOpacity: Double = 0.14
+  /// 選んだ区画の輪郭の濃さです。
+  private let selectedOutlineOpacity: Double = 0.36
+
+  private var shape: RoundedRectangle {
+    RoundedRectangle(cornerRadius: radius, style: .continuous)
+  }
+
   var body: some View {
     Button(action: action) {
       Text(title)
-        .dynamicFont(size: 14, relativeTo: .subheadline, weight: .bold, design: .rounded)
-        .foregroundStyle(isSelected ? sky.accentInk : sky.ink)
+        .dynamicFont(
+          size: 14,
+          relativeTo: .subheadline,
+          weight: isSelected ? .semibold : .medium,
+          design: .rounded
+        )
+        .foregroundStyle(sky.ink)
         .frame(maxWidth: .infinity)
         .frame(minHeight: SkyMetrics.minimumTapSize)
-        .background(chipBackground)
-        .overlay(
-          Capsule().stroke(
-            isSelected
-              ? Color.clear
-              : sky.ink.opacity(SkyButtonOutline.opacity(showButtonShapes: showButtonShapes)),
-            lineWidth: SkyMetrics.borderWidth
-          )
-        )
+        .background(shape.fill(isSelected ? sky.ink.opacity(selectedFillOpacity) : Color.clear))
+        .overlay(shape.stroke(outlineColor, lineWidth: SkyMetrics.borderWidth))
+        .contentShape(shape)
     }
     .buttonStyle(SkyPressStyle())
     .accessibilityAddTraits(isSelected ? .isSelected : [])
   }
 
-  /// チップの地です。
+  /// 区画の輪郭の色です。
   ///
-  /// 選んでいない側にも地を敷きます。地がないとカードごしに風景が透け、
-  /// うしろの明るさによって文字の読みやすさが変わってしまうためです。
-  @ViewBuilder
-  private var chipBackground: some View {
+  /// 選んでいない区画にはふだん輪郭を引きませんが、「ボタンの形」がオンのときは
+  /// 押せる範囲が分かるよう、選んでいない区画にも輪郭を引きます。
+  private var outlineColor: Color {
     if isSelected {
-      Capsule().fill(sky.accent)
-    } else {
-      Color.clear.skyCardFill(Capsule(), isDense: true)
+      return sky.ink.opacity(selectedOutlineOpacity)
     }
+    return showButtonShapes
+      ? sky.ink.opacity(SkyButtonOutline.emphasized)
+      : Color.clear
+  }
+}
+
+/// 選択の溝の寸法です。
+enum SkySegmentTrackMetrics {
+  /// 溝の内側の余白です。
+  static let inset: CGFloat = 4
+}
+
+/// チップを並べる溝を敷く修飾子です。
+private struct SkySegmentTrackModifier: ViewModifier {
+  @Environment(\.sky) private var sky
+  /// iPhoneの「ボタンの形」設定です。
+  @Environment(\.accessibilityShowButtonShapes) private var showButtonShapes
+
+  private var shape: RoundedRectangle {
+    RoundedRectangle(cornerRadius: SkyMetrics.innerRadius, style: .continuous)
+  }
+
+  func body(content: Content) -> some View {
+    content
+      .padding(SkySegmentTrackMetrics.inset)
+      // 溝にも地を敷きます。地がないとカードごしに風景が透け、
+      // うしろの明るさによって文字の読みやすさが変わってしまうためです。
+      .skyCardFill(shape, isDense: true)
+      .overlay(
+        shape.stroke(
+          sky.ink.opacity(SkyButtonOutline.opacity(showButtonShapes: showButtonShapes)),
+          lineWidth: SkyMetrics.borderWidth
+        )
+      )
+  }
+}
+
+extension View {
+  /// `SkyChip` を並べる溝を敷きます。
+  func skySegmentTrack() -> some View {
+    modifier(SkySegmentTrackModifier())
   }
 }
 
 // MARK: - 文字とレイアウトの部品
 
-/// セクションの上に置く、字間を広げた小さな見出しです。
+/// セクションの上に置く、小さな見出しです。
+///
+/// 字間は広げず、太さも中程度に留めます。見出しの役割は大きさと位置で示し、
+/// その下にある時刻や停留所名より目立たないようにするためです。
 struct SkySectionLabel: View {
   @Environment(\.sky) private var sky
-  @ScaledMetric(relativeTo: .caption) private var letterSpacing: CGFloat = 1.2
 
   let text: String
 
   var body: some View {
     Text(text)
       // 標準のテキストスタイルを直接使い、Dynamic Type監査でも追従を判定できるようにします。
-      .font(.system(.caption, design: .rounded, weight: .heavy))
-      .tracking(letterSpacing)
-      .foregroundStyle(sky.ink)
+      .font(.system(.footnote, design: .rounded, weight: .semibold))
+      .foregroundStyle(sky.inkSecondary)
       .accessibilityAddTraits(.isHeader)
   }
 }
@@ -361,10 +420,10 @@ struct SkyNoticeRow: View {
   var body: some View {
     DynamicTypeStack(verticalAlignment: .top, spacing: 8) {
       Image(systemName: systemImage)
-        .font(.caption.weight(.bold))
+        .font(.caption.weight(.medium))
         .foregroundStyle(isWarning ? sky.warning : sky.inkSecondary)
       Text(message)
-        .dynamicFont(size: 12, relativeTo: .caption, weight: .medium)
+        .dynamicFont(size: 12, relativeTo: .caption, weight: .regular)
         // 注意状態はアイコンの形と文面で伝え、本文は常に高コントラスト色にします。
         .foregroundStyle(isWarning ? sky.ink : sky.inkSecondary)
         .fixedSize(horizontal: false, vertical: true)

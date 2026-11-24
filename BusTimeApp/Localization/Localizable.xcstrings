@@ -3480,13 +3480,13 @@
               "one": {
                 "stringUnit": {
                   "state": "translated",
-                  "value": "Found %1$lld service. %2$@"
+                  "value": "%1$lld service · %2$@"
                 }
               },
               "other": {
                 "stringUnit": {
                   "state": "translated",
-                  "value": "Found %1$lld services. %2$@"
+                  "value": "%1$lld services · %2$@"
                 }
               }
             }
@@ -3495,13 +3495,13 @@
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "%1$lld便見つかりました。%2$@"
+            "value": "%1$lld便・%2$@"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "找到%1$lld个班次。%2$@"
+            "value": "%1$lld个班次 · %2$@"
           }
         }
       }
@@ -3515,13 +3515,13 @@
               "one": {
                 "stringUnit": {
                   "state": "translated",
-                  "value": "Found %lld service. There is no service today, so these are weekday times."
+                  "value": "%lld weekday service · no service today"
                 }
               },
               "other": {
                 "stringUnit": {
                   "state": "translated",
-                  "value": "Found %lld services. There is no service today, so these are weekday times."
+                  "value": "%lld weekday services · no service today"
                 }
               }
             }
@@ -3530,13 +3530,13 @@
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "%lld便見つかりました。運休日のため平日ダイヤの時刻です"
+            "value": "平日ダイヤの%lld便・本日は運休"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "找到%lld个班次。今日停运，显示的是工作日时刻。"
+            "value": "工作日时刻的%lld个班次 · 今日停运"
           }
         }
       }
@@ -3886,6 +3886,52 @@
         }
       }
     },
+    "settings.legalSection": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Privacy & Terms"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "プライバシー・利用規約"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "隐私与条款"
+          }
+        }
+      }
+    },
+    "settings.legalWebsiteNotice": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Opens the developer’s website in your browser. Documents are available in Japanese."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ブラウザで開発者のWebサイトを開きます。本文は日本語で掲載しています。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "将在浏览器中打开开发者的网站。文档以日语提供。"
+          }
+        }
+      }
+    },
     "settings.liveActivityAvailable": {
       "extractionState": "manual",
       "localizations": {
@@ -4093,6 +4139,52 @@
         }
       }
     },
+    "settings.privacyPolicy": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Privacy Policy"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "プライバシーポリシー"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "隐私政策"
+          }
+        }
+      }
+    },
+    "settings.termsOfUse": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Terms of Use"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "利用規約"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "使用条款"
+          }
+        }
+      }
+    },
     "settings.title": {
       "extractionState": "manual",
       "localizations": {
@@ -4208,6 +4300,29 @@
         }
       }
     },
+    "shortcut.alertScheduled": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alert set for the %2$@ bus on %1$@, %3$lld minutes before it leaves."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@の%2$@発の便に、%3$lld分前の通知を設定しました。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已为%1$@ %2$@出发的班次设置提前%3$lld分钟的提醒。"
+          }
+        }
+      }
+    },
     "shortcut.answer": {
       "extractionState": "manual",
       "localizations": {
@@ -4227,6 +4342,121 @@
           "stringUnit": {
             "state": "translated",
             "value": "%1$@的下一班车%2$@出发，%3$@到达。%4$@。"
+          }
+        }
+      }
+    },
+    "shortcut.leadTimeFifteenMinutes": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "15 minutes before"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "15分前"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "提前15分钟"
+          }
+        }
+      }
+    },
+    "shortcut.leadTimeFiveMinutes": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "5 minutes before"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "5分前"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "提前5分钟"
+          }
+        }
+      }
+    },
+    "shortcut.leadTimeParameter": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alert timing"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "通知のタイミング"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "提醒时间"
+          }
+        }
+      }
+    },
+    "shortcut.leadTimeTenMinutes": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "10 minutes before"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "10分前"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "提前10分钟"
+          }
+        }
+      }
+    },
+    "shortcut.liveActivityParameter": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Also start a Live Activity"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Live Activityも開始"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "同时启动实时活动"
           }
         }
       }
@@ -4277,6 +4507,52 @@
         }
       }
     },
+    "shortcut.noBusToAlert": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "There is no bus left today on this route that an alert can be set for."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "この経路には、今日これから通知を設定できる便がありません。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "今天该路线已没有可以设置提醒的班次。"
+          }
+        }
+      }
+    },
+    "shortcut.noResponse": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The app did not finish in time. Please open the app and check."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "アプリでの処理が完了しませんでした。アプリを開いて確認してください。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "应用未能及时完成处理。请打开应用确认。"
+          }
+        }
+      }
+    },
     "shortcut.noService": {
       "extractionState": "manual",
       "localizations": {
@@ -4300,6 +4576,52 @@
         }
       }
     },
+    "shortcut.openRouteDescription": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Opens the app on the home screen for the route you choose."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "選んだ経路のホームをアプリで開きます。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在应用中打开所选路线的主页。"
+          }
+        }
+      }
+    },
+    "shortcut.openRouteTitle": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open a route"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "経路を指定して開く"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "打开指定路线"
+          }
+        }
+      }
+    },
     "shortcut.phrase": {
       "extractionState": "manual",
       "localizations": {
@@ -4319,6 +4641,213 @@
           "stringUnit": {
             "state": "translated",
             "value": "%@的下一班车"
+          }
+        }
+      }
+    },
+    "shortcut.routeAutoDescription": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "If left empty, the route is chosen the way the app does it: your own choice first, otherwise by time of day and your last destination."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "指定しないときは、アプリと同じ判断（自分で選んだ経路、なければ時間帯と前回の行き先）で決めます。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "不指定时，将与应用采用相同的判断（优先使用您自己选择的路线，否则按时间段和上次的目的地决定）。"
+          }
+        }
+      }
+    },
+    "shortcut.routeMansionToStation": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "コロンブスシティ → 海浜幕張駅"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "コロンブスシティ → 海浜幕張駅"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "コロンブスシティ → 海浜幕張駅"
+          }
+        }
+      }
+    },
+    "shortcut.routeMansionToYokado": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "コロンブスシティ → ヨーカドー前"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "コロンブスシティ → ヨーカドー前"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "コロンブスシティ → ヨーカドー前"
+          }
+        }
+      }
+    },
+    "shortcut.routeParameter": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Route"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "経路"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "路线"
+          }
+        }
+      }
+    },
+    "shortcut.routeStationToMansion": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "海浜幕張駅 → コロンブスシティ"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "海浜幕張駅 → コロンブスシティ"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "海浜幕張駅 → コロンブスシティ"
+          }
+        }
+      }
+    },
+    "shortcut.routeStationToYokado": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "海浜幕張駅 → ヨーカドー前"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "海浜幕張駅 → ヨーカドー前"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "海浜幕張駅 → ヨーカドー前"
+          }
+        }
+      }
+    },
+    "shortcut.routeYokadoToMansion": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ヨーカドー前 → コロンブスシティ"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ヨーカドー前 → コロンブスシティ"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ヨーカドー前 → コロンブスシティ"
+          }
+        }
+      }
+    },
+    "shortcut.startAlertDescription": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sets an alert for the next bus on the route you choose. It can also start a Live Activity."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "選んだ経路の次の便に通知を設定します。Live Activityも一緒に開始できます。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "为所选路线的下一班车设置提醒，也可以同时启动实时活动。"
+          }
+        }
+      }
+    },
+    "shortcut.startAlertTitle": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Set an alert for the next bus"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "次の便の通知を設定"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "为下一班车设置提醒"
           }
         }
       }
@@ -4875,29 +5404,6 @@
         }
       }
     },
-    "timetable.notificationHintBody": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "You will be alerted before the service departs. Times with an alert change colour."
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "選んだ便が出発する前にお知らせします。設定した時刻は色が変わります。"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "将在所选班次出发前通知您。已设置的时刻会变色。"
-          }
-        }
-      }
-    },
     "timetable.notificationHintTitle": {
       "extractionState": "manual",
       "localizations": {
@@ -4927,19 +5433,19 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "To change the route, choose the stops on the Home tab"
+            "value": "Change the route on Home"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "経路を変えるときは、ホームタブで出発地と目的地を選んでください"
+            "value": "経路はホームで変更できます"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "要更改路线，请在首页标签页选择出发地和目的地"
+            "value": "可在首页更改路线"
           }
         }
       }
@@ -5330,19 +5836,19 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Shows services arriving by the time you set, closest arrival first"
+            "value": "closest to your arrival time first"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "指定した時刻までに目的地へ着く便を、到着時刻が近い順に表示します"
+            "value": "到着が指定時刻に近い順"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "按到达时间由近及远显示能在指定时间前抵达的班次"
+            "value": "按到达时间由近及远"
           }
         }
       }
@@ -5422,19 +5928,19 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Shows services departing after the time you set, earliest first"
+            "value": "earliest first"
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "指定した時刻以降に出発する便を、早い順に表示します"
+            "value": "出発の早い順"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "按最早顺序显示在指定时间之后出发的班次"
+            "value": "按出发先后"
           }
         }
       }
